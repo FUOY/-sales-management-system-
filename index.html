@@ -1045,6 +1045,220 @@
                 if (pageId === 'kpi') this.renderKPI();
             }
 
+            // --- ダッシュボード ---
+            renderDashboard() {
+                const filter = document.getElementById('dashboardFilter').value;
+                
+                // 統計カード
+                document.getElementById('statTotalCustomers').textContent = this.data.customers.length;
+                
+                // 本日の予定
+                const today = new Date().toISOString().split('T')[0];
+                const todaySchedules = this.data.schedules.filter(s => s.date === today);
+                document.getElementById('statTodaySchedule').textContent = todaySchedules.length;
+                
+                // 今週の活動
+                document.getElementById('statWeekActivities').textContent = this.data.activities.length;
+                
+                // 受注想定価格合計
+                const totalSales = this.data.activities.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+                document.getElementById('statTotalSales').textContent = '¥' + totalSales.toLocaleString();
+                
+                // グラフ描画
+                this.renderActivityChart();
+                this.renderProductChart();
+                this.renderStageFunnel();
+                this.renderProbabilityFunnel();
+                this.renderTimelineChart();
+            }
+            
+            renderActivityChart() {
+                const ctx = document.getElementById('chartActivity');
+                if (!ctx) return;
+                
+                // 既存のチャートを破棄
+                if (this.activityChart) this.activityChart.destroy();
+                
+                // 担当者別の活動件数を集計
+                const counts = {};
+                STAFFS.forEach(s => counts[s] = 0);
+                this.data.activities.forEach(a => {
+                    if (counts[a.assignee] !== undefined) counts[a.assignee]++;
+                });
+                
+                this.activityChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: STAFFS,
+                        datasets: [{
+                            label: '活動件数',
+                            data: STAFFS.map(s => counts[s]),
+                            backgroundColor: '#2c5aa0'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { 
+                                beginAtZero: true,
+                                ticks: { stepSize: 1 }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            renderProductChart() {
+                const ctx = document.getElementById('chartProduct');
+                if (!ctx) return;
+                
+                if (this.productChart) this.productChart.destroy();
+                
+                // 機種名別の売上集計
+                const products = {};
+                this.data.activities.forEach(a => {
+                    if (a.product && a.amount) {
+                        products[a.product] = (products[a.product] || 0) + Number(a.amount);
+                    }
+                });
+                
+                const labels = Object.keys(products);
+                const data = Object.values(products);
+                
+                this.productChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels.length > 0 ? labels : ['データなし'],
+                        datasets: [{
+                            data: data.length > 0 ? data : [1],
+                            backgroundColor: ['#2c5aa0', '#4a7bc8', '#6a9bd8', '#8abbe8']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+            
+            renderStageFunnel() {
+                const container = document.getElementById('funnelStage');
+                if (!container) return;
+                
+                const stages = ['アプローチ', 'ヒアリング', '提案', '見積提出', 'クロージング', '受注'];
+                const stageData = {};
+                
+                stages.forEach(s => stageData[s] = { count: 0, amount: 0 });
+                this.data.activities.forEach(a => {
+                    if (a.stage && stageData[a.stage] !== undefined) {
+                        stageData[a.stage].count++;
+                        stageData[a.stage].amount += Number(a.amount) || 0;
+                    }
+                });
+                
+                const maxAmount = Math.max(...Object.values(stageData).map(d => d.amount), 1);
+                
+                container.innerHTML = stages.map((stage, idx) => {
+                    const d = stageData[stage];
+                    const widthPercent = Math.max((d.amount / maxAmount) * 100, 25);
+                    const bgColor = `hsl(${210 - idx * 10}, 70%, ${50 + idx * 5}%)`;
+                    return `
+                        <div class="funnel-item" style="width: ${widthPercent}%; background-color: ${bgColor};">
+                            <div class="funnel-label">${stage}</div>
+                            <div class="funnel-value">${d.count}件 / ¥${(d.amount/10000).toFixed(0)}万</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            renderProbabilityFunnel() {
+                const container = document.getElementById('funnelProbability');
+                if (!container) return;
+                
+                const probs = ['A', 'B', 'C', 'D'];
+                const colors = { A: '#28a745', B: '#ffc107', C: '#fd7e14', D: '#dc3545' };
+                const probData = {};
+                
+                probs.forEach(p => probData[p] = { count: 0, amount: 0 });
+                this.data.activities.forEach(a => {
+                    if (a.probability && probData[a.probability] !== undefined) {
+                        probData[a.probability].count++;
+                        probData[a.probability].amount += Number(a.amount) || 0;
+                    }
+                });
+                
+                const maxAmount = Math.max(...Object.values(probData).map(d => d.amount), 1);
+                
+                container.innerHTML = probs.map(prob => {
+                    const d = probData[prob];
+                    const widthPercent = Math.max((d.amount / maxAmount) * 100, 25);
+                    return `
+                        <div class="funnel-item" style="width: ${widthPercent}%; background-color: ${colors[prob]};">
+                            <div class="funnel-label">確度${prob}</div>
+                            <div class="funnel-value">${d.count}件 / ¥${(d.amount/10000).toFixed(0)}万</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            renderTimelineChart() {
+                const ctx = document.getElementById('chartTimeline');
+                if (!ctx) return;
+                
+                if (this.timelineChart) this.timelineChart.destroy();
+                
+                // 月別の受注想定価格を集計
+                const monthlyData = {};
+                this.data.activities.forEach(a => {
+                    if (a.expectedDate && a.amount) {
+                        const month = a.expectedDate.substring(0, 7); // YYYY-MM
+                        monthlyData[month] = (monthlyData[month] || 0) + Number(a.amount);
+                    }
+                });
+                
+                const months = Object.keys(monthlyData).sort();
+                const amounts = months.map(m => monthlyData[m]);
+                
+                // 累積計算
+                const cumulative = [];
+                let sum = 0;
+                amounts.forEach(amt => {
+                    sum += amt;
+                    cumulative.push(sum);
+                });
+                
+                this.timelineChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: months.length > 0 ? months : ['データなし'],
+                        datasets: [
+                            {
+                                label: '月次受注想定',
+                                data: amounts.length > 0 ? amounts : [0],
+                                borderColor: '#2c5aa0',
+                                backgroundColor: 'rgba(44, 90, 160, 0.1)',
+                                fill: true
+                            },
+                            {
+                                label: '累積',
+                                data: cumulative.length > 0 ? cumulative : [0],
+                                borderColor: '#28a745',
+                                backgroundColor: 'transparent',
+                                borderDash: [5, 5]
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+
             // --- 顧客管理 ---
             renderCustomers() {
                 const tbody = document.querySelector('#customersTable tbody');
@@ -1552,6 +1766,6 @@
 
         const app = new SalesApp();
     </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9af521823d77de82","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9af535f83ae3978f","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
 </body>
 </html>
