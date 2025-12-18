@@ -1,13 +1,13 @@
+
 <!DOCTYPE html>
-<html lang="ja" data-theme="light">
-<head>
+<html lang="ja" data-theme="light" style=""><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>販売管理システム</title>
     <!-- 外部ライブラリ -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
     <style>
         :root {
@@ -213,8 +213,26 @@
 
         .grid-dashboard {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 1.5rem;
+        }
+        
+        @media (max-width: 1200px) {
+            .grid-dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* チャート高さ制限 */
+        .chart-wrapper {
+            position: relative;
+            height: 280px;
+            width: 100%;
+        }
+        
+        .funnel-wrapper {
+            max-height: 300px;
+            overflow-y: auto;
         }
 
         /* テーブル */
@@ -264,7 +282,7 @@
             transition: width 0.5s ease;
         }
 
-        .funnel-label { font-weight: bold; flex: 1; }
+        .funnel-label { font-weight: bold; flex: 1; white-space: normal !important; }
         .funnel-value { white-space: nowrap; }
 
         /* カレンダー */
@@ -442,7 +460,7 @@
         }
     </style>
 </head>
-<body>
+<body style="">
 
     <!-- ログイン画面 -->
     <div id="loginScreen" class="login-container">
@@ -463,11 +481,11 @@
             <form id="loginForm">
                 <div class="form-group" style="text-align: left;">
                     <label>ユーザー名</label>
-                    <input type="text" id="username" value="admin" required>
+                    <input type="text" id="username" value="admin" required="">
                 </div>
                 <div class="form-group" style="text-align: left;">
                     <label>パスワード</label>
-                    <input type="password" id="password" value="password" required>
+                    <input type="password" id="password" value="password" required="">
                 </div>
                 <button type="submit" class="btn" style="width: 100%; justify-content: center; font-size: 1.1rem; padding: 0.8rem;">
                     <i class="fas fa-sign-in-alt"></i> ログイン
@@ -524,39 +542,49 @@
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="statTotalSales">¥0</div>
-                        <div class="stat-label">受注想定価格合計</div>
+                        <div class="stat-label" style="white-space: nowrap; font-size: 0.85rem;">受注想定価格合計</div>
                     </div>
                 </div>
 
                 <div class="grid-dashboard">
                     <div class="card">
                         <h3>担当者別活動状況</h3>
-                        <canvas id="chartActivity"></canvas>
+                        <div class="chart-wrapper">
+                            <canvas id="chartActivity"></canvas>
+                        </div>
                     </div>
                     <div class="card">
                         <h3>機種名別売上</h3>
-                        <canvas id="chartProduct"></canvas>
+                        <div class="chart-wrapper">
+                            <canvas id="chartProduct"></canvas>
+                        </div>
                     </div>
                     <div class="card">
-                        <h3>ステージ別案件数</h3>
-                        <div id="funnelStage" class="funnel-container"></div>
+                        <h3 style="white-space: normal;">ステージ別案件数</h3>
+                        <div class="funnel-wrapper">
+                            <div id="funnelStage" class="funnel-container"></div>
+                        </div>
                     </div>
                     <div class="card">
-                        <h3>確度別分布</h3>
-                        <div id="funnelProbability" class="funnel-container"></div>
+                        <h3 style="white-space: normal;">確度別分布</h3>
+                        <div class="funnel-wrapper">
+                            <div id="funnelProbability" class="funnel-container"></div>
+                        </div>
                     </div>
                     <div class="card" style="grid-column: 1 / -1;">
                         <h3>受注予定タイムライン (KPI目標線付き)</h3>
-                        <canvas id="chartTimeline" height="300"></canvas>
+                        <div class="chart-wrapper" style="height: 300px;">
+                            <canvas id="chartTimeline"></canvas>
+                        </div>
                     </div>
                 </div>
             </section>
 
             <!-- 顧客管理 -->
             <section id="customersPage" class="page-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                    <h2 class="page-title">顧客管理</h2>
-                    <button class="btn btn-primary" onclick="app.openCustomerModal()"><i class="fas fa-plus"></i> 新規顧客追加</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem;">
+                    <h2 class="page-title" style="margin: 0;">顧客管理</h2>
+                    <button class="btn btn-primary" style="flex-shrink: 0; min-width: auto; padding: 0.5rem 1rem;" onclick="app.openCustomerModal()"><i class="fas fa-plus"></i> 新規顧客追加</button>
                 </div>
                 <div class="card table-container">
                     <table id="customersTable">
@@ -690,9 +718,9 @@
 
                 <!-- 5. 個人別KPI入力フォーム -->
                 <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h3>個人別KPI (アクションプラン)</h3>
-                        <button class="btn btn-primary" onclick="app.openKPIModal()"><i class="fas fa-plus"></i> 項目追加</button>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 style="margin: 0;">個人別KPI (アクションプラン)</h3>
+                        <button class="btn btn-primary" style="flex-shrink: 0; padding: 0.5rem 1rem;" onclick="app.openKPIModal()"><i class="fas fa-plus"></i> 項目追加</button>
                     </div>
                     <table id="personalKPITable">
                         <thead>
@@ -717,13 +745,13 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>顧客情報</h3>
-                <button class="close-btn" onclick="app.closeModal('customerModal')">&times;</button>
+                <button class="close-btn" onclick="app.closeModal('customerModal')">×</button>
             </div>
             <form id="customerForm" onsubmit="app.saveCustomer(event)">
                 <input type="hidden" id="customerId">
                 <div class="form-group">
                     <label>顧客名 *</label>
-                    <input type="text" id="customerName" required>
+                    <input type="text" id="customerName" required="">
                 </div>
                 <div class="form-group">
                     <label>業種</label>
@@ -749,7 +777,7 @@
                 </div>
                 <div class="form-group">
                     <label>主担当者 *</label>
-                    <select id="customerAssignee" required class="staff-select"></select>
+                    <select id="customerAssignee" required="" class="staff-select"></select>
                 </div>
                 <div class="actions">
                     <button type="button" class="btn btn-secondary" onclick="app.closeModal('customerModal')">キャンセル</button>
@@ -764,7 +792,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3><span id="staffModalCustomerName"></span> の担当者一覧</h3>
-                <button class="close-btn" onclick="app.closeModal('customerStaffModal')">&times;</button>
+                <button class="close-btn" onclick="app.closeModal('customerStaffModal')">×</button>
             </div>
             <div style="margin-bottom: 1rem; text-align: right;">
                 <button class="btn btn-primary" onclick="app.addCustomerStaff()"><i class="fas fa-plus"></i> 担当者追加</button>
@@ -783,27 +811,125 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>予定情報</h3>
-                <button class="close-btn" onclick="app.closeModal('scheduleModal')">&times;</button>
+                <button class="close-btn" onclick="app.closeModal('scheduleModal')">×</button>
             </div>
             <form id="scheduleForm" onsubmit="app.saveSchedule(event)">
                 <input type="hidden" id="scheduleId">
                 <div class="form-group">
                     <label>タイトル *</label>
-                    <input type="text" id="scheduleTitle" required>
+                    <input type="text" id="scheduleTitle" required="">
                 </div>
                 <div class="form-row" style="display: flex; gap: 1rem;">
                     <div class="form-group" style="flex: 1;">
                         <label>日付 *</label>
-                        <input type="date" id="scheduleDate" required>
+                        <input type="date" id="scheduleDate" required="">
                     </div>
                     <div class="form-group" style="flex: 1;">
                         <label>時間</label>
-                        <input type="time" id="scheduleTime" step="900">
+                        <select id="scheduleTime">
+                            <option value="">選択してください</option>
+                            <option value="00:00">00:00</option>
+                            <option value="00:15">00:15</option>
+                            <option value="00:30">00:30</option>
+                            <option value="00:45">00:45</option>
+                            <option value="01:00">01:00</option>
+                            <option value="01:15">01:15</option>
+                            <option value="01:30">01:30</option>
+                            <option value="01:45">01:45</option>
+                            <option value="02:00">02:00</option>
+                            <option value="02:15">02:15</option>
+                            <option value="02:30">02:30</option>
+                            <option value="02:45">02:45</option>
+                            <option value="03:00">03:00</option>
+                            <option value="03:15">03:15</option>
+                            <option value="03:30">03:30</option>
+                            <option value="03:45">03:45</option>
+                            <option value="04:00">04:00</option>
+                            <option value="04:15">04:15</option>
+                            <option value="04:30">04:30</option>
+                            <option value="04:45">04:45</option>
+                            <option value="05:00">05:00</option>
+                            <option value="05:15">05:15</option>
+                            <option value="05:30">05:30</option>
+                            <option value="05:45">05:45</option>
+                            <option value="06:00">06:00</option>
+                            <option value="06:15">06:15</option>
+                            <option value="06:30">06:30</option>
+                            <option value="06:45">06:45</option>
+                            <option value="07:00">07:00</option>
+                            <option value="07:15">07:15</option>
+                            <option value="07:30">07:30</option>
+                            <option value="07:45">07:45</option>
+                            <option value="08:00">08:00</option>
+                            <option value="08:15">08:15</option>
+                            <option value="08:30">08:30</option>
+                            <option value="08:45">08:45</option>
+                            <option value="09:00">09:00</option>
+                            <option value="09:15">09:15</option>
+                            <option value="09:30">09:30</option>
+                            <option value="09:45">09:45</option>
+                            <option value="10:00">10:00</option>
+                            <option value="10:15">10:15</option>
+                            <option value="10:30">10:30</option>
+                            <option value="10:45">10:45</option>
+                            <option value="11:00">11:00</option>
+                            <option value="11:15">11:15</option>
+                            <option value="11:30">11:30</option>
+                            <option value="11:45">11:45</option>
+                            <option value="12:00">12:00</option>
+                            <option value="12:15">12:15</option>
+                            <option value="12:30">12:30</option>
+                            <option value="12:45">12:45</option>
+                            <option value="13:00">13:00</option>
+                            <option value="13:15">13:15</option>
+                            <option value="13:30">13:30</option>
+                            <option value="13:45">13:45</option>
+                            <option value="14:00">14:00</option>
+                            <option value="14:15">14:15</option>
+                            <option value="14:30">14:30</option>
+                            <option value="14:45">14:45</option>
+                            <option value="15:00">15:00</option>
+                            <option value="15:15">15:15</option>
+                            <option value="15:30">15:30</option>
+                            <option value="15:45">15:45</option>
+                            <option value="16:00">16:00</option>
+                            <option value="16:15">16:15</option>
+                            <option value="16:30">16:30</option>
+                            <option value="16:45">16:45</option>
+                            <option value="17:00">17:00</option>
+                            <option value="17:15">17:15</option>
+                            <option value="17:30">17:30</option>
+                            <option value="17:45">17:45</option>
+                            <option value="18:00">18:00</option>
+                            <option value="18:15">18:15</option>
+                            <option value="18:30">18:30</option>
+                            <option value="18:45">18:45</option>
+                            <option value="19:00">19:00</option>
+                            <option value="19:15">19:15</option>
+                            <option value="19:30">19:30</option>
+                            <option value="19:45">19:45</option>
+                            <option value="20:00">20:00</option>
+                            <option value="20:15">20:15</option>
+                            <option value="20:30">20:30</option>
+                            <option value="20:45">20:45</option>
+                            <option value="21:00">21:00</option>
+                            <option value="21:15">21:15</option>
+                            <option value="21:30">21:30</option>
+                            <option value="21:45">21:45</option>
+                            <option value="22:00">22:00</option>
+                            <option value="22:15">22:15</option>
+                            <option value="22:30">22:30</option>
+                            <option value="22:45">22:45</option>
+                            <option value="23:00">23:00</option>
+                            <option value="23:15">23:15</option>
+                            <option value="23:30">23:30</option>
+                            <option value="23:45">23:45</option>
+                        </select>
                     </div>
                 </div>
                 <div class="form-group">
                     <label>担当者 *</label>
-                    <select id="scheduleAssignee" required class="staff-select"></select>
+                    <select id="scheduleAssignee" required="" class="staff-select"></select>
                 </div>
                 <div class="actions">
                     <button type="button" class="btn btn-danger" id="deleteScheduleBtn" style="display: none;" onclick="app.deleteSchedule()">削除</button>
@@ -819,27 +945,27 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>活動記録</h3>
-                <button class="close-btn" onclick="app.closeModal('activityModal')">&times;</button>
+                <button class="close-btn" onclick="app.closeModal('activityModal')">×</button>
             </div>
             <form id="activityForm" onsubmit="app.saveActivity(event)">
                 <input type="hidden" id="activityId">
                 <div class="form-row" style="display: flex; gap: 1rem;">
                     <div class="form-group" style="flex: 1;">
                         <label>日付 *</label>
-                        <input type="date" id="activityDate" required>
+                        <input type="date" id="activityDate" required="">
                     </div>
                     <div class="form-group" style="flex: 1;">
                         <label>担当 *</label>
-                        <select id="activityAssignee" required class="staff-select"></select>
+                        <select id="activityAssignee" required="" class="staff-select"></select>
                     </div>
                 </div>
                 <div class="form-group">
                     <label>得意先 *</label>
-                    <select id="activityCustomer" required></select>
+                    <select id="activityCustomer" required=""></select>
                 </div>
                 <div class="form-group">
                     <label>目的 *</label>
-                    <select id="activityPurpose" required>
+                    <select id="activityPurpose" required="">
                         <option value="A">A: 新規事業活動</option>
                         <option value="B">B: 商談促進</option>
                         <option value="C">C: 仕様打合せ</option>
@@ -912,17 +1038,17 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>個人KPI項目</h3>
-                <button class="close-btn" onclick="app.closeModal('kpiItemModal')">&times;</button>
+                <button class="close-btn" onclick="app.closeModal('kpiItemModal')">×</button>
             </div>
             <form id="kpiItemForm" onsubmit="app.saveKPIItem(event)">
                 <input type="hidden" id="kpiItemId">
                 <div class="form-group">
                     <label>対象項目 *</label>
-                    <input type="text" id="kpiTargetItem" required placeholder="例: 新規訪問件数">
+                    <input type="text" id="kpiTargetItem" required="" placeholder="例: 新規訪問件数">
                 </div>
                 <div class="form-group">
                     <label>ゴール (目標値) *</label>
-                    <input type="text" id="kpiGoalValue" required placeholder="例: 10件/月">
+                    <input type="text" id="kpiGoalValue" required="" placeholder="例: 10件/月">
                 </div>
                 <div class="form-group">
                     <label>期限</label>
@@ -979,12 +1105,18 @@
                 const defaultData = {
                     customers: [
                         { id: 1, name: '株式会社A', industry: '製造', rank: 'A', status: '取引中', assignee: '大山', staffs: [] },
-                        { id: 2, name: 'B商事', industry: '商社', rank: 'B', status: 'アプローチ中', assignee: '永森', staffs: [] }
+                        { id: 2, name: 'B商事', industry: '商社', rank: 'B', status: 'アプローチ中', assignee: '永森', staffs: [] },
+                        { id: 3, name: 'C工業', industry: '製造', rank: 'A', status: '取引中', assignee: '清水', staffs: [] }
                     ],
                     schedules: [
-                        { id: 1, title: '定期訪問', date: '2024-12-17', time: '10:00', assignee: '大山' }
+                        { id: 1, title: '定期訪問', date: '2024-12-17', time: '10:00', assignee: '大山' },
+                        { id: 2, title: '商談', date: '2024-12-18', time: '14:00', assignee: '永森' }
                     ],
-                    activities: [],
+                    activities: [
+                        { id: 1, date: '2024-12-10', assignee: '大山', customer: '株式会社A', purpose: 'B', partner: '田中部長', product: 'システムX', content: '新規システム導入の提案', stage: '提案', probability: 'A', amount: 50000000, expectedDate: '2025-01-15' },
+                        { id: 2, date: '2024-12-12', assignee: '永森', customer: 'B商事', purpose: 'A', partner: '鈴木課長', product: 'システムY', content: '初回訪問・ニーズヒアリング', stage: 'ヒアリング', probability: 'B', amount: 30000000, expectedDate: '2025-02-20' },
+                        { id: 3, date: '2024-12-14', assignee: '清水', customer: 'C工業', purpose: 'C', partner: '佐藤氏', product: 'システムZ', content: '仕様詳細打ち合わせ', stage: '見積提出', probability: 'A', amount: 80000000, expectedDate: '2025-01-30' }
+                    ],
                     kpiSettings: {
                         totalTarget: 300000000,
                         personalTarget: 100000000,
@@ -1112,6 +1244,11 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
                         scales: {
                             y: { 
                                 beginAtZero: true,
@@ -1150,7 +1287,16 @@
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: false
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    boxWidth: 12,
+                                    font: { size: 11 }
+                                }
+                            }
+                        }
                     }
                 });
             }
@@ -1174,12 +1320,12 @@
                 
                 container.innerHTML = stages.map((stage, idx) => {
                     const d = stageData[stage];
-                    const widthPercent = Math.max((d.amount / maxAmount) * 100, 25);
+                    const widthPercent = Math.max((d.amount / maxAmount) * 100, 30);
                     const bgColor = `hsl(${210 - idx * 10}, 70%, ${50 + idx * 5}%)`;
                     return `
-                        <div class="funnel-item" style="width: ${widthPercent}%; background-color: ${bgColor};">
-                            <div class="funnel-label">${stage}</div>
-                            <div class="funnel-value">${d.count}件 / ¥${(d.amount/10000).toFixed(0)}万</div>
+                        <div class="funnel-item" style="width: ${widthPercent}%; background-color: ${bgColor}; min-height: 50px;">
+                            <div class="funnel-label" style="white-space: nowrap !important;">${stage}</div>
+                            <div class="funnel-value" style="white-space: nowrap;">${d.count}件 / ¥${(d.amount/10000).toFixed(0)}万</div>
                         </div>
                     `;
                 }).join('');
@@ -1205,11 +1351,11 @@
                 
                 container.innerHTML = probs.map(prob => {
                     const d = probData[prob];
-                    const widthPercent = Math.max((d.amount / maxAmount) * 100, 25);
+                    const widthPercent = Math.max((d.amount / maxAmount) * 100, 30);
                     return `
-                        <div class="funnel-item" style="width: ${widthPercent}%; background-color: ${colors[prob]};">
-                            <div class="funnel-label">確度${prob}</div>
-                            <div class="funnel-value">${d.count}件 / ¥${(d.amount/10000).toFixed(0)}万</div>
+                        <div class="funnel-item" style="width: ${widthPercent}%; background-color: ${colors[prob]}; min-height: 50px;">
+                            <div class="funnel-label" style="white-space: nowrap !important;">確度${prob}</div>
+                            <div class="funnel-value" style="white-space: nowrap;">${d.count}件 / ¥${(d.amount/10000).toFixed(0)}万</div>
                         </div>
                     `;
                 }).join('');
@@ -1251,22 +1397,40 @@
                                 data: amounts.length > 0 ? amounts : [0],
                                 borderColor: '#2c5aa0',
                                 backgroundColor: 'rgba(44, 90, 160, 0.1)',
-                                fill: true
+                                fill: true,
+                                tension: 0.3
                             },
                             {
                                 label: '累積',
                                 data: cumulative.length > 0 ? cumulative : [0],
                                 borderColor: '#28a745',
                                 backgroundColor: 'transparent',
-                                borderDash: [5, 5]
+                                borderDash: [5, 5],
+                                tension: 0.3
                             }
                         ]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    boxWidth: 12,
+                                    font: { size: 11 }
+                                }
+                            }
+                        },
                         scales: {
-                            y: { beginAtZero: true }
+                            y: { 
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '¥' + (value / 10000).toFixed(0) + '万';
+                                    }
+                                }
+                            }
                         }
                     }
                 });
@@ -1524,6 +1688,7 @@
 
             saveSchedule(e) {
                 e.preventDefault();
+                
                 const id = document.getElementById('scheduleId').value;
                 const schedule = {
                     id: id ? parseInt(id) : Date.now(),
@@ -1798,6 +1963,6 @@
 
         const app = new SalesApp();
     </script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9afa715b0e4460ba","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
-</body>
-</html>
+
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9afab9169bb2d5bf","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
+</body></html>
