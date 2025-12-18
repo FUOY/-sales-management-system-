@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja" data-theme="light" style=""><head>
     <meta charset="UTF-8">
@@ -470,22 +469,28 @@
                 <p>完全動作版</p>
             </div>
             
-            <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem; text-align: left;">
-                <p style="margin: 0; font-size: 0.9rem; color: #0d47a1;">
-                    <i class="fas fa-info-circle"></i> <strong>デモアカウント</strong><br>
-                    ユーザー名: <strong>admin</strong><br>
-                    パスワード: <strong>password</strong>
+            <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem; text-align: left; font-size: 0.85rem;">
+                <p style="margin: 0; color: #0d47a1;">
+                    <i class="fas fa-info-circle"></i> <strong>ログインアカウント</strong><br>
+                    <strong>管理者:</strong> admin / admin2024<br>
+                    <strong>永森:</strong> eimori / eimo2024<br>
+                    <strong>箱崎:</strong> hakozaki / hako2024<br>
+                    <strong>清水:</strong> shimizu / shim2024<br>
+                    <strong>杉田:</strong> sugita / sugi2024<br>
+                    <strong>安里:</strong> asato / asat2024<br>
+                    <strong>鎌田:</strong> kamata / kama2024<br>
+                    <strong>大山:</strong> oyama / oyam2024
                 </p>
             </div>
 
             <form id="loginForm">
                 <div class="form-group" style="text-align: left;">
                     <label>ユーザー名</label>
-                    <input type="text" id="username" value="admin" required="">
+                    <input type="text" id="username" required="" placeholder="例: admin">
                 </div>
                 <div class="form-group" style="text-align: left;">
                     <label>パスワード</label>
-                    <input type="password" id="password" value="password" required="">
+                    <input type="password" id="password" required="" placeholder="パスワードを入力">
                 </div>
                 <button type="submit" class="btn" style="width: 100%; justify-content: center; font-size: 1.1rem; padding: 0.8rem;">
                     <i class="fas fa-sign-in-alt"></i> ログイン
@@ -522,8 +527,33 @@
                     <div>
                         <select id="dashboardFilter" onchange="app.renderDashboard()" style="width: auto; display: inline-block;">
                             <option value="all">全体表示</option>
-                            <option value="personal">個人表示 (大山)</option>
+                            <option value="personal">個人表示</option>
                         </select>
+                    </div>
+                </div>
+
+                <!-- 売上達成状況 -->
+                <div class="card">
+                    <h3>売上達成状況</h3>
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <strong id="dashboardKpiLabel">全体達成率</strong>
+                            <div>
+                                <span style="color: var(--primary); font-size: 1.2rem; font-weight: bold;" id="dashboardKpiRate">0%</span>
+                                <span style="margin-left: 1rem; color: #dc3545;">不足: <span id="dashboardKpiShortage">¥0</span></span>
+                            </div>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div id="dashboardKpiBar" class="progress-bar" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.9rem;">
+                        <div>
+                            <strong>売上目標:</strong> <span id="dashboardKpiTarget">¥0</span>
+                        </div>
+                        <div>
+                            <strong>現在売上:</strong> <span id="dashboardKpiCurrent">¥0</span>
+                        </div>
                     </div>
                 </div>
 
@@ -572,8 +602,8 @@
                         </div>
                     </div>
                     <div class="card" style="grid-column: 1 / -1;">
-                        <h3>受注予定タイムライン (KPI目標線付き)</h3>
-                        <div class="chart-wrapper" style="height: 300px;">
+                        <h3>受注予定タイムライン（年度末まで・KPI目標線付き）</h3>
+                        <div class="chart-wrapper" style="height: 350px;">
                             <canvas id="chartTimeline"></canvas>
                         </div>
                     </div>
@@ -677,42 +707,20 @@
             <section id="kpiPage" class="page-section">
                 <h2 class="page-title">KPI設定</h2>
                 
-                <div class="grid-dashboard">
-                    <div class="card">
-                        <h3>売上目標設定</h3>
-                        <div class="form-group">
-                            <label>全体売上目標 (¥)</label>
-                            <input type="number" id="kpiTotalTarget" value="300000000">
-                        </div>
-                        <div class="form-group">
-                            <label>個人売上目標 (大山) (¥)</label>
-                            <input type="number" id="kpiPersonalTarget" value="100000000">
-                        </div>
-                        <div class="actions">
-                            <button class="btn btn-primary" onclick="app.saveKPITargets()">目標保存</button>
-                        </div>
+                <div class="card">
+                    <h3>売上目標設定</h3>
+                    <div class="form-group">
+                        <label>全体売上目標 (円) *</label>
+                        <input type="text" id="kpiTotalTarget" required="" placeholder="例: 300,000,000" oninput="app.formatCurrency(this)" onblur="app.validateCurrency(this)">
+                        <small style="color: #666;">※カンマ区切りで入力してください（例: 300,000,000）</small>
                     </div>
-
-                    <div class="card">
-                        <h3>達成状況</h3>
-                        <div style="margin-bottom: 1.5rem;">
-                            <div style="display: flex; justify-content: space-between;">
-                                <strong>全体達成率 <span id="kpiTotalRate">0%</span></strong>
-                                <span style="color: #dc3545;">不足: <span id="kpiTotalShortage">¥300,000,000</span></span>
-                            </div>
-                            <div class="progress-bar-container">
-                                <div id="kpiTotalBar" class="progress-bar" style="width: 0%">0%</div>
-                            </div>
-                        </div>
-                        <div>
-                            <div style="display: flex; justify-content: space-between;">
-                                <strong>個人達成率 <span id="kpiPersonalRate">0%</span></strong>
-                                <span style="color: #dc3545;">不足: <span id="kpiPersonalShortage">¥100,000,000</span></span>
-                            </div>
-                            <div class="progress-bar-container">
-                                <div id="kpiPersonalBar" class="progress-bar" style="width: 0%">0%</div>
-                            </div>
-                        </div>
+                    <div class="form-group">
+                        <label>個人売上目標 (円) *</label>
+                        <input type="text" id="kpiPersonalTarget" required="" placeholder="例: 100,000,000" oninput="app.formatCurrency(this)" onblur="app.validateCurrency(this)">
+                        <small style="color: #666;">※カンマ区切りで入力してください（例: 100,000,000）</small>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-primary" onclick="app.saveKPITargets()">目標保存</button>
                     </div>
                 </div>
 
@@ -1079,7 +1087,20 @@
 
         // 定数
         const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大山'];
-        const CURRENT_USER = { name: 'admin', assignee: '大山' };
+        
+        // ログインアカウント (ID: パスワード: 担当者名)
+        const USER_ACCOUNTS = {
+            'admin': { password: 'admin2024', assignee: 'admin', displayName: '管理者' },
+            'eimori': { password: 'eimo2024', assignee: '永森', displayName: '永森' },
+            'hakozaki': { password: 'hako2024', assignee: '箱崎', displayName: '箱崎' },
+            'shimizu': { password: 'shim2024', assignee: '清水', displayName: '清水' },
+            'sugita': { password: 'sugi2024', assignee: '杉田', displayName: '杉田' },
+            'asato': { password: 'asat2024', assignee: '安里', displayName: '安里' },
+            'kamata': { password: 'kama2024', assignee: '鎌田', displayName: '鎌田' },
+            'oyama': { password: 'oyam2024', assignee: '大山', displayName: '大山' }
+        };
+        
+        let CURRENT_USER = { username: '', assignee: '', displayName: '' };
 
         class SalesApp {
             constructor() {
@@ -1095,6 +1116,11 @@
                 
                 // ログインチェック (簡易)
                 if (localStorage.getItem('isLoggedIn') === 'true') {
+                    const savedUser = localStorage.getItem('currentUser');
+                    if (savedUser) {
+                        CURRENT_USER = JSON.parse(savedUser);
+                        document.querySelector('.user-info span').innerHTML = `<i class="fas fa-user-circle"></i> ${CURRENT_USER.displayName}`;
+                    }
                     document.getElementById('loginScreen').style.display = 'none';
                     document.getElementById('appContainer').style.display = 'flex';
                     this.showPage('dashboard');
@@ -1137,8 +1163,20 @@
                     e.preventDefault();
                     const u = document.getElementById('username').value;
                     const p = document.getElementById('password').value;
-                    if (u === 'admin' && p === 'password') {
+                    
+                    const account = USER_ACCOUNTS[u];
+                    if (account && account.password === p) {
+                        CURRENT_USER = {
+                            username: u,
+                            assignee: account.assignee,
+                            displayName: account.displayName
+                        };
                         localStorage.setItem('isLoggedIn', 'true');
+                        localStorage.setItem('currentUser', JSON.stringify(CURRENT_USER));
+                        
+                        // ユーザー名表示更新
+                        document.querySelector('.user-info span').innerHTML = `<i class="fas fa-user-circle"></i> ${CURRENT_USER.displayName}`;
+                        
                         document.getElementById('loginScreen').style.display = 'none';
                         document.getElementById('appContainer').style.display = 'flex';
                         this.showPage('dashboard');
@@ -1150,6 +1188,7 @@
                 // ログアウト
                 document.getElementById('logoutBtn').addEventListener('click', () => {
                     localStorage.removeItem('isLoggedIn');
+                    localStorage.removeItem('currentUser');
                     location.reload();
                 });
             }
@@ -1193,33 +1232,68 @@
             // --- ダッシュボード ---
             renderDashboard() {
                 const filter = document.getElementById('dashboardFilter').value;
+                const isAdmin = CURRENT_USER.assignee === 'admin';
+                
+                // フィルタリング対象データ
+                let filteredActivities = this.data.activities;
+                let filteredSchedules = this.data.schedules;
+                let filteredCustomers = this.data.customers;
+                
+                if (filter === 'personal' && !isAdmin) {
+                    // 個人表示（admin以外）
+                    filteredActivities = this.data.activities.filter(a => a.assignee === CURRENT_USER.assignee);
+                    filteredSchedules = this.data.schedules.filter(s => s.assignee === CURRENT_USER.assignee);
+                    filteredCustomers = this.data.customers.filter(c => c.assignee === CURRENT_USER.assignee);
+                }
                 
                 // 統計カード
-                document.getElementById('statTotalCustomers').textContent = this.data.customers.length;
+                document.getElementById('statTotalCustomers').textContent = filteredCustomers.length;
                 
                 // 本日の予定
                 const today = new Date().toISOString().split('T')[0];
-                const todaySchedules = this.data.schedules.filter(s => s.date === today);
+                const todaySchedules = filteredSchedules.filter(s => s.date === today);
                 document.getElementById('statTodaySchedule').textContent = todaySchedules.length;
                 
                 // 今週の活動
-                document.getElementById('statWeekActivities').textContent = this.data.activities.length;
+                document.getElementById('statWeekActivities').textContent = filteredActivities.length;
                 
-                // 受注想定価格合計
-                const totalSales = this.data.activities.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+                // 受注想定価格合計（全ステージ）
+                const totalSales = filteredActivities.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
                 document.getElementById('statTotalSales').textContent = '¥' + totalSales.toLocaleString();
                 
-                // グラフ描画
-                this.renderActivityChart();
-                this.renderProductChart();
-                this.renderStageFunnel();
-                this.renderProbabilityFunnel();
-                this.renderTimelineChart();
+                // 売上達成状況（「受注」ステージのみ）
+                const orderedSales = filteredActivities
+                    .filter(a => a.stage === '受注')
+                    .reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+                
+                const target = filter === 'personal' && !isAdmin ? 
+                    this.data.kpiSettings.personalTarget : 
+                    this.data.kpiSettings.totalTarget;
+                const rate = Math.round((orderedSales / target) * 100) || 0;
+                const shortage = target - orderedSales;
+                
+                document.getElementById('dashboardKpiLabel').textContent = 
+                    filter === 'personal' && !isAdmin ? '個人達成率' : '全体達成率';
+                document.getElementById('dashboardKpiRate').textContent = rate + '%';
+                document.getElementById('dashboardKpiShortage').textContent = '¥' + shortage.toLocaleString();
+                document.getElementById('dashboardKpiBar').style.width = Math.min(rate, 100) + '%';
+                document.getElementById('dashboardKpiBar').textContent = rate + '%';
+                document.getElementById('dashboardKpiTarget').textContent = '¥' + Number(target).toLocaleString();
+                document.getElementById('dashboardKpiCurrent').textContent = '¥' + orderedSales.toLocaleString();
+                
+                // グラフ描画（フィルタリングされたデータで）
+                this.renderActivityChart(filteredActivities);
+                this.renderProductChart(filteredActivities);
+                this.renderStageFunnel(filteredActivities);
+                this.renderProbabilityFunnel(filteredActivities);
+                this.renderTimelineChart(filteredActivities);
             }
             
-            renderActivityChart() {
+            renderActivityChart(activities = null) {
                 const ctx = document.getElementById('chartActivity');
                 if (!ctx) return;
+                
+                const dataSource = activities || this.data.activities;
                 
                 // 既存のチャートを破棄
                 if (this.activityChart) this.activityChart.destroy();
@@ -1227,7 +1301,7 @@
                 // 担当者別の活動件数を集計
                 const counts = {};
                 STAFFS.forEach(s => counts[s] = 0);
-                this.data.activities.forEach(a => {
+                dataSource.forEach(a => {
                     if (counts[a.assignee] !== undefined) counts[a.assignee]++;
                 });
                 
@@ -1259,15 +1333,17 @@
                 });
             }
             
-            renderProductChart() {
+            renderProductChart(activities = null) {
                 const ctx = document.getElementById('chartProduct');
                 if (!ctx) return;
+                
+                const dataSource = activities || this.data.activities;
                 
                 if (this.productChart) this.productChart.destroy();
                 
                 // 機種名別の売上集計
                 const products = {};
-                this.data.activities.forEach(a => {
+                dataSource.forEach(a => {
                     if (a.product && a.amount) {
                         products[a.product] = (products[a.product] || 0) + Number(a.amount);
                     }
@@ -1301,15 +1377,17 @@
                 });
             }
             
-            renderStageFunnel() {
+            renderStageFunnel(activities = null) {
                 const container = document.getElementById('funnelStage');
                 if (!container) return;
+                
+                const dataSource = activities || this.data.activities;
                 
                 const stages = ['アプローチ', 'ヒアリング', '提案', '見積提出', 'クロージング', '受注'];
                 const stageData = {};
                 
                 stages.forEach(s => stageData[s] = { count: 0, amount: 0 });
-                this.data.activities.forEach(a => {
+                dataSource.forEach(a => {
                     if (a.stage && stageData[a.stage] !== undefined) {
                         stageData[a.stage].count++;
                         stageData[a.stage].amount += Number(a.amount) || 0;
@@ -1331,16 +1409,18 @@
                 }).join('');
             }
             
-            renderProbabilityFunnel() {
+            renderProbabilityFunnel(activities = null) {
                 const container = document.getElementById('funnelProbability');
                 if (!container) return;
+                
+                const dataSource = activities || this.data.activities;
                 
                 const probs = ['A', 'B', 'C', 'D'];
                 const colors = { A: '#28a745', B: '#ffc107', C: '#fd7e14', D: '#dc3545' };
                 const probData = {};
                 
                 probs.forEach(p => probData[p] = { count: 0, amount: 0 });
-                this.data.activities.forEach(a => {
+                dataSource.forEach(a => {
                     if (a.probability && probData[a.probability] !== undefined) {
                         probData[a.probability].count++;
                         probData[a.probability].amount += Number(a.amount) || 0;
@@ -1361,22 +1441,44 @@
                 }).join('');
             }
             
-            renderTimelineChart() {
+            renderTimelineChart(activities = null) {
                 const ctx = document.getElementById('chartTimeline');
                 if (!ctx) return;
                 
+                const dataSource = activities || this.data.activities;
+                const filter = document.getElementById('dashboardFilter').value;
+                const isAdmin = CURRENT_USER.assignee === 'admin';
+                
                 if (this.timelineChart) this.timelineChart.destroy();
+                
+                // 現在の年度を取得（4月始まり）
+                const now = new Date();
+                const currentYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+                const fiscalYearEnd = `${currentYear + 1}-05`; // 翌年5月
+                
+                // 今月から年度末（5月）までの月を生成
+                const months = [];
+                const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                const endMonth = new Date(currentYear + 1, 4, 1); // 5月 = 4 (0-indexed)
+                
+                for (let d = new Date(startMonth); d <= endMonth; d.setMonth(d.getMonth() + 1)) {
+                    const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    months.push(monthStr);
+                }
                 
                 // 月別の受注想定価格を集計
                 const monthlyData = {};
-                this.data.activities.forEach(a => {
+                months.forEach(m => monthlyData[m] = 0);
+                
+                dataSource.forEach(a => {
                     if (a.expectedDate && a.amount) {
                         const month = a.expectedDate.substring(0, 7); // YYYY-MM
-                        monthlyData[month] = (monthlyData[month] || 0) + Number(a.amount);
+                        if (monthlyData[month] !== undefined) {
+                            monthlyData[month] += Number(a.amount);
+                        }
                     }
                 });
                 
-                const months = Object.keys(monthlyData).sort();
                 const amounts = months.map(m => monthlyData[m]);
                 
                 // 累積計算
@@ -1387,48 +1489,113 @@
                     cumulative.push(sum);
                 });
                 
+                // KPI目標値（フィルターに応じて切り替え）
+                const target = filter === 'personal' && !isAdmin ? 
+                    this.data.kpiSettings.personalTarget : 
+                    this.data.kpiSettings.totalTarget;
+                
+                // KPI目標線（全月で同じ値）
+                const targetLine = months.map(() => target);
+                
+                // 不足額（目標 - 累積）
+                const shortage = cumulative.map(c => Math.max(target - c, 0));
+                
                 this.timelineChart = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: months.length > 0 ? months : ['データなし'],
+                        labels: months.map(m => {
+                            const [y, mon] = m.split('-');
+                            return `${y}/${mon}`;
+                        }),
                         datasets: [
                             {
                                 label: '月次受注想定',
-                                data: amounts.length > 0 ? amounts : [0],
+                                data: amounts,
                                 borderColor: '#2c5aa0',
                                 backgroundColor: 'rgba(44, 90, 160, 0.1)',
-                                fill: true,
-                                tension: 0.3
+                                fill: false,
+                                tension: 0.3,
+                                yAxisID: 'y'
                             },
                             {
-                                label: '累積',
-                                data: cumulative.length > 0 ? cumulative : [0],
+                                label: '累積受注想定',
+                                data: cumulative,
                                 borderColor: '#28a745',
                                 backgroundColor: 'transparent',
+                                borderWidth: 3,
+                                tension: 0.3,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: 'KPI目標',
+                                data: targetLine,
+                                borderColor: '#dc3545',
+                                backgroundColor: 'transparent',
+                                borderDash: [10, 5],
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                tension: 0,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: '不足額',
+                                data: shortage,
+                                borderColor: '#fd7e14',
+                                backgroundColor: 'rgba(253, 126, 20, 0.1)',
+                                fill: true,
                                 borderDash: [5, 5],
-                                tension: 0.3
+                                tension: 0.3,
+                                yAxisID: 'y'
                             }
                         ]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
                         plugins: {
                             legend: {
                                 position: 'top',
                                 labels: {
-                                    boxWidth: 12,
-                                    font: { size: 11 }
+                                    boxWidth: 15,
+                                    font: { size: 11 },
+                                    padding: 10
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        label += '¥' + Math.round(context.parsed.y / 10000).toLocaleString() + '万';
+                                        return label;
+                                    }
                                 }
                             }
                         },
                         scales: {
                             y: { 
                                 beginAtZero: true,
+                                position: 'left',
                                 ticks: {
                                     callback: function(value) {
-                                        return '¥' + (value / 10000).toFixed(0) + '万';
+                                        return '¥' + (value / 10000000).toFixed(0) + '千万';
                                     }
+                                },
+                                title: {
+                                    display: true,
+                                    text: '金額'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: '受注予定月'
                                 }
                             }
                         }
@@ -1825,45 +1992,45 @@
             }
 
             // --- KPI設定 ---
-            // 5. KPI設定ページ機能追加
             renderKPI() {
-                // 目標値設定
-                document.getElementById('kpiTotalTarget').value = this.data.kpiSettings.totalTarget;
-                document.getElementById('kpiPersonalTarget').value = this.data.kpiSettings.personalTarget;
-
-                // 達成率計算 (活動記録の金額合計から簡易計算)
-                const totalSales = this.data.activities.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
-                const personalSales = this.data.activities
-                    .filter(a => a.assignee === CURRENT_USER.assignee)
-                    .reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
-
-                const totalTarget = this.data.kpiSettings.totalTarget;
-                const personalTarget = this.data.kpiSettings.personalTarget;
-
-                const totalRate = Math.round((totalSales / totalTarget) * 100) || 0;
-                const personalRate = Math.round((personalSales / personalTarget) * 100) || 0;
-
-                const totalShortage = totalTarget - totalSales;
-                const personalShortage = personalTarget - personalSales;
-
-                // 表示更新
-                document.getElementById('kpiTotalRate').textContent = totalRate + '%';
-                document.getElementById('kpiTotalShortage').textContent = '¥' + totalShortage.toLocaleString();
-                document.getElementById('kpiTotalBar').style.width = totalRate + '%';
-                document.getElementById('kpiTotalBar').textContent = totalRate + '%';
-
-                document.getElementById('kpiPersonalRate').textContent = personalRate + '%';
-                document.getElementById('kpiPersonalShortage').textContent = '¥' + personalShortage.toLocaleString();
-                document.getElementById('kpiPersonalBar').style.width = personalRate + '%';
-                document.getElementById('kpiPersonalBar').textContent = personalRate + '%';
+                // 目標値を表示（カンマ区切り）
+                document.getElementById('kpiTotalTarget').value = 
+                    Number(this.data.kpiSettings.totalTarget).toLocaleString();
+                document.getElementById('kpiPersonalTarget').value = 
+                    Number(this.data.kpiSettings.personalTarget).toLocaleString();
 
                 // KPI項目一覧
                 this.renderKPIItems();
             }
 
+            // 金額入力フォーマット（リアルタイム）
+            formatCurrency(input) {
+                let value = input.value.replace(/,/g, '');
+                if (value && !isNaN(value)) {
+                    input.value = Number(value).toLocaleString();
+                }
+            }
+
+            // 金額バリデーション
+            validateCurrency(input) {
+                let value = input.value.replace(/,/g, '');
+                if (!value || isNaN(value) || Number(value) <= 0) {
+                    this.showToast('正しい金額を入力してください', 'error');
+                    input.focus();
+                }
+            }
+
             saveKPITargets() {
-                this.data.kpiSettings.totalTarget = document.getElementById('kpiTotalTarget').value;
-                this.data.kpiSettings.personalTarget = document.getElementById('kpiPersonalTarget').value;
+                const totalStr = document.getElementById('kpiTotalTarget').value.replace(/,/g, '');
+                const personalStr = document.getElementById('kpiPersonalTarget').value.replace(/,/g, '');
+                
+                if (!totalStr || !personalStr || isNaN(totalStr) || isNaN(personalStr)) {
+                    this.showToast('正しい金額を入力してください', 'error');
+                    return;
+                }
+                
+                this.data.kpiSettings.totalTarget = Number(totalStr);
+                this.data.kpiSettings.personalTarget = Number(personalStr);
                 this.saveData();
                 this.renderKPI();
                 this.showToast('KPI目標を保存しました', 'success');
@@ -1964,5 +2131,5 @@
         const app = new SalesApp();
     </script>
 
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9afab9169bb2d5bf","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9afc092eeec5d79b","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
 </body></html>
