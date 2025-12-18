@@ -806,7 +806,7 @@
             </div>
             <table id="customerStaffTable">
                 <thead>
-                    <tr><th>部署・役職</th><th>氏名</th><th>連絡先</th><th>操作</th></tr>
+                    <tr><th>担当者名</th><th>部署・役職</th><th>連絡先</th><th>操作</th></tr>
                 </thead>
                 <tbody></tbody>
             </table>
@@ -1139,6 +1139,7 @@
                     ],
                     activities: [
                         { id: 1, date: '2024-12-10', assignee: '大山', customer: '株式会社A', purpose: 'B', partner: '田中部長', product: 'システムX', content: '新規システム導入の提案', stage: '提案', probability: 'A', amount: 50000000, expectedDate: '2025-01-15' },
+
                         { id: 2, date: '2024-12-12', assignee: '永森', customer: 'B商事', purpose: 'A', partner: '鈴木課長', product: 'システムY', content: '初回訪問・ニーズヒアリング', stage: 'ヒアリング', probability: 'B', amount: 30000000, expectedDate: '2025-02-20' },
                         { id: 3, date: '2024-12-14', assignee: '清水', customer: 'C工業', purpose: 'C', partner: '佐藤氏', product: 'システムZ', content: '仕様詳細打ち合わせ', stage: '見積提出', probability: 'A', amount: 80000000, expectedDate: '2025-01-30' }
                     ],
@@ -1635,6 +1636,31 @@
                     filteredCustomers = this.data.customers.filter(c => c.assignee === CURRENT_USER.assignee);
                 }
                 
+                // ソート処理
+                if (this.customersSortField) {
+                    filteredCustomers.sort((a, b) => {
+                        let aVal = a[this.customersSortField] || '';
+                        let bVal = b[this.customersSortField] || '';
+                        if (this.customersSortOrder === 'asc') {
+                            return aVal.localeCompare(bVal, 'ja');
+                        } else {
+                            return bVal.localeCompare(aVal, 'ja');
+                        }
+                    });
+                }
+                
+                // ソートアイコン更新
+                const icon = document.getElementById('sortIconName');
+                if (icon) {
+                    if (this.customersSortOrder === 'asc') {
+                        icon.className = 'fas fa-sort-up';
+                    } else if (this.customersSortOrder === 'desc') {
+                        icon.className = 'fas fa-sort-down';
+                    } else {
+                        icon.className = 'fas fa-sort';
+                    }
+                }
+                
                 const tbody = document.querySelector('#customersTable tbody');
                 tbody.innerHTML = filteredCustomers.map(c => `
                     <tr>
@@ -1757,6 +1783,36 @@
                 this.renderCustomers();
             }
 
+            // --- ソート機能 ---
+            sortCustomers(field) {
+                if (!this.customersSortField || this.customersSortField !== field) {
+                    this.customersSortField = field;
+                    this.customersSortOrder = 'asc';
+                } else {
+                    this.customersSortOrder = this.customersSortOrder === 'asc' ? 'desc' : 'asc';
+                }
+                this.renderCustomers();
+            }
+
+            sortActivities(field) {
+                if (!this.activitiesSortField || this.activitiesSortField !== field) {
+                    this.activitiesSortField = field;
+                    this.activitiesSortOrder = 'asc';
+                } else {
+                    this.activitiesSortOrder = this.activitiesSortOrder === 'asc' ? 'desc' : 'asc';
+                }
+                this.renderActivities();
+            }
+
+            sortScheduleList(field) {
+                if (!this.scheduleSortField || this.scheduleSortField !== field) {
+                    this.scheduleSortField = field;
+                    this.scheduleSortOrder = 'asc';
+                } else {
+                    this.scheduleSortOrder = this.scheduleSortOrder === 'asc' ? 'desc' : 'asc';
+                }
+                this.renderSchedule();
+            }
 
             // --- スケジュール ---
             renderSchedule() {
@@ -1842,8 +1898,34 @@
             }
             
             renderScheduleList(schedules) {
-                // 日付順ソート
-                schedules.sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+                // ソート処理
+                if (this.scheduleSortField) {
+                    schedules.sort((a, b) => {
+                        let aVal = a[this.scheduleSortField] || '';
+                        let bVal = b[this.scheduleSortField] || '';
+                        if (this.scheduleSortOrder === 'asc') {
+                            return aVal.localeCompare(bVal, 'ja');
+                        } else {
+                            return bVal.localeCompare(aVal, 'ja');
+                        }
+                    });
+                } else {
+                    // デフォルトは日付順ソート
+                    schedules.sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+                }
+                
+                // ソートアイコン更新
+                const icon = document.getElementById('sortIconScheduleDate');
+                if (icon) {
+                    if (this.scheduleSortOrder === 'asc') {
+                        icon.className = 'fas fa-sort-up';
+                    } else if (this.scheduleSortOrder === 'desc') {
+                        icon.className = 'fas fa-sort-down';
+                    } else {
+                        icon.className = 'fas fa-sort';
+                    }
+                }
+                
                 const tbody = document.querySelector('#scheduleListTable tbody');
                 tbody.innerHTML = schedules.map(s => `
                     <tr>
@@ -1926,6 +2008,31 @@
                 let filteredActivities = this.data.activities;
                 if (filter === 'personal' && !isAdmin) {
                     filteredActivities = this.data.activities.filter(a => a.assignee === CURRENT_USER.assignee);
+                }
+                
+                // ソート処理
+                if (this.activitiesSortField) {
+                    filteredActivities.sort((a, b) => {
+                        let aVal = a[this.activitiesSortField] || '';
+                        let bVal = b[this.activitiesSortField] || '';
+                        if (this.activitiesSortOrder === 'asc') {
+                            return aVal.localeCompare(bVal, 'ja');
+                        } else {
+                            return bVal.localeCompare(aVal, 'ja');
+                        }
+                    });
+                }
+                
+                // ソートアイコン更新
+                const icon = document.getElementById('sortIconActivityDate');
+                if (icon) {
+                    if (this.activitiesSortOrder === 'asc') {
+                        icon.className = 'fas fa-sort-up';
+                    } else if (this.activitiesSortOrder === 'desc') {
+                        icon.className = 'fas fa-sort-down';
+                    } else {
+                        icon.className = 'fas fa-sort';
+                    }
                 }
                 
                 const tbody = document.querySelector('#activitiesTable tbody');
@@ -2190,5 +2297,5 @@
         const app = new SalesApp();
     </script>
 
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9afc7bdb2e033bb3","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9afcb388bb40ed81","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
 </body></html>
