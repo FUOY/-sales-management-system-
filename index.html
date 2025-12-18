@@ -604,18 +604,20 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
                     <h2 class="page-title" style="margin: 0;">顧客管理</h2>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <select id="customersFilter" onchange="app.renderCustomers()" style="width: auto;">
+                        <select id="customersFilter" onchange="app.renderCustomers()" style="width: 150px; padding: 0.5rem;">
                             <option value="all">全員表示</option>
                             <option value="personal">個人表示</option>
                         </select>
-                        <button class="btn btn-primary" style="flex-shrink: 0; min-width: auto; padding: 0.5rem 1rem;" onclick="app.openCustomerModal()"><i class="fas fa-plus"></i> 新規顧客追加</button>
+                        <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="app.openCustomerModal()"><i class="fas fa-plus"></i> 新規顧客追加</button>
                     </div>
                 </div>
                 <div class="card table-container">
                     <table id="customersTable">
                         <thead>
                             <tr>
-                                <th>顧客名</th>
+                                <th style="cursor: pointer;" onclick="app.sortCustomers('name')">
+                                    顧客名 <i class="fas fa-sort" id="sortIconCustomerName"></i>
+                                </th>
                                 <th>業種</th>
                                 <th>ランク</th>
                                 <th>ステータス</th>
@@ -660,7 +662,17 @@
                     </div>
                     <div id="scheduleListView" style="display: none;">
                         <table id="scheduleListTable">
-                            <thead><tr><th>日付</th><th>時間</th><th>担当者</th><th>タイトル</th><th>操作</th></tr></thead>
+                            <thead>
+                            <tr>
+                                <th style="cursor: pointer;" onclick="app.sortScheduleList('date')">
+                                    日付 <i class="fas fa-sort" id="sortIconScheduleDate"></i>
+                                </th>
+                                <th>時間</th>
+                                <th>担当者</th>
+                                <th>タイトル</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
                             <tbody></tbody>
                         </table>
                     </div>
@@ -685,7 +697,9 @@
                     <table id="activitiesTable">
                         <thead>
                             <tr>
-                                <th>日付</th>
+                                <th style="cursor: pointer;" onclick="app.sortActivities('date')">
+                                    日付 <i class="fas fa-sort" id="sortIconActivityDate"></i>
+                                </th>
                                 <th>担当</th>
                                 <th>得意先</th>
                                 <th>目的</th>
@@ -1650,7 +1664,7 @@
                 }
                 
                 // ソートアイコン更新
-                const icon = document.getElementById('sortIconName');
+                const icon = document.getElementById('sortIconCustomerName');
                 if (icon) {
                     if (this.customersSortOrder === 'asc') {
                         icon.className = 'fas fa-sort-up';
@@ -1768,10 +1782,24 @@
 
                 const c = this.data.customers.find(x => x.id === this.currentEditingCustomerId);
                 if (!c.staffs) c.staffs = [];
-                c.staffs.push({ name, dept, contact });
+                c.staffs.push({ id: Date.now(), name, dept, contact });
                 this.saveData();
                 this.renderCustomerStaffs(c);
                 this.renderCustomers(); // 人数更新のため
+            }
+
+            editCustomerStaff(idx) {
+                const c = this.data.customers.find(x => x.id === this.currentEditingCustomerId);
+                const s = c.staffs[idx];
+                
+                const name = prompt('担当者名:', s.name);
+                if (!name) return;
+                const dept = prompt('部罒・役職:', s.dept || '');
+                const contact = prompt('連絡先:', s.contact || '');
+                
+                c.staffs[idx] = { id: s.id || Date.now(), name, dept, contact };
+                this.saveData();
+                this.renderCustomerStaffs(c);
             }
 
             deleteCustomerStaff(idx) {
@@ -2297,5 +2325,5 @@
         const app = new SalesApp();
     </script>
 
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9afcb388bb40ed81","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9afcd1571d4ce36a","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
 </body></html>
