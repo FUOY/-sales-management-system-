@@ -613,9 +613,15 @@
 
             <!-- 顧客管理 -->
             <section id="customersPage" class="page-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
                     <h2 class="page-title" style="margin: 0;">顧客管理</h2>
-                    <button class="btn btn-primary" style="flex-shrink: 0; min-width: auto; padding: 0.5rem 1rem;" onclick="app.openCustomerModal()"><i class="fas fa-plus"></i> 新規顧客追加</button>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <select id="customersFilter" onchange="app.renderCustomers()" style="width: auto;">
+                            <option value="all">全員表示</option>
+                            <option value="personal">個人表示</option>
+                        </select>
+                        <button class="btn btn-primary" style="flex-shrink: 0; min-width: auto; padding: 0.5rem 1rem;" onclick="app.openCustomerModal()"><i class="fas fa-plus"></i> 新規顧客追加</button>
+                    </div>
                 </div>
                 <div class="card table-container">
                     <table id="customersTable">
@@ -677,7 +683,11 @@
             <section id="activitiesPage" class="page-section">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
                     <h2 class="page-title">活動記録</h2>
-                    <div style="display: flex; gap: 10px;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <select id="activitiesFilter" onchange="app.renderActivities()" style="width: auto;">
+                            <option value="all">全員表示</option>
+                            <option value="personal">個人表示</option>
+                        </select>
                         <button class="btn btn-success" onclick="app.exportReport('weekly')"><i class="fas fa-file-csv"></i> 週報出力</button>
                         <button class="btn btn-success" onclick="app.exportReport('monthly')"><i class="fas fa-file-csv"></i> 月報出力</button>
                         <button class="btn btn-primary" onclick="app.openActivityModal()"><i class="fas fa-plus"></i> 記録追加</button>
@@ -1628,8 +1638,17 @@
 
             // --- 顧客管理 ---
             renderCustomers() {
+                const filter = document.getElementById('customersFilter').value;
+                const isAdmin = CURRENT_USER.assignee === 'admin';
+                
+                // フィルタリング
+                let filteredCustomers = this.data.customers;
+                if (filter === 'personal' && !isAdmin) {
+                    filteredCustomers = this.data.customers.filter(c => c.assignee === CURRENT_USER.assignee);
+                }
+                
                 const tbody = document.querySelector('#customersTable tbody');
-                tbody.innerHTML = this.data.customers.map(c => `
+                tbody.innerHTML = filteredCustomers.map(c => `
                     <tr>
                         <td>
                             <span class="customer-link" onclick="app.openCustomerStaffModal(${c.id})">${c.name}</span>
@@ -1912,6 +1931,15 @@
 
             // --- 活動記録 ---
             renderActivities() {
+                const filter = document.getElementById('activitiesFilter').value;
+                const isAdmin = CURRENT_USER.assignee === 'admin';
+                
+                // フィルタリング
+                let filteredActivities = this.data.activities;
+                if (filter === 'personal' && !isAdmin) {
+                    filteredActivities = this.data.activities.filter(a => a.assignee === CURRENT_USER.assignee);
+                }
+                
                 const tbody = document.querySelector('#activitiesTable tbody');
                 // 顧客プルダウン更新（ソート済み）
                 const customerSelect = document.getElementById('activityCustomer');
@@ -1919,7 +1947,7 @@
                 customerSelect.innerHTML = '<option value="">選択してください</option>' + 
                     sortedCustomers.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
 
-                tbody.innerHTML = this.data.activities.map(a => `
+                tbody.innerHTML = filteredActivities.map(a => `
                     <tr>
                         <td>${a.date}</td>
                         <td>${a.assignee}</td>
@@ -2166,5 +2194,5 @@
         const app = new SalesApp();
     </script>
 
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9afc417bb89bafd4","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9afc66d33c249b05","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
 </body></html>
