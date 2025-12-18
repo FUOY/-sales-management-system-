@@ -684,7 +684,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 10px; flex-wrap: wrap;">
                     <h2 class="page-title" style="margin: 0;">活動記録</h2>
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                        <select id="activitiesFilter" onchange="app.renderActivities()" style="width: auto; padding: 0.5rem;">
+                        <select id="activitiesFilter" onchange="app.renderActivities()" style="width: 150px; padding: 0.5rem;">
                             <option value="all">全員表示</option>
                             <option value="personal">個人表示</option>
                         </select>
@@ -741,7 +741,7 @@
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <h3 style="margin: 0;">個人別KPI (アクションプラン)</h3>
-                        <button class="btn btn-primary" style="flex-shrink: 0; padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="app.openKPIModal()"><i class="fas fa-plus"></i> 項目追加</button>
+                        <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="app.openKPIModal()"><i class="fas fa-plus"></i> 項目追加</button>
                     </div>
                     <table id="personalKPITable">
                         <thead>
@@ -1794,7 +1794,7 @@
                 
                 const name = prompt('担当者名:', s.name);
                 if (!name) return;
-                const dept = prompt('部罒・役職:', s.dept || '');
+                const dept = prompt('部署・役職:', s.dept || '');
                 const contact = prompt('連絡先:', s.contact || '');
                 
                 c.staffs[idx] = { id: s.id || Date.now(), name, dept, contact };
@@ -2325,5 +2325,5 @@
         const app = new SalesApp();
     </script>
 
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9afce5429dd63f1b","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9afd044d296efd4c","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
 </body></html>
