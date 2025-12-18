@@ -206,6 +206,7 @@
             font-weight: bold;
             color: var(--primary);
             margin: 0.5rem 0;
+            white-space: nowrap;
         }
 
         .stat-label { color: #666; font-size: 0.9rem; }
@@ -571,7 +572,7 @@
                         <div class="stat-label">今週の活動</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="statTotalSales">¥0</div>
+                        <div class="stat-value" id="statTotalSales" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">¥0</div>
                         <div class="stat-label" style="white-space: nowrap; font-size: 0.85rem;">受注想定価格合計</div>
                     </div>
                 </div>
@@ -1145,7 +1146,17 @@
                     ],
                     kpiSettings: {
                         totalTarget: 300000000,
-                        personalTarget: 100000000,
+                        personalTargets: {
+                            // ユーザーID: 目標額
+                            'admin': 100000000,
+                            'eimori': 100000000,
+                            'hakozaki': 100000000,
+                            'shimizu': 100000000,
+                            'sugita': 100000000,
+                            'asato': 100000000,
+                            'kamata': 100000000,
+                            'oyama': 100000000
+                        },
                         personalItems: []
                     }
                 };
@@ -1266,9 +1277,15 @@
                     .filter(a => a.stage === '受注')
                     .reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
                 
-                const target = filter === 'personal' && !isAdmin ? 
-                    this.data.kpiSettings.personalTarget : 
-                    this.data.kpiSettings.totalTarget;
+                let target;
+                if (filter === 'personal' && !isAdmin) {
+                    if (!this.data.kpiSettings.personalTargets) {
+                        this.data.kpiSettings.personalTargets = {};
+                    }
+                    target = this.data.kpiSettings.personalTargets[CURRENT_USER.username] || 0;
+                } else {
+                    target = this.data.kpiSettings.totalTarget;
+                }
                 const rate = Math.round((orderedSales / target) * 100) || 0;
                 const shortage = target - orderedSales;
                 
@@ -1490,9 +1507,15 @@
                 });
                 
                 // KPI目標値（フィルターに応じて切り替え）
-                const target = filter === 'personal' && !isAdmin ? 
-                    this.data.kpiSettings.personalTarget : 
-                    this.data.kpiSettings.totalTarget;
+                let target;
+                if (filter === 'personal' && !isAdmin) {
+                    if (!this.data.kpiSettings.personalTargets) {
+                        this.data.kpiSettings.personalTargets = {};
+                    }
+                    target = this.data.kpiSettings.personalTargets[CURRENT_USER.username] || 0;
+                } else {
+                    target = this.data.kpiSettings.totalTarget;
+                }
                 
                 // KPI目標線（全月で同じ値）
                 const targetLine = months.map(() => target);
@@ -1890,10 +1913,11 @@
             // --- 活動記録 ---
             renderActivities() {
                 const tbody = document.querySelector('#activitiesTable tbody');
-                // 顧客プルダウン更新
+                // 顧客プルダウン更新（ソート済み）
                 const customerSelect = document.getElementById('activityCustomer');
+                const sortedCustomers = [...this.data.customers].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
                 customerSelect.innerHTML = '<option value="">選択してください</option>' + 
-                    this.data.customers.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+                    sortedCustomers.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
 
                 tbody.innerHTML = this.data.activities.map(a => `
                     <tr>
@@ -1996,8 +2020,13 @@
                 // 目標値を表示（カンマ区切り）
                 document.getElementById('kpiTotalTarget').value = 
                     Number(this.data.kpiSettings.totalTarget).toLocaleString();
-                document.getElementById('kpiPersonalTarget').value = 
-                    Number(this.data.kpiSettings.personalTarget).toLocaleString();
+                
+                // 個人目標値（ログインユーザー固有）
+                if (!this.data.kpiSettings.personalTargets) {
+                    this.data.kpiSettings.personalTargets = {};
+                }
+                const myTarget = this.data.kpiSettings.personalTargets[CURRENT_USER.username] || 100000000;
+                document.getElementById('kpiPersonalTarget').value = Number(myTarget).toLocaleString();
 
                 // KPI項目一覧
                 this.renderKPIItems();
@@ -2030,7 +2059,13 @@
                 }
                 
                 this.data.kpiSettings.totalTarget = Number(totalStr);
-                this.data.kpiSettings.personalTarget = Number(personalStr);
+                
+                // 個人目標をログインユーザー固有に保存
+                if (!this.data.kpiSettings.personalTargets) {
+                    this.data.kpiSettings.personalTargets = {};
+                }
+                this.data.kpiSettings.personalTargets[CURRENT_USER.username] = Number(personalStr);
+                
                 this.saveData();
                 this.renderKPI();
                 this.showToast('KPI目標を保存しました', 'success');
@@ -2131,5 +2166,5 @@
         const app = new SalesApp();
     </script>
 
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9afc092eeec5d79b","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9afc417bb89bafd4","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
 </body></html>
