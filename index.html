@@ -470,19 +470,7 @@
                 <p>完全動作版</p>
             </div>
             
-            <div style="background-color: #e3f2fd; padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem; text-align: left; font-size: 0.85rem;">
-                <p style="margin: 0; color: #0d47a1;">
-                    <i class="fas fa-info-circle"></i> <strong>ログインアカウント</strong><br>
-                    <strong>管理者:</strong> admin / admin2024<br>
-                    <strong>永森:</strong> eimori / eimo2024<br>
-                    <strong>箱崎:</strong> hakozaki / hako2024<br>
-                    <strong>清水:</strong> shimizu / shim2024<br>
-                    <strong>杉田:</strong> sugita / sugi2024<br>
-                    <strong>安里:</strong> asato / asat2024<br>
-                    <strong>鎌田:</strong> kamata / kama2024<br>
-                    <strong>大山:</strong> oyama / oyam2024
-                </p>
-            </div>
+
 
             <form id="loginForm">
                 <div class="form-group" style="text-align: left;">
@@ -681,16 +669,16 @@
 
             <!-- 活動記録 -->
             <section id="activitiesPage" class="page-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
-                    <h2 class="page-title">活動記録</h2>
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <select id="activitiesFilter" onchange="app.renderActivities()" style="width: auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 10px; flex-wrap: wrap;">
+                    <h2 class="page-title" style="margin: 0;">活動記録</h2>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <select id="activitiesFilter" onchange="app.renderActivities()" style="width: auto; padding: 0.5rem;">
                             <option value="all">全員表示</option>
                             <option value="personal">個人表示</option>
                         </select>
-                        <button class="btn btn-success" onclick="app.exportReport('weekly')"><i class="fas fa-file-csv"></i> 週報出力</button>
-                        <button class="btn btn-success" onclick="app.exportReport('monthly')"><i class="fas fa-file-csv"></i> 月報出力</button>
-                        <button class="btn btn-primary" onclick="app.openActivityModal()"><i class="fas fa-plus"></i> 記録追加</button>
+                        <button class="btn btn-success" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="app.exportReport('weekly')"><i class="fas fa-file-csv"></i> 週報出力</button>
+                        <button class="btn btn-success" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="app.exportReport('monthly')"><i class="fas fa-file-csv"></i> 月報出力</button>
+                        <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="app.openActivityModal()"><i class="fas fa-plus"></i> 記録追加</button>
                     </div>
                 </div>
                 <div class="card table-container">
@@ -739,7 +727,7 @@
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <h3 style="margin: 0;">個人別KPI (アクションプラン)</h3>
-                        <button class="btn btn-primary" style="flex-shrink: 0; padding: 0.5rem 1rem;" onclick="app.openKPIModal()"><i class="fas fa-plus"></i> 項目追加</button>
+                        <button class="btn btn-primary" style="flex-shrink: 0; padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="app.openKPIModal()"><i class="fas fa-plus"></i> 項目追加</button>
                     </div>
                     <table id="personalKPITable">
                         <thead>
@@ -2031,16 +2019,24 @@
             }
 
             exportReport(type) {
-                const csvContent = "data:text/csv;charset=utf-8," 
-                    + "日付,担当,得意先,目的,商談内容\n"
-                    + this.data.activities.map(a => `${a.date},${a.assignee},${a.customer},${a.purpose},"${a.content}"`).join("\n");
+                // BOM付きUTF-8で出力（文字化け対策）
+                const BOM = '\uFEFF';
+                const header = '日付,担当,得意先,目的,商談内容\n';
+                const rows = this.data.activities.map(a => 
+                    `${a.date},${a.assignee},${a.customer},${a.purpose},"${(a.content || '').replace(/"/g, '""')}"`
+                ).join('\n');
                 
-                const encodedUri = encodeURI(csvContent);
-                const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `${type}_report.csv`);
+                const csvContent = BOM + header + rows;
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                
+                link.setAttribute('href', url);
+                link.setAttribute('download', `${type}_report.csv`);
+                link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
+                document.body.removeChild(link);
             }
 
             // --- KPI設定 ---
@@ -2194,5 +2190,5 @@
         const app = new SalesApp();
     </script>
 
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9afc66d33c249b05","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9afc7bdb2e033bb3","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
 </body></html>
