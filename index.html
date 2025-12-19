@@ -1,231 +1,1993 @@
 <!DOCTYPE html>
-<html lang="ja" data-theme="light">
-<head>
+<html lang="ja" data-theme="light" style=""><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>販売管理システム (localStorage版)</title>
+    <title>販売管理システム</title>
+    <!-- 外部ライブラリ -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
     <style>
-        :root { --primary: #2c5aa0; --primary-hover: #1e3a5f; --background: #f5f7fa; --card-bg: #ffffff; --text-color: #333333; }
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', 'Meiryo', sans-serif; background-color: var(--background); color: var(--text-color); min-height: 100vh; }
-        .auth-container { display: flex; justify-content: center; align-items: center; width: 100vw; height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); position: fixed; top: 0; left: 0; z-index: 9999; }
-        .auth-card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2); width: 90%; max-width: 420px; text-align: center; }
-        .auth-header { color: var(--primary); margin-bottom: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 0.75rem; }
-        .auth-header h2 { margin: 0 0 0.5rem 0; font-size: 1.5rem; }
-        .app-container { display: none; flex-direction: column; min-height: 100vh; }
-        .app-header { background: var(--primary); color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); }
-        .app-title { margin: 0; font-size: 1.5rem; font-weight: bold; color: white; }
-        .user-info { display: flex; align-items: center; gap: 1rem; }
-        .tab-menu { background: #1e3a5f; display: flex; padding: 0 1rem; overflow-x: auto; }
-        .tab-button { background: transparent; border: none; color: #ccc; padding: 1rem 1.5rem; cursor: pointer; transition: all 0.3s; font-weight: bold; font-size: 1rem; border-bottom: 3px solid transparent; }
-        .tab-button:hover { color: white; background: rgba(255, 255, 255, 0.1); }
-        .tab-button.active { color: white; border-bottom: 3px solid white; background: rgba(255, 255, 255, 0.05); }
-        .main-content { padding: 2rem; max-width: 1400px; margin: 0 auto; width: 100%; flex: 1; }
-        .page-section { display: none; animation: fadeIn 0.3s ease-in-out; }
-        .page-section.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .card { background: var(--card-bg); border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); padding: 1.5rem; margin-bottom: 1.5rem; overflow: hidden; }
-        .card h2, .card h3 { color: var(--primary); margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem; }
-        .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-        .stat-card { background: white; padding: 1.5rem; border-radius: 8px; text-align: center; border-left: 5px solid var(--primary); box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); }
-        .stat-value { font-size: 2rem; font-weight: bold; color: var(--primary); margin: 0.5rem 0; white-space: nowrap; }
+        :root {
+            --primary: #2c5aa0;
+            --primary-hover: #1e3a5f;
+            --background: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', 'Meiryo', sans-serif;
+            background-color: var(--background);
+            color: var(--text-color);
+            min-height: 100vh;
+        }
+
+        /* 1. ログイン画面のレイアウト修正 */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 9999;
+        }
+
+        .login-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 420px;
+            max-height: 90vh; /* 高さ制限 */
+            overflow-y: auto; /* スクロール対応 */
+            text-align: center;
+        }
+
+        .login-header {
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 0.75rem;
+        }
+        
+        .login-header h2 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.5rem;
+        }
+        
+        .login-header p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* 2. テキストの改行問題修正 */
+        .tab-button, 
+        .page-title, 
+        h2, h3, h4,
+        button, 
+        .btn, 
+        .modal-header h3,
+        th {
+            white-space: nowrap;
+        }
+
+        /* アプリケーション全体 */
+        .app-container {
+            display: none;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .app-header {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .app-title {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        /* タブメニュー */
+        .tab-menu {
+            background: #1e3a5f;
+            display: flex;
+            padding: 0 1rem;
+            overflow-x: auto;
+        }
+
+        .tab-button {
+            background: transparent;
+            border: none;
+            color: #ccc;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            font-size: 1rem;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-button:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .tab-button.active {
+            color: white;
+            border-bottom: 3px solid white;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* メインコンテンツ */
+        .main-content {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            flex: 1;
+            overflow-x: auto; /* 横スクロール対応 */
+        }
+
+        .page-section {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .page-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* カードコンポーネント */
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            overflow: hidden; /* コンテンツはみ出し防止 */
+        }
+
+        .card h2, .card h3 {
+            color: var(--primary);
+            margin-top: 0;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* グリッドレイアウト */
+        .grid-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 5px solid var(--primary);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin: 0.5rem 0;
+            white-space: nowrap;
+        }
+
         .stat-label { color: #666; font-size: 0.9rem; }
-        .grid-dashboard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
-        @media (max-width: 1200px) { .grid-dashboard { grid-template-columns: 1fr; } }
-        .chart-wrapper { position: relative; height: 280px; width: 100%; }
-        .funnel-wrapper { max-height: 300px; overflow-y: auto; }
-        .table-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd; white-space: nowrap; }
-        th { background-color: #f8f9fa; font-weight: bold; color: var(--primary); cursor: pointer; }
+
+        .grid-dashboard {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+        
+        @media (max-width: 1200px) {
+            .grid-dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* チャート高さ制限 */
+        .chart-wrapper {
+            position: relative;
+            height: 280px;
+            width: 100%;
+        }
+        
+        .funnel-wrapper {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        /* テーブル */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th { background-color: #f8f9fa; font-weight: bold; color: var(--primary); }
         tr:hover { background-color: #f5f5f5; }
-        .customer-link { color: var(--primary); text-decoration: underline; cursor: pointer; font-weight: bold; }
-        .funnel-container { display: flex; flex-direction: column; gap: 0.5rem; }
-        .funnel-item { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 1rem; color: white; border-radius: 4px; font-size: 0.9rem; transition: width 0.5s ease; }
-        .calendar-header { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; background: var(--primary); color: white; padding: 0.5rem 0; border-radius: 4px 4px 0 0; }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); border: 1px solid #ddd; }
-        .calendar-day { min-height: 120px; border: 1px solid #eee; padding: 0.5rem; background: white; position: relative; }
+
+        /* 顧客名リンク */
+        .customer-link {
+            color: var(--primary);
+            text-decoration: underline;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .customer-link:hover { color: var(--primary-hover); }
+
+        /* ファネルチャート */
+        .funnel-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .funnel-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 1rem;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: width 0.5s ease;
+        }
+
+        .funnel-label { font-weight: bold; flex: 1; white-space: normal !important; }
+        .funnel-value { white-space: nowrap; }
+
+        /* カレンダー */
+        .calendar-header {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            background: var(--primary);
+            color: white;
+            padding: 0.5rem 0;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            border: 1px solid #ddd;
+        }
+
+        .calendar-day {
+            min-height: 120px;
+            border: 1px solid #eee;
+            padding: 0.5rem;
+            background: white;
+            position: relative;
+        }
+
         .calendar-day.other-month { background-color: #f9f9f9; color: #ccc; }
         .calendar-day.today { background-color: #e3f2fd; }
-        .schedule-item { background: var(--primary); color: white; padding: 2px 5px; margin-bottom: 2px; border-radius: 3px; font-size: 0.75rem; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 10000; justify-content: center; align-items: center; }
+
+        .schedule-item {
+            background: var(--primary);
+            color: white;
+            padding: 2px 5px;
+            margin-bottom: 2px;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 担当者ごとの色分け */
+        .schedule-item[data-assignee="永森"] { background-color: #e91e63; }
+        .schedule-item[data-assignee="箱崎"] { background-color: #9c27b0; }
+        .schedule-item[data-assignee="清水"] { background-color: #673ab7; }
+        .schedule-item[data-assignee="杉田"] { background-color: #3f51b5; }
+        .schedule-item[data-assignee="安里"] { background-color: #2196f3; }
+        .schedule-item[data-assignee="鎌田"] { background-color: #03a9f4; }
+        .schedule-item[data-assignee="大山"] { background-color: #00bcd4; }
+
+        /* モーダル */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
         .modal.active { display: flex; }
-        .modal-content { background: white; padding: 2rem; border-radius: 8px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 1rem; }
-        .close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666; }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 1rem;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+
+        /* フォーム */
         .form-group { margin-bottom: 1rem; }
         label { display: block; margin-bottom: 0.5rem; font-weight: bold; color: #555; }
-        input, select, textarea { width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; }
-        .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; color: white; background-color: var(--primary); flex-shrink: 1; }
+        input, select, textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        /* ボタン */
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            color: white;
+            background-color: var(--primary);
+        }
         .btn:hover { background-color: var(--primary-hover); }
         .btn-secondary { background-color: #6c757d; }
+        .btn-secondary:hover { background-color: #5a6268; }
         .btn-danger { background-color: #dc3545; }
+        .btn-danger:hover { background-color: #c82333; }
         .btn-success { background-color: #28a745; }
-        .btn-sm { padding: 0.2rem 0.5rem; font-size: 0.8rem; }
-        .actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; }
-        .progress-bar-container { background-color: #e9ecef; border-radius: 0.25rem; height: 1.5rem; width: 100%; overflow: hidden; margin: 0.5rem 0; }
-        .progress-bar { background-color: #28a745; height: 100%; color: white; text-align: center; line-height: 1.5rem; font-size: 0.8rem; transition: width 0.6s ease; }
-        .toast { position: fixed; top: 20px; right: 20px; padding: 1rem 1.5rem; border-radius: 4px; color: white; font-weight: bold; display: none; z-index: 11000; box-shadow: 0 4px 6px rgba(0,0,0,0.1); animation: slideIn 0.3s ease-out; }
+        .btn-success:hover { background-color: #218838; }
+
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        /* KPIプログレスバー */
+        .progress-bar-container {
+            background-color: #e9ecef;
+            border-radius: 0.25rem;
+            height: 1.5rem;
+            width: 100%;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+        .progress-bar {
+            background-color: #28a745;
+            height: 100%;
+            color: white;
+            text-align: center;
+            line-height: 1.5rem;
+            font-size: 0.8rem;
+            transition: width 0.6s ease;
+        }
+
+        /* トースト通知 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            display: none;
+            z-index: 11000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            animation: slideIn 0.3s ease-out;
+        }
         .toast-success { background-color: #28a745; }
         .toast-error { background-color: #dc3545; }
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 20000; display: none; justify-content: center; align-items: center; flex-direction: column; }
-        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .header-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        .filter-select { width: 150px !important; padding: 0.5rem; }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
     </style>
 </head>
-<body>
-    <div id="loadingOverlay" class="loading-overlay"><div class="spinner"></div><p style="margin-top: 1rem; font-weight: bold; color: var(--primary);">Loading...</p></div>
-    <div id="loginScreen" class="auth-container">
-        <div class="auth-card">
-            <div class="auth-header"><h2><i class="fas fa-chart-line"></i> 販売管理システム</h2><p>localStorage版</p></div>
+<body style="">
+
+    <!-- ログイン画面 -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h2><i class="fas fa-chart-line"></i> 販売管理システム</h2>
+                <p>完全動作版</p>
+            </div>
+            
+
+
             <form id="loginForm">
-                <div class="form-group" style="text-align: left;"><label>ユーザーID</label><input type="text" id="username" required placeholder="admin"></div>
-                <div class="form-group" style="text-align: left;"><label>パスワード</label><input type="password" id="password" required placeholder="パスワードを入力"></div>
-                <button type="submit" class="btn" style="width: 100%; justify-content: center; padding: 0.8rem;">ログイン</button>
+                <div class="form-group" style="text-align: left;">
+                    <label>ユーザー名</label>
+                    <input type="text" id="username" required="" placeholder="例: admin">
+                </div>
+                <div class="form-group" style="text-align: left;">
+                    <label>パスワード</label>
+                    <input type="password" id="password" required="" placeholder="パスワードを入力">
+                </div>
+                <button type="submit" class="btn" style="width: 100%; justify-content: center; font-size: 1.1rem; padding: 0.8rem;">
+                    <i class="fas fa-sign-in-alt"></i> ログイン
+                </button>
             </form>
         </div>
     </div>
+
+    <!-- メインアプリケーション -->
     <div id="appContainer" class="app-container">
         <header class="app-header">
             <div class="app-title"><i class="fas fa-chart-line"></i> 販売管理システム</div>
-            <div class="user-info"><span id="userInfoDisplay"></span><button id="logoutBtn" class="btn btn-secondary" style="border: 1px solid white;">ログアウト</button></div>
+            <div class="user-info">
+                <span><i class="fas fa-user-circle"></i> 管理者 (大山)</span>
+                <button id="logoutBtn" class="btn btn-secondary" style="border: 1px solid white;">
+                    <i class="fas fa-sign-out-alt"></i> ログアウト
+                </button>
+            </div>
         </header>
+
         <nav class="tab-menu">
-            <button class="tab-button active" onclick="app.showPage('dashboard')">ダッシュボード</button>
-            <button class="tab-button" onclick="app.showPage('customers')">顧客管理</button>
-            <button class="tab-button" onclick="app.showPage('schedule')">スケジュール</button>
-            <button class="tab-button" onclick="app.showPage('activities')">活動記録</button>
-            <button class="tab-button" onclick="app.showPage('kpi')">KPI設定</button>
+            <button class="tab-button active" onclick="app.showPage('dashboard')"><i class="fas fa-tachometer-alt"></i> ダッシュボード</button>
+            <button class="tab-button" onclick="app.showPage('customers')"><i class="fas fa-users"></i> 顧客管理</button>
+            <button class="tab-button" onclick="app.showPage('schedule')"><i class="fas fa-calendar-alt"></i> スケジュール</button>
+            <button class="tab-button" onclick="app.showPage('activities')"><i class="fas fa-clipboard-list"></i> 活動記録</button>
+            <button class="tab-button" onclick="app.showPage('kpi')"><i class="fas fa-bullseye"></i> KPI設定</button>
         </nav>
+
         <main class="main-content">
-x.id == id);
+            <!-- ダッシュボード -->
+            <section id="dashboardPage" class="page-section active">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h2 class="page-title">ダッシュボード</h2>
+                    <div>
+                        <select id="dashboardFilter" onchange="app.renderDashboard()" style="width: auto; display: inline-block;">
+                            <option value="all">全体表示</option>
+                            <option value="personal">個人表示</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 売上達成状況 -->
+                <div class="card">
+                    <h3>売上達成状況</h3>
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <strong id="dashboardKpiLabel">全体達成率</strong>
+                            <div>
+                                <span style="color: var(--primary); font-size: 1.2rem; font-weight: bold;" id="dashboardKpiRate">0%</span>
+                                <span style="margin-left: 1rem; color: #dc3545;">不足: <span id="dashboardKpiShortage">¥0</span></span>
+                            </div>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div id="dashboardKpiBar" class="progress-bar" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.9rem;">
+                        <div>
+                            <strong>売上目標:</strong> <span id="dashboardKpiTarget">¥0</span>
+                        </div>
+                        <div>
+                            <strong>現在売上:</strong> <span id="dashboardKpiCurrent">¥0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statTotalCustomers">0</div>
+                        <div class="stat-label">総顧客数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statTodaySchedule">0</div>
+                        <div class="stat-label">本日の予定</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statWeekActivities">0</div>
+                        <div class="stat-label">今週の活動</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statTotalSales" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">¥0</div>
+                        <div class="stat-label" style="white-space: nowrap; font-size: 0.85rem;">受注想定価格合計</div>
+                    </div>
+                </div>
+
+                <div class="grid-dashboard">
+                    <div class="card">
+                        <h3>担当者別活動状況</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="chartActivity"></canvas>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>機種名別売上</h3>
+                        <div class="chart-wrapper">
+                            <canvas id="chartProduct"></canvas>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3 style="white-space: normal;">ステージ別案件数</h3>
+                        <div class="funnel-wrapper">
+                            <div id="funnelStage" class="funnel-container"></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3 style="white-space: normal;">確度別分布</h3>
+                        <div class="funnel-wrapper">
+                            <div id="funnelProbability" class="funnel-container"></div>
+                        </div>
+                    </div>
+                    <div class="card" style="grid-column: 1 / -1;">
+                        <h3>受注予定タイムライン（年度末まで・KPI目標線付き）</h3>
+                        <div class="chart-wrapper" style="height: 350px;">
+                            <canvas id="chartTimeline"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 顧客管理 -->
+            <section id="customersPage" class="page-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
+                    <h2 class="page-title" style="margin: 0;">顧客管理</h2>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <select id="customersFilter" onchange="app.renderCustomers()" style="width: 150px; padding: 0.5rem;">
+                            <option value="all">全員表示</option>
+                            <option value="personal">個人表示</option>
+                        </select>
+                        <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="app.openCustomerModal()"><i class="fas fa-plus"></i> 新規顧客追加</button>
+                    </div>
+                </div>
+                <div class="card table-container">
+                    <table id="customersTable">
+                        <thead>
+                            <tr>
+                                <th style="cursor: pointer;" onclick="app.sortCustomers('name')">
+                                    顧客名 <i class="fas fa-sort" id="sortIconCustomerName"></i>
+                                </th>
+                                <th>業種</th>
+                                <th>ランク</th>
+                                <th>ステータス</th>
+                                <th>主担当者</th>
+                                <th>担当者数</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- スケジュール -->
+            <section id="schedulePage" class="page-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
+                    <h2 class="page-title">スケジュール</h2>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <select id="scheduleFilterAssignee" onchange="app.renderSchedule()" style="width: auto;">
+                            <option value="all">全員</option>
+                            <!-- JSで担当者追加 -->
+                        </select>
+                        <select id="scheduleViewType" onchange="app.renderSchedule()" style="width: auto;">
+                            <option value="calendar">カレンダー</option>
+                            <option value="list">リスト一覧</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="app.openScheduleModal()"><i class="fas fa-plus"></i> 予定追加</button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <button class="btn btn-secondary" onclick="app.changeMonth(-1)"><i class="fas fa-chevron-left"></i> 前月</button>
+                        <h3 id="currentMonthLabel" style="margin: 0;">2024年 12月</h3>
+                        <button class="btn btn-secondary" onclick="app.changeMonth(1)">翌月 <i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div id="calendarView">
+                        <div class="calendar-header">
+                            <div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div>
+                        </div>
+                        <div id="calendarGrid" class="calendar-grid"></div>
+                    </div>
+                    <div id="scheduleListView" style="display: none;">
+                        <table id="scheduleListTable">
+                            <thead>
+                            <tr>
+                                <th style="cursor: pointer;" onclick="app.sortScheduleList('date')">
+                                    日付 <i class="fas fa-sort" id="sortIconScheduleDate"></i>
+                                </th>
+                                <th>時間</th>
+                                <th>担当者</th>
+                                <th>タイトル</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 活動記録 -->
+            <section id="activitiesPage" class="page-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 10px; flex-wrap: wrap;">
+                    <h2 class="page-title" style="margin: 0;">活動記録</h2>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <select id="activitiesFilter" onchange="app.renderActivities()" style="width: 150px; padding: 0.5rem;">
+                            <option value="all">全員表示</option>
+                            <option value="personal">個人表示</option>
+                        </select>
+                        <button class="btn btn-success" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="app.exportReport('weekly')"><i class="fas fa-file-csv"></i> 週報出力</button>
+                        <button class="btn btn-success" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="app.exportReport('monthly')"><i class="fas fa-file-csv"></i> 月報出力</button>
+                        <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="app.openActivityModal()"><i class="fas fa-plus"></i> 記録追加</button>
+                    </div>
+                </div>
+                <div class="card table-container">
+                    <table id="activitiesTable">
+                        <thead>
+                            <tr>
+                                <th style="cursor: pointer;" onclick="app.sortActivities('date')">
+                                    日付 <i class="fas fa-sort" id="sortIconActivityDate"></i>
+                                </th>
+                                <th>担当</th>
+                                <th>得意先</th>
+                                <th>目的</th>
+                                <th>相手</th>
+                                <th>商談内容</th>
+                                <th>ステージ</th>
+                                <th>確度</th>
+                                <th>金額</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- KPI設定 -->
+            <section id="kpiPage" class="page-section">
+                <h2 class="page-title">KPI設定</h2>
+                
+                <div class="card">
+                    <h3>売上目標設定</h3>
+                    <div class="form-group">
+                        <label>全体売上目標 (円) *</label>
+                        <input type="text" id="kpiTotalTarget" required="" placeholder="例: 300,000,000" oninput="app.formatCurrency(this)" onblur="app.validateCurrency(this)">
+                        <small style="color: #666;">※カンマ区切りで入力してください（例: 300,000,000）</small>
+                    </div>
+                    <div class="form-group">
+                        <label>個人売上目標 (円) *</label>
+                        <input type="text" id="kpiPersonalTarget" required="" placeholder="例: 100,000,000" oninput="app.formatCurrency(this)" onblur="app.validateCurrency(this)">
+                        <small style="color: #666;">※カンマ区切りで入力してください（例: 100,000,000）</small>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-primary" onclick="app.saveKPITargets()">目標保存</button>
+                    </div>
+                </div>
+
+                <!-- 5. 個人別KPI入力フォーム -->
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 style="margin: 0;">個人別KPI (アクションプラン)</h3>
+                        <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="app.openKPIModal()"><i class="fas fa-plus"></i> 項目追加</button>
+                    </div>
+                    <table id="personalKPITable">
+                        <thead>
+                            <tr>
+                                <th>対象項目</th>
+                                <th>ゴール (目標値)</th>
+                                <th>期限</th>
+                                <th>現状</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- モーダル群 -->
+    <!-- 顧客モーダル -->
+    <div id="customerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>顧客情報</h3>
+                <button class="close-btn" onclick="app.closeModal('customerModal')">×</button>
+            </div>
+            <form id="customerForm" onsubmit="app.saveCustomer(event)">
+                <input type="hidden" id="customerId">
+                <div class="form-group">
+                    <label>顧客名 *</label>
+                    <input type="text" id="customerName" required="">
+                </div>
+                <div class="form-group">
+                    <label>業種</label>
+                    <input type="text" id="customerIndustry">
+                </div>
+                <div class="form-row" style="display: flex; gap: 1rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>ランク</label>
+                        <select id="customerRank">
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>ステータス</label>
+                        <select id="customerStatus">
+                            <option value="取引中">取引中</option>
+                            <option value="アプローチ中">アプローチ中</option>
+                            <option value="休眠">休眠</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>主担当者 *</label>
+                    <select id="customerAssignee" required="" class="staff-select"></select>
+                </div>
+                <div class="actions">
+                    <button type="button" class="btn btn-secondary" onclick="app.closeModal('customerModal')">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. 担当者一覧モーダル (顧客名クリック時) -->
+    <div id="customerStaffModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><span id="staffModalCustomerName"></span> の担当者一覧</h3>
+                <button class="close-btn" onclick="app.closeModal('customerStaffModal')">×</button>
+            </div>
+            <div style="margin-bottom: 1rem; text-align: right;">
+                <button class="btn btn-primary" onclick="app.addCustomerStaff()"><i class="fas fa-plus"></i> 担当者追加</button>
+            </div>
+            <table id="customerStaffTable">
+                <thead>
+                    <tr><th>担当者名</th><th>部署・役職</th><th>連絡先</th><th>操作</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- スケジュールモーダル -->
+    <div id="scheduleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>予定情報</h3>
+                <button class="close-btn" onclick="app.closeModal('scheduleModal')">×</button>
+            </div>
+            <form id="scheduleForm" onsubmit="app.saveSchedule(event)">
+                <input type="hidden" id="scheduleId">
+                <div class="form-group">
+                    <label>タイトル *</label>
+                    <input type="text" id="scheduleTitle" required="">
+                </div>
+                <div class="form-row" style="display: flex; gap: 1rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>日付 *</label>
+                        <input type="date" id="scheduleDate" required="">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>時間</label>
+                        <select id="scheduleTime">
+                            <option value="">選択してください</option>
+                            <option value="00:00">00:00</option>
+                            <option value="00:15">00:15</option>
+                            <option value="00:30">00:30</option>
+                            <option value="00:45">00:45</option>
+                            <option value="01:00">01:00</option>
+                            <option value="01:15">01:15</option>
+                            <option value="01:30">01:30</option>
+                            <option value="01:45">01:45</option>
+                            <option value="02:00">02:00</option>
+                            <option value="02:15">02:15</option>
+                            <option value="02:30">02:30</option>
+                            <option value="02:45">02:45</option>
+                            <option value="03:00">03:00</option>
+                            <option value="03:15">03:15</option>
+                            <option value="03:30">03:30</option>
+                            <option value="03:45">03:45</option>
+                            <option value="04:00">04:00</option>
+                            <option value="04:15">04:15</option>
+                            <option value="04:30">04:30</option>
+                            <option value="04:45">04:45</option>
+                            <option value="05:00">05:00</option>
+                            <option value="05:15">05:15</option>
+                            <option value="05:30">05:30</option>
+                            <option value="05:45">05:45</option>
+                            <option value="06:00">06:00</option>
+                            <option value="06:15">06:15</option>
+                            <option value="06:30">06:30</option>
+                            <option value="06:45">06:45</option>
+                            <option value="07:00">07:00</option>
+                            <option value="07:15">07:15</option>
+                            <option value="07:30">07:30</option>
+                            <option value="07:45">07:45</option>
+                            <option value="08:00">08:00</option>
+                            <option value="08:15">08:15</option>
+                            <option value="08:30">08:30</option>
+                            <option value="08:45">08:45</option>
+                            <option value="09:00">09:00</option>
+                            <option value="09:15">09:15</option>
+                            <option value="09:30">09:30</option>
+                            <option value="09:45">09:45</option>
+                            <option value="10:00">10:00</option>
+                            <option value="10:15">10:15</option>
+                            <option value="10:30">10:30</option>
+                            <option value="10:45">10:45</option>
+                            <option value="11:00">11:00</option>
+                            <option value="11:15">11:15</option>
+                            <option value="11:30">11:30</option>
+                            <option value="11:45">11:45</option>
+                            <option value="12:00">12:00</option>
+                            <option value="12:15">12:15</option>
+                            <option value="12:30">12:30</option>
+                            <option value="12:45">12:45</option>
+                            <option value="13:00">13:00</option>
+                            <option value="13:15">13:15</option>
+                            <option value="13:30">13:30</option>
+                            <option value="13:45">13:45</option>
+                            <option value="14:00">14:00</option>
+                            <option value="14:15">14:15</option>
+                            <option value="14:30">14:30</option>
+                            <option value="14:45">14:45</option>
+                            <option value="15:00">15:00</option>
+                            <option value="15:15">15:15</option>
+                            <option value="15:30">15:30</option>
+                            <option value="15:45">15:45</option>
+                            <option value="16:00">16:00</option>
+                            <option value="16:15">16:15</option>
+                            <option value="16:30">16:30</option>
+                            <option value="16:45">16:45</option>
+                            <option value="17:00">17:00</option>
+                            <option value="17:15">17:15</option>
+                            <option value="17:30">17:30</option>
+                            <option value="17:45">17:45</option>
+                            <option value="18:00">18:00</option>
+                            <option value="18:15">18:15</option>
+                            <option value="18:30">18:30</option>
+                            <option value="18:45">18:45</option>
+                            <option value="19:00">19:00</option>
+                            <option value="19:15">19:15</option>
+                            <option value="19:30">19:30</option>
+                            <option value="19:45">19:45</option>
+                            <option value="20:00">20:00</option>
+                            <option value="20:15">20:15</option>
+                            <option value="20:30">20:30</option>
+                            <option value="20:45">20:45</option>
+                            <option value="21:00">21:00</option>
+                            <option value="21:15">21:15</option>
+                            <option value="21:30">21:30</option>
+                            <option value="21:45">21:45</option>
+                            <option value="22:00">22:00</option>
+                            <option value="22:15">22:15</option>
+                            <option value="22:30">22:30</option>
+                            <option value="22:45">22:45</option>
+                            <option value="23:00">23:00</option>
+                            <option value="23:15">23:15</option>
+                            <option value="23:30">23:30</option>
+                            <option value="23:45">23:45</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>担当者 *</label>
+                    <select id="scheduleAssignee" required="" class="staff-select"></select>
+                </div>
+                <div class="actions">
+                    <button type="button" class="btn btn-danger" id="deleteScheduleBtn" style="display: none;" onclick="app.deleteSchedule()">削除</button>
+                    <button type="button" class="btn btn-secondary" onclick="app.closeModal('scheduleModal')">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 活動記録モーダル -->
+    <div id="activityModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>活動記録</h3>
+                <button class="close-btn" onclick="app.closeModal('activityModal')">×</button>
+            </div>
+            <form id="activityForm" onsubmit="app.saveActivity(event)">
+                <input type="hidden" id="activityId">
+                <div class="form-row" style="display: flex; gap: 1rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>日付 *</label>
+                        <input type="date" id="activityDate" required="">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>担当 *</label>
+                        <select id="activityAssignee" required="" class="staff-select"></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>得意先 *</label>
+                    <select id="activityCustomer" required=""></select>
+                </div>
+                <div class="form-group">
+                    <label>目的 *</label>
+                    <select id="activityPurpose" required="">
+                        <option value="A">A: 新規事業活動</option>
+                        <option value="B">B: 商談促進</option>
+                        <option value="C">C: 仕様打合せ</option>
+                        <option value="D">D: 納入・営業立会い</option>
+                        <option value="E">E: クレーム対応</option>
+                        <option value="F">F: 無償作業</option>
+                        <option value="G">G: 有償作業</option>
+                        <option value="H">H: 相談・アドバイス</option>
+                        <option value="I">I: 部品調査</option>
+                        <option value="J">J: 情報収集</option>
+                        <option value="K">K: 社内業務</option>
+                    </select>
+                </div>
+                <div class="form-row" style="display: flex; gap: 1rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>相手</label>
+                        <input type="text" id="activityPartner">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>機種名</label>
+                        <input type="text" id="activityProduct">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>商談内容</label>
+                    <textarea id="activityContent" rows="3"></textarea>
+                </div>
+                <div class="form-row" style="display: flex; gap: 1rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>ステージ</label>
+                        <select id="activityStage">
+                            <option value="アプローチ">アプローチ</option>
+                            <option value="ヒアリング">ヒアリング</option>
+                            <option value="提案">提案</option>
+                            <option value="見積提出">見積提出</option>
+                            <option value="クロージング">クロージング</option>
+                            <option value="受注">受注</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>確度</label>
+                        <select id="activityProbability">
+                            <option value="A">A (高)</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D (低)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row" style="display: flex; gap: 1rem;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>受注想定価格</label>
+                        <input type="number" id="activityAmount">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>受注予定日</label>
+                        <input type="date" id="activityExpectedDate">
+                    </div>
+                </div>
+                <div class="actions">
+                    <button type="button" class="btn btn-secondary" onclick="app.closeModal('activityModal')">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- KPI項目モーダル -->
+    <div id="kpiItemModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>個人KPI項目</h3>
+                <button class="close-btn" onclick="app.closeModal('kpiItemModal')">×</button>
+            </div>
+            <form id="kpiItemForm" onsubmit="app.saveKPIItem(event)">
+                <input type="hidden" id="kpiItemId">
+                <div class="form-group">
+                    <label>対象項目 *</label>
+                    <input type="text" id="kpiTargetItem" required="" placeholder="例: 新規訪問件数">
+                </div>
+                <div class="form-group">
+                    <label>ゴール (目標値) *</label>
+                    <input type="text" id="kpiGoalValue" required="" placeholder="例: 10件/月">
+                </div>
+                <div class="form-group">
+                    <label>期限</label>
+                    <input type="date" id="kpiDeadline">
+                </div>
+                <div class="form-group">
+                    <label>現状</label>
+                    <input type="text" id="kpiCurrentStatus" placeholder="例: 3件">
+                </div>
+                <div class="actions">
+                    <button type="button" class="btn btn-secondary" onclick="app.closeModal('kpiItemModal')">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- トースト通知 -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // 4. 日付ズレ対策: タイムゾーンを考慮せず、年月日をそのまま解釈する関数
+        function parseDateString(dateStr) {
+            if (!dateStr) return new Date();
+            const [y, m, d] = dateStr.split('-').map(Number);
+            return new Date(y, m - 1, d);
+        }
+
+        // 定数
+        const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大山'];
+        
+        // ログインアカウント (ID: パスワード: 担当者名)
+        const USER_ACCOUNTS = {
+            'admin': { password: 'admin2024', assignee: 'admin', displayName: '管理者' },
+            'eimori': { password: 'eimo2024', assignee: '永森', displayName: '永森' },
+            'hakozaki': { password: 'hako2024', assignee: '箱崎', displayName: '箱崎' },
+            'shimizu': { password: 'shim2024', assignee: '清水', displayName: '清水' },
+            'sugita': { password: 'sugi2024', assignee: '杉田', displayName: '杉田' },
+            'asato': { password: 'asat2024', assignee: '安里', displayName: '安里' },
+            'kamata': { password: 'kama2024', assignee: '鎌田', displayName: '鎌田' },
+            'oyama': { password: 'oyam2024', assignee: '大山', displayName: '大山' }
+        };
+        
+        let CURRENT_USER = { username: '', assignee: '', displayName: '' };
+
+        class SalesApp {
+            constructor() {
+                this.data = this.loadData();
+                this.currentDate = new Date();
+                this.init();
+            }
+
+            // 初期化
+            init() {
+                this.setupEventListeners();
+                this.setupSelectOptions();
+                
+                // ログインチェック (簡易)
+                if (localStorage.getItem('isLoggedIn') === 'true') {
+                    const savedUser = localStorage.getItem('currentUser');
+                    if (savedUser) {
+                        CURRENT_USER = JSON.parse(savedUser);
+                        document.querySelector('.user-info span').innerHTML = `<i class="fas fa-user-circle"></i> ${CURRENT_USER.displayName}`;
+                    }
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('appContainer').style.display = 'flex';
+                    this.showPage('dashboard');
+                }
+            }
+
+            loadData() {
+                const defaultData = {
+                    customers: [
+                        { id: 1, name: '株式会社A', industry: '製造', rank: 'A', status: '取引中', assignee: '大山', staffs: [] },
+                        { id: 2, name: 'B商事', industry: '商社', rank: 'B', status: 'アプローチ中', assignee: '永森', staffs: [] },
+                        { id: 3, name: 'C工業', industry: '製造', rank: 'A', status: '取引中', assignee: '清水', staffs: [] }
+                    ],
+                    schedules: [
+                        { id: 1, title: '定期訪問', date: '2024-12-17', time: '10:00', assignee: '大山' },
+                        { id: 2, title: '商談', date: '2024-12-18', time: '14:00', assignee: '永森' }
+                    ],
+                    activities: [
+                        { id: 1, date: '2024-12-10', assignee: '大山', customer: '株式会社A', purpose: 'B', partner: '田中部長', product: 'システムX', content: '新規システム導入の提案', stage: '提案', probability: 'A', amount: 50000000, expectedDate: '2025-01-15' },
+
+                        { id: 2, date: '2024-12-12', assignee: '永森', customer: 'B商事', purpose: 'A', partner: '鈴木課長', product: 'システムY', content: '初回訪問・ニーズヒアリング', stage: 'ヒアリング', probability: 'B', amount: 30000000, expectedDate: '2025-02-20' },
+                        { id: 3, date: '2024-12-14', assignee: '清水', customer: 'C工業', purpose: 'C', partner: '佐藤氏', product: 'システムZ', content: '仕様詳細打ち合わせ', stage: '見積提出', probability: 'A', amount: 80000000, expectedDate: '2025-01-30' }
+                    ],
+                    kpiSettings: {
+                        totalTarget: 300000000,
+                        personalTargets: {
+                            // ユーザーID: 目標額
+                            'admin': 100000000,
+                            'eimori': 100000000,
+                            'hakozaki': 100000000,
+                            'shimizu': 100000000,
+                            'sugita': 100000000,
+                            'asato': 100000000,
+                            'kamata': 100000000,
+                            'oyama': 100000000
+                        },
+                        personalItems: []
+                    }
+                };
+                const saved = localStorage.getItem('salesAppData');
+                return saved ? JSON.parse(saved) : defaultData;
+            }
+
+            saveData() {
+                localStorage.setItem('salesAppData', JSON.stringify(this.data));
+            }
+
+            setupEventListeners() {
+                // ログイン
+                document.getElementById('loginForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const u = document.getElementById('username').value;
+                    const p = document.getElementById('password').value;
+                    
+                    const account = USER_ACCOUNTS[u];
+                    if (account && account.password === p) {
+                        CURRENT_USER = {
+                            username: u,
+                            assignee: account.assignee,
+                            displayName: account.displayName
+                        };
+                        localStorage.setItem('isLoggedIn', 'true');
+                        localStorage.setItem('currentUser', JSON.stringify(CURRENT_USER));
+                        
+                        // ユーザー名表示更新
+                        document.querySelector('.user-info span').innerHTML = `<i class="fas fa-user-circle"></i> ${CURRENT_USER.displayName}`;
+                        
+                        document.getElementById('loginScreen').style.display = 'none';
+                        document.getElementById('appContainer').style.display = 'flex';
+                        this.showPage('dashboard');
+                    } else {
+                        this.showToast('ログイン情報が正しくありません', 'error');
+                    }
+                });
+
+                // ログアウト
+                document.getElementById('logoutBtn').addEventListener('click', () => {
+                    localStorage.removeItem('isLoggedIn');
+                    localStorage.removeItem('currentUser');
+                    location.reload();
+                });
+            }
+
+            setupSelectOptions() {
+                // 担当者プルダウンの設定
+                document.querySelectorAll('.staff-select').forEach(select => {
+                    select.innerHTML = '<option value="">選択してください</option>' + 
+                        STAFFS.map(s => `<option value="${s}">${s}</option>`).join('');
+                });
+                
+                // スケジュールフィルター用
+                const filterSelect = document.getElementById('scheduleFilterAssignee');
+                STAFFS.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    opt.textContent = s;
+                    if (s === CURRENT_USER.assignee) opt.selected = true; // デフォルトはログインユーザー
+                    filterSelect.appendChild(opt);
+                });
+            }
+
+            // ページ切り替え
+            showPage(pageId) {
+                document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+                document.getElementById(pageId + 'Page').classList.add('active');
+                
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                // 対応するタブをアクティブに（簡易実装）
+                const tabIndex = ['dashboard', 'customers', 'schedule', 'activities', 'kpi'].indexOf(pageId);
+                if (tabIndex >= 0) document.querySelectorAll('.tab-button')[tabIndex].classList.add('active');
+
+                // ページごとのレンダリング
+                if (pageId === 'dashboard') this.renderDashboard();
+                if (pageId === 'customers') this.renderCustomers();
+                if (pageId === 'schedule') this.renderSchedule();
+                if (pageId === 'activities') this.renderActivities();
+                if (pageId === 'kpi') this.renderKPI();
+            }
+
+            // --- ダッシュボード ---
+            renderDashboard() {
+                const filter = document.getElementById('dashboardFilter').value;
+                const isAdmin = CURRENT_USER.assignee === 'admin';
+                
+                // フィルタリング対象データ
+                let filteredActivities = this.data.activities;
+                let filteredSchedules = this.data.schedules;
+                let filteredCustomers = this.data.customers;
+                
+                if (filter === 'personal' && !isAdmin) {
+                    // 個人表示（admin以外）
+                    filteredActivities = this.data.activities.filter(a => a.assignee === CURRENT_USER.assignee);
+                    filteredSchedules = this.data.schedules.filter(s => s.assignee === CURRENT_USER.assignee);
+                    filteredCustomers = this.data.customers.filter(c => c.assignee === CURRENT_USER.assignee);
+                }
+                
+                // 統計カード
+                document.getElementById('statTotalCustomers').textContent = filteredCustomers.length;
+                
+                // 本日の予定
+                const today = new Date().toISOString().split('T')[0];
+                const todaySchedules = filteredSchedules.filter(s => s.date === today);
+                document.getElementById('statTodaySchedule').textContent = todaySchedules.length;
+                
+                // 今週の活動
+                document.getElementById('statWeekActivities').textContent = filteredActivities.length;
+                
+                // 受注想定価格合計（全ステージ）
+                const totalSales = filteredActivities.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+                document.getElementById('statTotalSales').textContent = '¥' + totalSales.toLocaleString();
+                
+                // 売上達成状況（「受注」ステージのみ）
+                const orderedSales = filteredActivities
+                    .filter(a => a.stage === '受注')
+                    .reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+                
+                let target;
+                if (filter === 'personal' && !isAdmin) {
+                    if (!this.data.kpiSettings.personalTargets) {
+                        this.data.kpiSettings.personalTargets = {};
+                    }
+                    target = this.data.kpiSettings.personalTargets[CURRENT_USER.username] || 0;
+                } else {
+                    target = this.data.kpiSettings.totalTarget;
+                }
+                const rate = Math.round((orderedSales / target) * 100) || 0;
+                const shortage = target - orderedSales;
+                
+                document.getElementById('dashboardKpiLabel').textContent = 
+                    filter === 'personal' && !isAdmin ? '個人達成率' : '全体達成率';
+                document.getElementById('dashboardKpiRate').textContent = rate + '%';
+                document.getElementById('dashboardKpiShortage').textContent = '¥' + shortage.toLocaleString();
+                document.getElementById('dashboardKpiBar').style.width = Math.min(rate, 100) + '%';
+                document.getElementById('dashboardKpiBar').textContent = rate + '%';
+                document.getElementById('dashboardKpiTarget').textContent = '¥' + Number(target).toLocaleString();
+                document.getElementById('dashboardKpiCurrent').textContent = '¥' + orderedSales.toLocaleString();
+                
+                // グラフ描画（フィルタリングされたデータで）
+                this.renderActivityChart(filteredActivities);
+                this.renderProductChart(filteredActivities);
+                this.renderStageFunnel(filteredActivities);
+                this.renderProbabilityFunnel(filteredActivities);
+                this.renderTimelineChart(filteredActivities);
+            }
+            
+            renderActivityChart(activities = null) {
+                const ctx = document.getElementById('chartActivity');
+                if (!ctx) return;
+                
+                const dataSource = activities || this.data.activities;
+                
+                // 既存のチャートを破棄
+                if (this.activityChart) this.activityChart.destroy();
+                
+                // 担当者別の活動件数を集計
+                const counts = {};
+                STAFFS.forEach(s => counts[s] = 0);
+                dataSource.forEach(a => {
+                    if (counts[a.assignee] !== undefined) counts[a.assignee]++;
+                });
+                
+                this.activityChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: STAFFS,
+                        datasets: [{
+                            label: '活動件数',
+                            data: STAFFS.map(s => counts[s]),
+                            backgroundColor: '#2c5aa0'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: { 
+                                beginAtZero: true,
+                                ticks: { stepSize: 1 }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            renderProductChart(activities = null) {
+                const ctx = document.getElementById('chartProduct');
+                if (!ctx) return;
+                
+                const dataSource = activities || this.data.activities;
+                
+                if (this.productChart) this.productChart.destroy();
+                
+                // 機種名別の売上集計
+                const products = {};
+                dataSource.forEach(a => {
+                    if (a.product && a.amount) {
+                        products[a.product] = (products[a.product] || 0) + Number(a.amount);
+                    }
+                });
+                
+                const labels = Object.keys(products);
+                const data = Object.values(products);
+                
+                this.productChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels.length > 0 ? labels : ['データなし'],
+                        datasets: [{
+                            data: data.length > 0 ? data : [1],
+                            backgroundColor: ['#2c5aa0', '#4a7bc8', '#6a9bd8', '#8abbe8']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    boxWidth: 12,
+                                    font: { size: 11 }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            renderStageFunnel(activities = null) {
+                const container = document.getElementById('funnelStage');
+                if (!container) return;
+                
+                const dataSource = activities || this.data.activities;
+                
+                const stages = ['アプローチ', 'ヒアリング', '提案', '見積提出', 'クロージング', '受注'];
+                const stageData = {};
+                
+                stages.forEach(s => stageData[s] = { count: 0, amount: 0 });
+                dataSource.forEach(a => {
+                    if (a.stage && stageData[a.stage] !== undefined) {
+                        stageData[a.stage].count++;
+                        stageData[a.stage].amount += Number(a.amount) || 0;
+                    }
+                });
+                
+                const maxAmount = Math.max(...Object.values(stageData).map(d => d.amount), 1);
+                
+                container.innerHTML = stages.map((stage, idx) => {
+                    const d = stageData[stage];
+                    const widthPercent = Math.max((d.amount / maxAmount) * 100, 30);
+                    const bgColor = `hsl(${210 - idx * 10}, 70%, ${50 + idx * 5}%)`;
+                    return `
+                        <div class="funnel-item" style="width: ${widthPercent}%; background-color: ${bgColor}; min-height: 50px;">
+                            <div class="funnel-label" style="white-space: nowrap !important;">${stage}</div>
+                            <div class="funnel-value" style="white-space: nowrap;">${d.count}件 / ¥${(d.amount/10000).toFixed(0)}万</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            renderProbabilityFunnel(activities = null) {
+                const container = document.getElementById('funnelProbability');
+                if (!container) return;
+                
+                const dataSource = activities || this.data.activities;
+                
+                const probs = ['A', 'B', 'C', 'D'];
+                const colors = { A: '#28a745', B: '#ffc107', C: '#fd7e14', D: '#dc3545' };
+                const probData = {};
+                
+                probs.forEach(p => probData[p] = { count: 0, amount: 0 });
+                dataSource.forEach(a => {
+                    if (a.probability && probData[a.probability] !== undefined) {
+                        probData[a.probability].count++;
+                        probData[a.probability].amount += Number(a.amount) || 0;
+                    }
+                });
+                
+                const maxAmount = Math.max(...Object.values(probData).map(d => d.amount), 1);
+                
+                container.innerHTML = probs.map(prob => {
+                    const d = probData[prob];
+                    const widthPercent = Math.max((d.amount / maxAmount) * 100, 30);
+                    return `
+                        <div class="funnel-item" style="width: ${widthPercent}%; background-color: ${colors[prob]}; min-height: 50px;">
+                            <div class="funnel-label" style="white-space: nowrap !important;">確度${prob}</div>
+                            <div class="funnel-value" style="white-space: nowrap;">${d.count}件 / ¥${(d.amount/10000).toFixed(0)}万</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            renderTimelineChart(activities = null) {
+                const ctx = document.getElementById('chartTimeline');
+                if (!ctx) return;
+                
+                const dataSource = activities || this.data.activities;
+                const filter = document.getElementById('dashboardFilter').value;
+                const isAdmin = CURRENT_USER.assignee === 'admin';
+                
+                if (this.timelineChart) this.timelineChart.destroy();
+                
+                // 現在の年度を取得（4月始まり）
+                const now = new Date();
+                const currentYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+                const fiscalYearEnd = `${currentYear + 1}-05`; // 翌年5月
+                
+                // 今月から年度末（5月）までの月を生成
+                const months = [];
+                const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                const endMonth = new Date(currentYear + 1, 4, 1); // 5月 = 4 (0-indexed)
+                
+                for (let d = new Date(startMonth); d <= endMonth; d.setMonth(d.getMonth() + 1)) {
+                    const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    months.push(monthStr);
+                }
+                
+                // 月別の受注想定価格を集計
+                const monthlyData = {};
+                months.forEach(m => monthlyData[m] = 0);
+                
+                dataSource.forEach(a => {
+                    if (a.expectedDate && a.amount) {
+                        const month = a.expectedDate.substring(0, 7); // YYYY-MM
+                        if (monthlyData[month] !== undefined) {
+                            monthlyData[month] += Number(a.amount);
+                        }
+                    }
+                });
+                
+                const amounts = months.map(m => monthlyData[m]);
+                
+                // 累積計算
+                const cumulative = [];
+                let sum = 0;
+                amounts.forEach(amt => {
+                    sum += amt;
+                    cumulative.push(sum);
+                });
+                
+                // KPI目標値（フィルターに応じて切り替え）
+                let target;
+                if (filter === 'personal' && !isAdmin) {
+                    if (!this.data.kpiSettings.personalTargets) {
+                        this.data.kpiSettings.personalTargets = {};
+                    }
+                    target = this.data.kpiSettings.personalTargets[CURRENT_USER.username] || 0;
+                } else {
+                    target = this.data.kpiSettings.totalTarget;
+                }
+                
+                // KPI目標線（全月で同じ値）
+                const targetLine = months.map(() => target);
+                
+                // 不足額（目標 - 累積）
+                const shortage = cumulative.map(c => Math.max(target - c, 0));
+                
+                this.timelineChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: months.map(m => {
+                            const [y, mon] = m.split('-');
+                            return `${y}/${mon}`;
+                        }),
+                        datasets: [
+                            {
+                                label: '月次受注想定',
+                                data: amounts,
+                                borderColor: '#2c5aa0',
+                                backgroundColor: 'rgba(44, 90, 160, 0.1)',
+                                fill: false,
+                                tension: 0.3,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: '累積受注想定',
+                                data: cumulative,
+                                borderColor: '#28a745',
+                                backgroundColor: 'transparent',
+                                borderWidth: 3,
+                                tension: 0.3,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: 'KPI目標',
+                                data: targetLine,
+                                borderColor: '#dc3545',
+                                backgroundColor: 'transparent',
+                                borderDash: [10, 5],
+                                borderWidth: 2,
+                                pointRadius: 0,
+                                tension: 0,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: '不足額',
+                                data: shortage,
+                                borderColor: '#fd7e14',
+                                backgroundColor: 'rgba(253, 126, 20, 0.1)',
+                                fill: true,
+                                borderDash: [5, 5],
+                                tension: 0.3,
+                                yAxisID: 'y'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    boxWidth: 15,
+                                    font: { size: 11 },
+                                    padding: 10
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        label += '¥' + Math.round(context.parsed.y / 10000).toLocaleString() + '万';
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { 
+                                beginAtZero: true,
+                                position: 'left',
+                                ticks: {
+                                    callback: function(value) {
+                                        return '¥' + (value / 10000000).toFixed(0) + '千万';
+                                    }
+                                },
+                                title: {
+                                    display: true,
+                                    text: '金額'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: '受注予定月'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // --- 顧客管理 ---
+            renderCustomers() {
+                const filter = document.getElementById('customersFilter').value;
+                const isAdmin = CURRENT_USER.assignee === 'admin';
+                
+                // フィルタリング
+                let filteredCustomers = this.data.customers;
+                if (filter === 'personal' && !isAdmin) {
+                    filteredCustomers = this.data.customers.filter(c => c.assignee === CURRENT_USER.assignee);
+                }
+                
+                // ソート処理
+                if (this.customersSortField) {
+                    filteredCustomers.sort((a, b) => {
+                        let aVal = a[this.customersSortField] || '';
+                        let bVal = b[this.customersSortField] || '';
+                        if (this.customersSortOrder === 'asc') {
+                            return aVal.localeCompare(bVal, 'ja');
+                        } else {
+                            return bVal.localeCompare(aVal, 'ja');
+                        }
+                    });
+                }
+                
+                // ソートアイコン更新
+                const icon = document.getElementById('sortIconCustomerName');
+                if (icon) {
+                    if (this.customersSortOrder === 'asc') {
+                        icon.className = 'fas fa-sort-up';
+                    } else if (this.customersSortOrder === 'desc') {
+                        icon.className = 'fas fa-sort-down';
+                    } else {
+                        icon.className = 'fas fa-sort';
+                    }
+                }
+                
+                const tbody = document.querySelector('#customersTable tbody');
+                tbody.innerHTML = filteredCustomers.map(c => `
+                    <tr>
+                        <td>
+                            <span class="customer-link" onclick="app.openCustomerStaffModal(${c.id})">${c.name}</span>
+                        </td>
+                        <td>${c.industry || '-'}</td>
+                        <td>${c.rank}</td>
+                        <td>${c.status}</td>
+                        <td>${c.assignee}</td>
+                        <td>${(c.staffs || []).length}名</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="app.editCustomer(${c.id})">編集</button>
+                            <button class="btn btn-sm btn-danger" onclick="app.deleteCustomer(${c.id})">削除</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            openCustomerModal() {
+                document.getElementById('customerForm').reset();
+                document.getElementById('customerId').value = '';
+                this.openModal('customerModal');
+            }
+
+            editCustomer(id) {
+                const c = this.data.customers.find(x => x.id === id);
                 if (!c) return;
                 document.getElementById('customerId').value = c.id;
                 document.getElementById('customerName').value = c.name;
                 document.getElementById('customerIndustry').value = c.industry || '';
-                document.getElementById('customerRank').value = c.rank || 'A';
-                document.getElementById('customerStatus').value = c.status || '取引中';
-                document.getElementById('customerAssignee').value = c.assignee || '';
+                document.getElementById('customerRank').value = c.rank;
+                document.getElementById('customerStatus').value = c.status;
+                document.getElementById('customerAssignee').value = c.assignee;
                 this.openModal('customerModal');
             }
 
             saveCustomer(e) {
                 e.preventDefault();
                 const id = document.getElementById('customerId').value;
-                const data = {
+                const customer = {
+                    id: id ? parseInt(id) : Date.now(),
                     name: document.getElementById('customerName').value,
                     industry: document.getElementById('customerIndustry').value,
                     rank: document.getElementById('customerRank').value,
                     status: document.getElementById('customerStatus').value,
-                    assignee: document.getElementById('customerAssignee').value
+                    assignee: document.getElementById('customerAssignee').value,
+                    staffs: id ? (this.data.customers.find(c => c.id == id).staffs || []) : []
                 };
 
                 if (id) {
-                    const idx = this.data.customers.findIndex(x => x.id == id);
-                    if (idx !== -1) {
-                        this.data.customers[idx] = { ...this.data.customers[idx], ...data };
-                    }
+                    const idx = this.data.customers.findIndex(c => c.id == id);
+                    this.data.customers[idx] = customer;
                 } else {
-                    this.data.customers.push({ id: Date.now().toString(), ...data, staffs: [] });
+                    this.data.customers.push(customer);
                 }
-
                 this.saveData();
                 this.closeModal('customerModal');
                 this.renderCustomers();
-                this.showToast('顧客を保存しました', 'success');
+                this.showToast('顧客情報を保存しました', 'success');
             }
 
             deleteCustomer(id) {
-                if (!confirm('この顧客を削除しますか?')) return;
-                this.data.customers = this.data.customers.filter(c => c.id != id);
+                if(!confirm('削除しますか？')) return;
+                this.data.customers = this.data.customers.filter(c => c.id !== id);
                 this.saveData();
                 this.renderCustomers();
-                this.showToast('顧客を削除しました', 'success');
             }
 
+            // 3. 顧客担当者一覧モーダル
             openCustomerStaffModal(customerId) {
-                this.currentEditingCustomerId = customerId;
-                const c = this.data.customers.find(x => x.id == customerId);
+                const c = this.data.customers.find(x => x.id === customerId);
                 if (!c) return;
+                
+                this.currentEditingCustomerId = customerId; // 現在編集中の顧客IDを保持
                 document.getElementById('staffModalCustomerName').textContent = c.name;
                 this.renderCustomerStaffs(c);
                 this.openModal('customerStaffModal');
             }
 
             renderCustomerStaffs(customer) {
-                document.querySelector('#customerStaffTable tbody').innerHTML = (customer.staffs || []).map((s, idx) => `
-                    <tr>
-                        <td>${s.name}</td>
-                        <td>${s.dept || '-'}</td>
-                        <td>${s.contact || '-'}</td>
-                        <td>
-                            <button class="btn btn-secondary btn-sm" onclick="app.editCustomerStaff(${idx})">編集</button>
-                            <button class="btn btn-danger btn-sm" onclick="app.deleteCustomerStaff(${idx})">削除</button>
-                        </td>
-                    </tr>`).join('');
+                const tbody = document.querySelector('#customerStaffTable tbody');
+                const staffs = customer.staffs || [];
+                if (staffs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">担当者が登録されていません</td></tr>';
+                } else {
+                    tbody.innerHTML = staffs.map((s, idx) => `
+                        <tr>
+                            <td>${s.dept || '-'}</td>
+                            <td>${s.name}</td>
+                            <td>${s.contact || '-'}</td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" onclick="app.deleteCustomerStaff(${idx})">削除</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
             }
 
             addCustomerStaff() {
-                const name = prompt('担当者名:');
+                const name = prompt('担当者名を入力:');
                 if (!name) return;
                 const dept = prompt('部署・役職:');
                 const contact = prompt('連絡先:');
-                
-                const c = this.data.customers.find(x => x.id == this.currentEditingCustomerId);
-                if (!c) return;
+
+                const c = this.data.customers.find(x => x.id === this.currentEditingCustomerId);
                 if (!c.staffs) c.staffs = [];
-                c.staffs.push({ name, dept, contact });
+                c.staffs.push({ id: Date.now(), name, dept, contact });
                 this.saveData();
                 this.renderCustomerStaffs(c);
-                this.renderCustomers();
+                this.renderCustomers(); // 人数更新のため
             }
 
             editCustomerStaff(idx) {
-                const c = this.data.customers.find(x => x.id == this.currentEditingCustomerId);
-                if (!c || !c.staffs[idx]) return;
+                const c = this.data.customers.find(x => x.id === this.currentEditingCustomerId);
                 const s = c.staffs[idx];
+                
                 const name = prompt('担当者名:', s.name);
                 if (!name) return;
-                const dept = prompt('部署・役職:', s.dept);
-                const contact = prompt('連絡先:', s.contact);
-                c.staffs[idx] = { name, dept, contact };
+                const dept = prompt('部署・役職:', s.dept || '');
+                const contact = prompt('連絡先:', s.contact || '');
+                
+                c.staffs[idx] = { id: s.id || Date.now(), name, dept, contact };
                 this.saveData();
                 this.renderCustomerStaffs(c);
-                this.renderCustomers();
             }
 
             deleteCustomerStaff(idx) {
-                if (!confirm('この担当者を削除しますか?')) return;
-                const c = this.data.customers.find(x => x.id == this.currentEditingCustomerId);
-                if (!c) return;
+                if(!confirm('削除しますか？')) return;
+                const c = this.data.customers.find(x => x.id === this.currentEditingCustomerId);
                 c.staffs.splice(idx, 1);
                 this.saveData();
                 this.renderCustomerStaffs(c);
                 this.renderCustomers();
             }
 
-            openScheduleModal() {
+            // --- ソート機能 ---
+            sortCustomers(field) {
+                if (!this.customersSortField || this.customersSortField !== field) {
+                    this.customersSortField = field;
+                    this.customersSortOrder = 'asc';
+                } else {
+                    this.customersSortOrder = this.customersSortOrder === 'asc' ? 'desc' : 'asc';
+                }
+                this.renderCustomers();
+            }
+
+            sortActivities(field) {
+                if (!this.activitiesSortField || this.activitiesSortField !== field) {
+                    this.activitiesSortField = field;
+                    this.activitiesSortOrder = 'asc';
+                } else {
+                    this.activitiesSortOrder = this.activitiesSortOrder === 'asc' ? 'desc' : 'asc';
+                }
+                this.renderActivities();
+            }
+
+            sortScheduleList(field) {
+                if (!this.scheduleSortField || this.scheduleSortField !== field) {
+                    this.scheduleSortField = field;
+                    this.scheduleSortOrder = 'asc';
+                } else {
+                    this.scheduleSortOrder = this.scheduleSortOrder === 'asc' ? 'desc' : 'asc';
+                }
+                this.renderSchedule();
+            }
+
+            // --- スケジュール ---
+            renderSchedule() {
+                const viewType = document.getElementById('scheduleViewType').value;
+                const assigneeFilter = document.getElementById('scheduleFilterAssignee').value;
+                
+                // フィルタリング
+                let filtered = this.data.schedules;
+                if (assigneeFilter !== 'all') {
+                    filtered = filtered.filter(s => s.assignee === assigneeFilter);
+                }
+
+                if (viewType === 'calendar') {
+                    document.getElementById('calendarView').style.display = 'block';
+                    document.getElementById('scheduleListView').style.display = 'none';
+                    this.renderCalendar(filtered);
+                } else {
+                    document.getElementById('calendarView').style.display = 'none';
+                    document.getElementById('scheduleListView').style.display = 'block';
+                    this.renderScheduleList(filtered);
+                }
+            }
+
+            renderCalendar(schedules) {
+                const year = this.currentDate.getFullYear();
+                const month = this.currentDate.getMonth();
+                
+                document.getElementById('currentMonthLabel').textContent = `${year}年 ${month + 1}月`;
+                
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0);
+                const startDay = firstDay.getDay(); // 0:Sun
+                
+                const grid = document.getElementById('calendarGrid');
+                grid.innerHTML = '';
+                
+                // 空白セル
+                for (let i = 0; i < startDay; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'calendar-day other-month';
+                    grid.appendChild(cell);
+                }
+                
+                // 日付セル
+                for (let d = 1; d <= lastDay.getDate(); d++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'calendar-day';
+                    const checkDate = new Date(year, month, d);
+                    
+                    // 今日のハイライト
+                    const today = new Date();
+                    if (year === today.getFullYear() && month === today.getMonth() && d === today.getDate()) {
+                        cell.classList.add('today');
+                    }
+                    
+                    cell.innerHTML = `<div style="text-align:right; font-weight:bold; color:#666;">${d}</div>`;
+                    
+                    // 日付フォーマット YYYY-MM-DD
+                    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    
+                    // この日の予定
+                    const daysSchedules = schedules.filter(s => s.date === dateStr);
+                    daysSchedules.forEach(s => {
+                        const item = document.createElement('div');
+                        item.className = 'schedule-item';
+                        item.dataset.assignee = s.assignee;
+                        // [担当者] タイトル
+                        item.textContent = `[${s.assignee}] ${s.time ? s.time+' ' : ''}${s.title}`;
+                        item.onclick = (e) => {
+                            e.stopPropagation();
+                            this.editSchedule(s.id);
+                        };
+                        cell.appendChild(item);
+                    });
+                    
+                    // 日付クリックで追加
+                    cell.onclick = () => {
+                        this.openScheduleModal(dateStr);
+                    };
+
+                    grid.appendChild(cell);
+                }
+            }
+            
+            renderScheduleList(schedules) {
+                // ソート処理
+                if (this.scheduleSortField) {
+                    schedules.sort((a, b) => {
+                        let aVal = a[this.scheduleSortField] || '';
+                        let bVal = b[this.scheduleSortField] || '';
+                        if (this.scheduleSortOrder === 'asc') {
+                            return aVal.localeCompare(bVal, 'ja');
+                        } else {
+                            return bVal.localeCompare(aVal, 'ja');
+                        }
+                    });
+                } else {
+                    // デフォルトは日付順ソート
+                    schedules.sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+                }
+                
+                // ソートアイコン更新
+                const icon = document.getElementById('sortIconScheduleDate');
+                if (icon) {
+                    if (this.scheduleSortOrder === 'asc') {
+                        icon.className = 'fas fa-sort-up';
+                    } else if (this.scheduleSortOrder === 'desc') {
+                        icon.className = 'fas fa-sort-down';
+                    } else {
+                        icon.className = 'fas fa-sort';
+                    }
+                }
+                
+                const tbody = document.querySelector('#scheduleListTable tbody');
+                tbody.innerHTML = schedules.map(s => `
+                    <tr>
+                        <td>${s.date}</td>
+                        <td>${s.time || '-'}</td>
+                        <td>${s.assignee}</td>
+                        <td>${s.title}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="app.editSchedule(${s.id})">編集</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            changeMonth(offset) {
+                this.currentDate.setMonth(this.currentDate.getMonth() + offset);
+                this.renderSchedule();
+            }
+
+            openScheduleModal(dateStr = '') {
+                document.getElementById('scheduleForm').reset();
                 document.getElementById('scheduleId').value = '';
-                document.getElementById('scheduleTitle').value = '';
-                document.getElementById('scheduleDate').value = '';
-                document.getElementById('scheduleTime').value = '';
-                document.getElementById('scheduleAssignee').value = CURRENT_USER.assignee;
                 document.getElementById('deleteScheduleBtn').style.display = 'none';
+                if (dateStr) document.getElementById('scheduleDate').value = dateStr;
                 this.openModal('scheduleModal');
             }
 
             editSchedule(id) {
-                const s = this.data.schedules.find(x => x.id == id);
+                const s = this.data.schedules.find(x => x.id === id);
                 if (!s) return;
                 document.getElementById('scheduleId').value = s.id;
                 document.getElementById('scheduleTitle').value = s.title;
                 document.getElementById('scheduleDate').value = s.date;
-                document.getElementById('scheduleTime').value = s.time || '';
+                document.getElementById('scheduleTime').value = s.time;
                 document.getElementById('scheduleAssignee').value = s.assignee;
                 document.getElementById('deleteScheduleBtn').style.display = 'inline-block';
                 this.openModal('scheduleModal');
@@ -233,21 +1995,23 @@ x.id == id);
 
             saveSchedule(e) {
                 e.preventDefault();
+                
                 const id = document.getElementById('scheduleId').value;
-                const data = {
+                const schedule = {
+                    id: id ? parseInt(id) : Date.now(),
                     title: document.getElementById('scheduleTitle').value,
+                    // 4. 日付ズレ対策: 値はYYYY-MM-DDで来るのでそのまま保存
                     date: document.getElementById('scheduleDate').value,
                     time: document.getElementById('scheduleTime').value,
                     assignee: document.getElementById('scheduleAssignee').value
                 };
 
                 if (id) {
-                    const idx = this.data.schedules.findIndex(x => x.id == id);
-                    if (idx !== -1) this.data.schedules[idx] = { ...this.data.schedules[idx], ...data };
+                    const idx = this.data.schedules.findIndex(s => s.id == id);
+                    this.data.schedules[idx] = schedule;
                 } else {
-                    this.data.schedules.push({ id: Date.now().toString(), ...data });
+                    this.data.schedules.push(schedule);
                 }
-
                 this.saveData();
                 this.closeModal('scheduleModal');
                 this.renderSchedule();
@@ -256,61 +2020,107 @@ x.id == id);
 
             deleteSchedule() {
                 const id = document.getElementById('scheduleId').value;
-                if (!confirm('この予定を削除しますか?')) return;
+                if(!confirm('削除しますか？')) return;
                 this.data.schedules = this.data.schedules.filter(s => s.id != id);
                 this.saveData();
                 this.closeModal('scheduleModal');
                 this.renderSchedule();
-                this.showToast('予定を削除しました', 'success');
+            }
+
+            // --- 活動記録 ---
+            renderActivities() {
+                const filter = document.getElementById('activitiesFilter').value;
+                const isAdmin = CURRENT_USER.assignee === 'admin';
+                
+                // フィルタリング
+                let filteredActivities = this.data.activities;
+                if (filter === 'personal' && !isAdmin) {
+                    filteredActivities = this.data.activities.filter(a => a.assignee === CURRENT_USER.assignee);
+                }
+                
+                // ソート処理
+                if (this.activitiesSortField) {
+                    filteredActivities.sort((a, b) => {
+                        let aVal = a[this.activitiesSortField] || '';
+                        let bVal = b[this.activitiesSortField] || '';
+                        if (this.activitiesSortOrder === 'asc') {
+                            return aVal.localeCompare(bVal, 'ja');
+                        } else {
+                            return bVal.localeCompare(aVal, 'ja');
+                        }
+                    });
+                }
+                
+                // ソートアイコン更新
+                const icon = document.getElementById('sortIconActivityDate');
+                if (icon) {
+                    if (this.activitiesSortOrder === 'asc') {
+                        icon.className = 'fas fa-sort-up';
+                    } else if (this.activitiesSortOrder === 'desc') {
+                        icon.className = 'fas fa-sort-down';
+                    } else {
+                        icon.className = 'fas fa-sort';
+                    }
+                }
+                
+                const tbody = document.querySelector('#activitiesTable tbody');
+                // 顧客プルダウン更新（ソート済み）
+                const customerSelect = document.getElementById('activityCustomer');
+                const sortedCustomers = [...this.data.customers].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+                customerSelect.innerHTML = '<option value="">選択してください</option>' + 
+                    sortedCustomers.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+
+                tbody.innerHTML = filteredActivities.map(a => `
+                    <tr>
+                        <td>${a.date}</td>
+                        <td>${a.assignee}</td>
+                        <td>${a.customer}</td>
+                        <td>${a.purpose}</td>
+                        <td>${a.partner || '-'}</td>
+                        <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" 
+                            title="${a.content}" onclick="alert('詳細:\\n' + this.title)">
+                            ${a.content || '-'}
+                        </td>
+                        <td>${a.stage || '-'}</td>
+                        <td>${a.probability || '-'}</td>
+                        <td>${a.amount ? '¥'+Number(a.amount).toLocaleString() : '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="app.editActivity(${a.id})">編集</button>
+                            <button class="btn btn-sm btn-danger" onclick="app.deleteActivity(${a.id})">削除</button>
+                        </td>
+                    </tr>
+                `).join('');
             }
 
             openActivityModal() {
+                document.getElementById('activityForm').reset();
                 document.getElementById('activityId').value = '';
-                document.getElementById('activityDate').value = new Date().toISOString().split('T')[0];
-                document.getElementById('activityAssignee').value = CURRENT_USER.assignee;
-                document.getElementById('activityCustomer').value = '';
-                document.getElementById('activityPurpose').value = 'A';
-                document.getElementById('activityPartner').value = '';
-                document.getElementById('activityProduct').value = '';
-                document.getElementById('activityContent').value = '';
-                document.getElementById('activityStage').value = 'アプローチ';
-                document.getElementById('activityProbability').value = 'A';
-                document.getElementById('activityAmount').value = '';
-                document.getElementById('activityExpectedDate').value = '';
                 this.openModal('activityModal');
             }
 
             editActivity(id) {
-                const a = this.data.activities.find(x => x.id == id);
+                const a = this.data.activities.find(x => x.id === id);
                 if (!a) return;
                 document.getElementById('activityId').value = a.id;
                 document.getElementById('activityDate').value = a.date;
                 document.getElementById('activityAssignee').value = a.assignee;
                 document.getElementById('activityCustomer').value = a.customer;
                 document.getElementById('activityPurpose').value = a.purpose;
-                document.getElementById('activityPartner').value = a.partner || '';
-                document.getElementById('activityProduct').value = a.product || '';
-                document.getElementById('activityContent').value = a.content || '';
-                document.getElementById('activityStage').value = a.stage || 'アプローチ';
-                
-                // Set probability dropdown based on stage
-                const probSelect = document.getElementById('activityProbability');
-                if (a.stage === '受注') {
-                    probSelect.innerHTML = '<option value="">空白</option><option value="受注済">受注済</option>';
-                } else {
-                    probSelect.innerHTML = '<option value="A">A (高)</option><option value="B">B</option><option value="C">C</option><option value="D">D (低)</option>';
-                }
-                probSelect.value = a.probability || '';
-                
-                document.getElementById('activityAmount').value = a.amount || '';
-                document.getElementById('activityExpectedDate').value = a.expected_date || '';
+                document.getElementById('activityPartner').value = a.partner;
+                document.getElementById('activityProduct').value = a.product;
+                document.getElementById('activityContent').value = a.content;
+                document.getElementById('activityStage').value = a.stage;
+                document.getElementById('activityProbability').value = a.probability;
+                document.getElementById('activityAmount').value = a.amount;
+                document.getElementById('activityExpectedDate').value = a.expectedDate;
                 this.openModal('activityModal');
             }
 
             saveActivity(e) {
                 e.preventDefault();
                 const id = document.getElementById('activityId').value;
-                const data = {
+                const activity = {
+                    id: id ? parseInt(id) : Date.now(),
                     date: document.getElementById('activityDate').value,
                     assignee: document.getElementById('activityAssignee').value,
                     customer: document.getElementById('activityCustomer').value,
@@ -320,17 +2130,16 @@ x.id == id);
                     content: document.getElementById('activityContent').value,
                     stage: document.getElementById('activityStage').value,
                     probability: document.getElementById('activityProbability').value,
-                    amount: Number(document.getElementById('activityAmount').value) || 0,
-                    expected_date: document.getElementById('activityExpectedDate').value
+                    amount: document.getElementById('activityAmount').value,
+                    expectedDate: document.getElementById('activityExpectedDate').value
                 };
 
                 if (id) {
-                    const idx = this.data.activities.findIndex(x => x.id == id);
-                    if (idx !== -1) this.data.activities[idx] = { ...this.data.activities[idx], ...data };
+                    const idx = this.data.activities.findIndex(a => a.id == id);
+                    this.data.activities[idx] = activity;
                 } else {
-                    this.data.activities.push({ id: Date.now().toString(), ...data });
+                    this.data.activities.push(activity);
                 }
-
                 this.saveData();
                 this.closeModal('activityModal');
                 this.renderActivities();
@@ -338,51 +2147,147 @@ x.id == id);
             }
 
             deleteActivity(id) {
-                if (!confirm('この活動記録を削除しますか?')) return;
-                this.data.activities = this.data.activities.filter(a => a.id != id);
+                if(!confirm('削除しますか？')) return;
+                this.data.activities = this.data.activities.filter(a => a.id !== id);
                 this.saveData();
                 this.renderActivities();
-                this.showToast('活動記録を削除しました', 'success');
+            }
+
+            exportReport(type) {
+                // BOM付きUTF-8で出力（文字化け対策）
+                const BOM = '\uFEFF';
+                const header = '日付,担当,得意先,目的,商談内容\n';
+                const rows = this.data.activities.map(a => 
+                    `${a.date},${a.assignee},${a.customer},${a.purpose},"${(a.content || '').replace(/"/g, '""')}"`
+                ).join('\n');
+                
+                const csvContent = BOM + header + rows;
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                
+                link.setAttribute('href', url);
+                link.setAttribute('download', `${type}_report.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            // --- KPI設定 ---
+            renderKPI() {
+                // 目標値を表示（カンマ区切り）
+                document.getElementById('kpiTotalTarget').value = 
+                    Number(this.data.kpiSettings.totalTarget).toLocaleString();
+                
+                // 個人目標値（ログインユーザー固有）
+                if (!this.data.kpiSettings.personalTargets) {
+                    this.data.kpiSettings.personalTargets = {};
+                }
+                const myTarget = this.data.kpiSettings.personalTargets[CURRENT_USER.username] || 100000000;
+                document.getElementById('kpiPersonalTarget').value = Number(myTarget).toLocaleString();
+
+                // KPI項目一覧
+                this.renderKPIItems();
+            }
+
+            // 金額入力フォーマット（リアルタイム）
+            formatCurrency(input) {
+                let value = input.value.replace(/,/g, '');
+                if (value && !isNaN(value)) {
+                    input.value = Number(value).toLocaleString();
+                }
+            }
+
+            // 金額バリデーション
+            validateCurrency(input) {
+                let value = input.value.replace(/,/g, '');
+                if (!value || isNaN(value) || Number(value) <= 0) {
+                    this.showToast('正しい金額を入力してください', 'error');
+                    input.focus();
+                }
+            }
+
+            saveKPITargets() {
+                const totalStr = document.getElementById('kpiTotalTarget').value.replace(/,/g, '');
+                const personalStr = document.getElementById('kpiPersonalTarget').value.replace(/,/g, '');
+                
+                if (!totalStr || !personalStr || isNaN(totalStr) || isNaN(personalStr)) {
+                    this.showToast('正しい金額を入力してください', 'error');
+                    return;
+                }
+                
+                this.data.kpiSettings.totalTarget = Number(totalStr);
+                
+                // 個人目標をログインユーザー固有に保存
+                if (!this.data.kpiSettings.personalTargets) {
+                    this.data.kpiSettings.personalTargets = {};
+                }
+                this.data.kpiSettings.personalTargets[CURRENT_USER.username] = Number(personalStr);
+                
+                this.saveData();
+                this.renderKPI();
+                this.showToast('KPI目標を保存しました', 'success');
+            }
+
+            renderKPIItems() {
+                const tbody = document.querySelector('#personalKPITable tbody');
+                const items = this.data.kpiSettings.personalItems || [];
+                
+                if (items.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">KPI項目が設定されていません</td></tr>';
+                } else {
+                    tbody.innerHTML = items.map(item => `
+                        <tr>
+                            <td>${item.targetItem}</td>
+                            <td>${item.goalValue}</td>
+                            <td>${item.deadline || '-'}</td>
+                            <td>${item.currentStatus || '-'}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick="app.editKPIItem(${item.id})">編集</button>
+                                <button class="btn btn-sm btn-danger" onclick="app.deleteKPIItem(${item.id})">削除</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
             }
 
             openKPIModal() {
+                document.getElementById('kpiItemForm').reset();
                 document.getElementById('kpiItemId').value = '';
-                document.getElementById('kpiTargetItem').value = '';
-                document.getElementById('kpiGoalValue').value = '';
-                document.getElementById('kpiDeadline').value = '';
-                document.getElementById('kpiCurrentStatus').value = '';
                 this.openModal('kpiItemModal');
             }
 
             editKPIItem(id) {
-                const item = this.data.kpiSettings.personalItems.find(x => x.id == id);
+                const item = this.data.kpiSettings.personalItems.find(x => x.id === id);
                 if (!item) return;
                 document.getElementById('kpiItemId').value = item.id;
                 document.getElementById('kpiTargetItem').value = item.targetItem;
                 document.getElementById('kpiGoalValue').value = item.goalValue;
-                document.getElementById('kpiDeadline').value = item.deadline || '';
-                document.getElementById('kpiCurrentStatus').value = item.currentStatus || '';
+                document.getElementById('kpiDeadline').value = item.deadline;
+                document.getElementById('kpiCurrentStatus').value = item.currentStatus;
                 this.openModal('kpiItemModal');
             }
 
             saveKPIItem(e) {
                 e.preventDefault();
                 const id = document.getElementById('kpiItemId').value;
-                const data = {
+                const item = {
+                    id: id ? parseInt(id) : Date.now(),
                     targetItem: document.getElementById('kpiTargetItem').value,
                     goalValue: document.getElementById('kpiGoalValue').value,
                     deadline: document.getElementById('kpiDeadline').value,
-                    currentStatus: document.getElementById('kpiCurrentStatus').value,
-                    userId: CURRENT_USER.assignee
+                    currentStatus: document.getElementById('kpiCurrentStatus').value
                 };
 
+                if (!this.data.kpiSettings.personalItems) this.data.kpiSettings.personalItems = [];
+                
                 if (id) {
                     const idx = this.data.kpiSettings.personalItems.findIndex(x => x.id == id);
-                    if (idx !== -1) this.data.kpiSettings.personalItems[idx] = { ...this.data.kpiSettings.personalItems[idx], ...data };
+                    this.data.kpiSettings.personalItems[idx] = item;
                 } else {
-                    this.data.kpiSettings.personalItems.push({ id: Date.now().toString(), ...data });
+                    this.data.kpiSettings.personalItems.push(item);
                 }
-
                 this.saveData();
                 this.closeModal('kpiItemModal');
                 this.renderKPI();
@@ -390,76 +2295,35 @@ x.id == id);
             }
 
             deleteKPIItem(id) {
-                if (!confirm('このKPI項目を削除しますか?')) return;
-                this.data.kpiSettings.personalItems = this.data.kpiSettings.personalItems.filter(i => i.id != id);
+                if(!confirm('削除しますか？')) return;
+                this.data.kpiSettings.personalItems = this.data.kpiSettings.personalItems.filter(x => x.id !== id);
                 this.saveData();
                 this.renderKPI();
-                this.showToast('KPI項目を削除しました', 'success');
             }
 
-            openModal(id) { document.getElementById(id).classList.add('active'); }
-            closeModal(id) { document.getElementById(id).classList.remove('active'); }
+            // --- モーダル制御 ---
+            openModal(modalId) {
+                document.getElementById(modalId).classList.add('active');
+            }
 
-            showToast(msg, type = 'success') {
+            closeModal(modalId) {
+                document.getElementById(modalId).classList.remove('active');
+            }
+
+            // --- トースト通知 ---
+            showToast(message, type = 'success') {
                 const toast = document.getElementById('toast');
-                toast.textContent = msg;
-                toast.className = `toast toast-${type}`;
+                toast.textContent = message;
+                toast.className = 'toast toast-' + type;
                 toast.style.display = 'block';
-                setTimeout(() => { toast.style.display = 'none'; }, 3000);
-            }
-
-            showLoading(show) {
-                document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
-            }
-
-            formatCurrency(input) {
-                let val = input.value.replace(/,/g, '');
-                if (!isNaN(val) && val !== '') {
-                    input.value = Number(val).toLocaleString();
-                }
-            }
-
-            parseCurrency(str) {
-                return Number((str || '').replace(/,/g, '')) || 0;
-            }
-
-            // LocalStorage Data Management
-            saveData() {
-                localStorage.setItem('salesCustomers', JSON.stringify(this.data.customers));
-                localStorage.setItem('salesSchedules', JSON.stringify(this.data.schedules));
-                localStorage.setItem('salesActivities', JSON.stringify(this.data.activities));
-                localStorage.setItem('salesKPI', JSON.stringify(this.data.kpiSettings));
-            }
-
-            loadData() {
-                this.data.customers = JSON.parse(localStorage.getItem('salesCustomers') || '[]');
-                this.data.schedules = JSON.parse(localStorage.getItem('salesSchedules') || '[]');
-                this.data.activities = JSON.parse(localStorage.getItem('salesActivities') || '[]');
-                const kpi = JSON.parse(localStorage.getItem('salesKPI') || '{}');
-                this.data.kpiSettings = {
-                    totalTarget: kpi.totalTarget || 300000000,
-                    personalTargets: kpi.personalTargets || { '永森': 100000000, '箱崎': 100000000, '清水': 100000000, '杉田': 100000000, '安里': 100000000, '鎌田': 100000000, '大山': 100000000 },
-                    personalItems: kpi.personalItems || []
-                };
+                setTimeout(() => {
+                    toast.style.display = 'none';
+                }, 3000);
             }
         }
 
-        // Initialize App
-        const USER_ACCOUNTS = [
-            { username: 'admin', password: 'admin', assignee: 'admin', displayName: '管理者', role: 'admin' },
-            { username: '永森', password: 'nagamori', assignee: '永森', displayName: '永森', role: 'staff' },
-            { username: '箱崎', password: 'hakozaki', assignee: '箱崎', displayName: '箱崎', role: 'staff' },
-            { username: '清水', password: 'shimizu', assignee: '清水', displayName: '清水', role: 'staff' },
-            { username: '杉田', password: 'sugita', assignee: '杉田', displayName: '杉田', role: 'staff' },
-            { username: '安里', password: 'asato', assignee: '安里', displayName: '安里', role: 'staff' },
-            { username: '鎌田', password: 'kamata', assignee: '鎌田', displayName: '鎌田', role: 'staff' },
-            { username: '大山', password: 'oyama', assignee: '大山', displayName: '大山', role: 'staff' }
-        ];
-
-        let app;
-        window.addEventListener('DOMContentLoaded', () => {
-            app = new SalesApp();
-        });
+        const app = new SalesApp();
     </script>
-</body>
-</html>
+
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"rayId":"9b03499d2acdb922","serverTiming":{"name":{"cfExtPri":true,"cfEdge":true,"cfOrigin":true,"cfL4":true,"cfSpeedBrain":true,"cfCacheStatus":true}},"version":"2025.9.1","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
+</body></html>
