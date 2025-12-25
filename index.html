@@ -407,18 +407,26 @@
                         <div class="stat-label">今週の活動</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value" id="statTotalSales">¥0</div>
-                        <div class="stat-label">受注想定価格合計</div>
-                    </div>
+						<div class="stat-value" id="statTotalSales">¥0</div>
+						<div class="stat-label">受注想定価格合計</div>
+						<div style="font-size: 0.75rem; color: #666; margin-top: 0.5rem;" id="statTotalSalesDetail">-</div>
+					</div>
                 </div>
 
                 <div class="grid-dashboard">
                     <div class="card">
-                        <h3>担当者別活動状況</h3>
-                        <div class="chart-wrapper"><canvas id="chartActivity"></canvas></div>
-                    </div>
+						<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+							<h3 style="margin: 0; border: none;">担当者別活動状況</h3>
+							<div style="display: flex; gap: 0.3rem;">
+								<button class="btn btn-sm" style="padding: 0.3rem 0.5rem; font-size: 0.75rem;" onclick="app.setActivityPeriod('all')">累計</button>
+								<button class="btn btn-sm" style="padding: 0.3rem 0.5rem; font-size: 0.75rem;" onclick="app.setActivityPeriod('week')">今週</button>
+								<button class="btn btn-sm" style="padding: 0.3rem 0.5rem; font-size: 0.75rem;" onclick="app.setActivityPeriod('month')">今月</button>
+							</div>
+						</div>
+						<div class="chart-wrapper"><canvas id="chartActivity"></canvas></div>
+					</div>
                     <div class="card">
-                        <h3>機種名別売上</h3>
+                        <h3>機種名別売上（受注済）</h3>
                         <div class="chart-wrapper"><canvas id="chartProduct"></canvas></div>
                     </div>
                     <div class="card">
@@ -430,7 +438,15 @@
                         <div class="funnel-wrapper"><div id="funnelProbability" class="funnel-container"></div></div>
                     </div>
                     <div class="card" style="grid-column: 1 / -1;">
-                        <h3>受注予定タイムライン (6月-5月)</h3>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+							<h3 style="margin: 0; border: none;">受注予定タイムライン (6月-5月)</h3>
+							<div style="font-size: 0.85rem; color: #666;">
+								<span style="color: #4BC0C0; font-weight: bold;">目標: ¥<span id="timelineTarget">0</span></span> | 
+								<span style="color: #28a745; font-weight: bold;">受注済: ¥<span id="timelineOrdered">0</span></span> | 
+								<span style="color: #ffc107; font-weight: bold;">想定: ¥<span id="timelineExpected">0</span></span> | 
+								<span style="color: #dc3545; font-weight: bold;">不足: ¥<span id="timelineShortage">0</span></span>
+							</div>
+						</div>
                         <div class="chart-wrapper" style="height: 350px;"><canvas id="chartTimeline"></canvas></div>
                     </div>
                 </div>
@@ -705,6 +721,11 @@
         let CURRENT_USER = { id: '', username: '', assignee: '', displayName: '', role: 'staff' };
 
         class SalesApp {
+			setActivityPeriod(period) {
+				this.activityPeriod = period;
+				this.renderDashboard();
+			}
+
             constructor() {
                 this.data = {
                     customers: [],
@@ -823,8 +844,12 @@
                 const weekActs = acts.filter(a => new Date(a.date) >= weekStart);
                 document.getElementById('statWeekActivities').textContent = weekActs.length; 
                 
-                const totalSales = acts.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
-                document.getElementById('statTotalSales').textContent = '¥' + totalSales.toLocaleString();
+                // 受注済と受注想定を分離
+				const orderedSales = acts.filter(a => a.stage === '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+				const expectedSales = acts.filter(a => a.stage !== '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+				const totalSales = orderedSales + expectedSales;
+				document.getElementById('statTotalSales').textContent = '¥' + totalSales.toLocaleString();
+				document.getElementById('statTotalSalesDetail').textContent = `受注済: ¥${orderedSales.toLocaleString()} / 想定: ¥${expectedSales.toLocaleString()}`;
 
                 // KPI Achievement
                 const ordered = acts.filter(a => a.stage === '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
@@ -840,6 +865,75 @@
                 document.getElementById('dashboardKpiCurrent').textContent = '¥' + ordered.toLocaleString();
 
                 this.renderCharts(acts, target);
+				
+				// 個人表示時のKPI状況表示
+				if (isPersonal) {
+					// 個人KPIカードが存在しない場合は追加
+					let personalKpiCard = document.getElementById('personalKpiCard');
+					if (!personalKpiCard) {
+						const dashboardGrid = document.querySelector('.grid-dashboard');
+						personalKpiCard = document.createElement('div');
+						personalKpiCard.id = 'personalKpiCard';
+						personalKpiCard.className = 'card';
+						personalKpiCard.style.gridColumn = '1 / -1';
+						dashboardGrid.appendChild(personalKpiCard);
+					}
+    
+					// 個人KPI項目を取得
+					const userItems = this.data.kpiSettings.personalItems.filter(i => i.userId === CURRENT_USER.assignee);
+    
+					if (userItems.length > 0) {
+						personalKpiCard.style.display = 'block';
+        
+						let kpiHtml = '<h3>個人別KPI達成状況</h3><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">';
+        
+						userItems.forEach(item => {
+							// 簡易的な達成率計算（数値の場合のみ）
+							const goal = parseFloat(item.goalValue);
+							const current = parseFloat(item.currentStatus);
+							let progressHtml = '';
+            
+							if (!isNaN(goal) && !isNaN(current) && goal > 0) {
+								const rate = Math.min(Math.round((current / goal) * 100), 100);
+								const color = rate >= 80 ? '#28a745' : rate >= 50 ? '#ffc107' : '#dc3545';
+								progressHtml = `
+									<div class="progress-bar-container" style="margin-top: 0.5rem;">
+										<div class="progress-bar" style="width: ${rate}%; background-color: ${color};">${rate}%</div>
+									</div>
+									<div style="font-size: 0.8rem; color: #666; margin-top: 0.3rem;">
+										現状: ${current} / 目標: ${goal}
+									</div>
+								`;
+							} else {
+								progressHtml = `
+									<div style="font-size: 0.85rem; color: #666; margin-top: 0.5rem; padding: 0.5rem; background: #f8f9fa; border-radius: 4px;">
+										<div><strong>目標:</strong> ${item.goalValue}</div>
+										<div><strong>現状:</strong> ${item.currentStatus || '未設定'}</div>
+									</div>
+								`;
+							}
+            
+							const deadlineText = item.deadline ? `<div style="font-size: 0.75rem; color: #999;">期限: ${item.deadline}</div>` : '';
+            
+							kpiHtml += `
+								<div style="padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid var(--primary);">
+									<div style="font-weight: bold; color: var(--primary); margin-bottom: 0.5rem;">${item.targetItem}</div>
+									${deadlineText}
+									${progressHtml}
+								</div>
+							`;
+						});
+        
+						kpiHtml += '</div>';
+						personalKpiCard.innerHTML = kpiHtml;
+					} else {
+						personalKpiCard.style.display = 'none';
+					}
+				} else {
+					// 全体表示時は非表示
+					const personalKpiCard = document.getElementById('personalKpiCard');
+					if (personalKpiCard) personalKpiCard.style.display = 'none';
+				}
             }
 
             renderCharts(acts, target) {
@@ -852,18 +946,36 @@
                     parent.appendChild(newCanvas);
                 });
 
-                // Activity Bar
-                const counts = {}; STAFFS.forEach(s => counts[s] = 0);
-                acts.forEach(a => { if (counts[a.assignee] !== undefined) counts[a.assignee]++; });
-                new Chart(document.getElementById('chartActivity'), {
-                    type: 'bar',
-                    data: { labels: STAFFS, datasets: [{ label: '活動件数', data: STAFFS.map(s => counts[s]), backgroundColor: '#2c5aa0' }] },
-                    options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-                });
+                // Activity Bar - 期間フィルター対応
+				const activityPeriod = this.activityPeriod || 'all'; // 'all', 'week', 'month'
+				let filteredActs = acts;
 
-                // Product Doughnut
-                const prods = {}; 
-                acts.forEach(a => { if(a.product) prods[a.product] = (prods[a.product] || 0) + (Number(a.amount) || 0); });
+				if (activityPeriod === 'week') {
+					const now = new Date();
+					const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
+					filteredActs = acts.filter(a => new Date(a.date) >= weekStart);
+				} else if (activityPeriod === 'month') {
+					const now = new Date();
+					const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+					ilteredActs = acts.filter(a => new Date(a.date) >= monthStart);
+				}
+
+				const counts = {}; STAFFS.forEach(s => counts[s] = 0);
+				filteredActs.forEach(a => { if (counts[a.assignee] !== undefined) counts[a.assignee]++; });
+
+				const periodLabel = activityPeriod === 'all' ? '累計活動件数' : activityPeriod === 'week' ? '今週の活動件数' : '今月の活動件数';
+
+				new Chart(document.getElementById('chartActivity'), {
+					type: 'bar',
+					data: { labels: STAFFS, datasets: [{ label: periodLabel, data: STAFFS.map(s => counts[s]), backgroundColor: '#2c5aa0' }] },
+					options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+				});
+
+                // Product Doughnut - 受注済のみ
+				const prods = {}; 
+				acts.filter(a => a.stage === '受注').forEach(a => { 
+					if(a.product) prods[a.product] = (prods[a.product] || 0) + (Number(a.amount) || 0); 
+				});
                 const colorPalette = [
                     '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
                     '#FF9F40', '#E7E9ED', '#76D7C4', '#F7DC6F', '#C0392B',
@@ -895,60 +1007,104 @@
                     <div class="funnel-item" style="width: ${Math.max((probCounts[p] / maxProb) * 100, 10)}%; min-width: 50px; background-color: #28a745;">
                         <span class="funnel-label">${p}</span><span class="funnel-value">${probCounts[p]}件</span>
                     </div>`).join('');
+	
+				// Timeline - 受注済と受注想定を分離、KPI達成状況を明確化
+				const months = ['6月','7月','8月','9月','10月','11月','12月','1月','2月','3月','4月','5月'];
+				const monthlyOrdered = new Array(12).fill(0);  // 受注済
+				const monthlyExpected = new Array(12).fill(0); // 受注想定
+				
+				document.getElementById('timelineTarget').textContent = target.toLocaleString();
+				document.getElementById('timelineOrdered').textContent = currentOrdered.toLocaleString();
+				document.getElementById('timelineExpected').textContent = totalExpected.toLocaleString();
+				document.getElementById('timelineShortage').textContent = shortage.toLocaleString();
+				
+				// 現在の月のインデックスを取得（営業年度基準）
+				const nowDate = new Date();
+				const nowMonth = nowDate.getMonth(); // 0-11
+				const nowIdx = (nowMonth - 5 + 12) % 12;
 
-                // Timeline (修正3: 営業年度 6月～5月)
-                const months = ['6月','7月','8月','9月','10月','11月','12月','1月','2月','3月','4月','5月'];
-                const monthly = new Array(12).fill(0);
-                acts.forEach(a => {
-                    if (a.expected_date) {
-                        const d = new Date(a.expected_date);
-                        let m = d.getMonth(); // 0(1月)..11(12月)
-                        // 6月(5) -> 0, 5月(4) -> 11
-                        // 式: (m - 5 + 12) % 12
-                        let idx = (m - 5 + 12) % 12;
-                        if (idx >= 0 && idx < 12) monthly[idx] += (Number(a.amount) || 0);
-                    }
-                });
-                let cum = 0; 
-                const cumulative = monthly.map(v => cum += v);
-                
-                new Chart(document.getElementById('chartTimeline'), {
-                    type: 'bar',
-                    data: {
-                        labels: months,
-                        datasets: [
-                            { 
-                                label: '累積受注金額', 
-                                data: cumulative, 
-                                borderColor: '#FF6384', 
-                                backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                                type: 'line',
-                                fill: false,
-                                order: 1
-                            },
-                            { 
-                                label: '月次受注想定', 
-                                data: monthly, 
-                                backgroundColor: 'rgba(54, 162, 235, 0.5)', 
-                                type: 'bar',
-                                order: 2
-                            },
-                            { 
-                                label: 'KPI目標', 
-                                data: Array(12).fill(target), 
-                                borderColor: '#4BC0C0', 
-                                borderDash: [5, 5], 
-                                pointRadius: 0,
-                                type: 'line',
-                                order: 0
-                            }
-                        ]
-                    },
-                    options: { 
-                        maintainAspectRatio: false,
-                        interaction: { mode: 'index', intersect: false }
-                    }
-                });
+				acts.forEach(a => {
+					if (a.expected_date) {
+						const d = new Date(a.expected_date);
+						let m = d.getMonth();
+						let idx = (m - 5 + 12) % 12;
+						if (idx >= 0 && idx < 12) {
+							const amount = Number(a.amount) || 0;
+							if (a.stage === '受注') {
+								monthlyOrdered[idx] += amount;
+							} else {
+								monthlyExpected[idx] += amount;
+							}
+						}
+					}
+				});
+
+				// 累積（受注済のみ）
+				let cumOrdered = 0;
+				const cumulativeOrdered = monthlyOrdered.map(v => cumOrdered += v);
+
+				// 現時点の受注済合計
+				const currentOrdered = acts.filter(a => a.stage === '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+				// 受注想定合計（ファネル）
+				const totalExpected = acts.filter(a => a.stage !== '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+				// 不足額
+				const shortage = Math.max(target - currentOrdered, 0);
+
+				new Chart(document.getElementById('chartTimeline'), {
+					type: 'bar',
+					data: {
+						labels: months,
+						datasets: [
+							{ 
+								label: '累積受注済', 
+								data: cumulativeOrdered, 
+								borderColor: '#FF6384', 
+								backgroundColor: 'rgba(255, 99, 132, 0.2)', 
+								type: 'line', 
+								fill: false, 
+								order: 1 
+							},
+							{ 
+								label: '月次受注済', 
+								data: monthlyOrdered, 
+								backgroundColor: 'rgba(75, 192, 192, 0.6)', 
+								type: 'bar', 
+								stack: 'stack1',
+								order: 3
+							},
+							{ 
+								label: '月次受注想定', 
+								data: monthlyExpected, 
+								backgroundColor: 'rgba(255, 206, 86, 0.6)', 
+								type: 'bar', 
+								stack: 'stack1',
+								order: 3
+							},
+							{ 
+								label: 'KPI目標', 
+								data: Array(12).fill(target), 
+								borderColor: '#4BC0C0', 
+								borderDash: [5, 5], 
+								pointRadius: 0, 
+								type: 'line', 
+								order: 0 
+							}
+						]
+					},
+					options: { 
+						maintainAspectRatio: false,
+						interaction: { mode: 'index', intersect: false },
+						plugins: {
+							tooltip: {
+								callbacks: {
+									footer: function(context) {
+										return `\n現在の受注済: ¥${currentOrdered.toLocaleString()}\n受注想定: ¥${totalExpected.toLocaleString()}\n不足額: ¥${shortage.toLocaleString()}`;
+									}
+								}
+							}
+						}
+					}
+				});
             }
 
             // --- Customer Management ---
