@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         :root {
@@ -81,7 +82,9 @@
         }
 
         .app-title { margin: 0; font-size: 1.5rem; font-weight: bold; color: white; }
-        .user-info { display: flex; align-items: center; gap: 1rem; }
+        
+        /* 修正2: 担当者名を改行しない */
+        .user-info { display: flex; align-items: center; gap: 1rem; white-space: nowrap; }
 
         .tab-menu {
             background: #1e3a5f;
@@ -250,6 +253,18 @@
         .btn-secondary { background-color: #6c757d; }
         .btn-danger { background-color: #dc3545; }
         .btn-success { background-color: #28a745; }
+        
+        /* 修正4: テーブルボタン調整用 */
+        .btn-sm {
+            padding: 0.2rem 0.4rem !important;
+            font-size: 0.75rem !important;
+            white-space: nowrap;
+        }
+        .btn-group {
+            display: flex;
+            gap: 0.3rem;
+            flex-wrap: nowrap;
+        }
 
         .actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; }
 
@@ -284,7 +299,7 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Specific Layout Classes for Horizontal Rows */
+        /* Specific Layout Classes */
         .header-controls {
             display: flex;
             gap: 10px;
@@ -296,7 +311,6 @@
             padding: 0.5rem;
         }
     </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -325,7 +339,7 @@
                 <button type="submit" class="btn" style="width: 100%; justify-content: center; padding: 0.8rem;">ログイン</button>
             </form>
             <div style="margin-top: 1rem; font-size: 0.8rem; color: #666;">
-                <p>初期ID: admin, nagamori, hakozaki...</p>
+                <p>初期ID: admin, eimori, hakozaki...</p>
             </div>
         </div>
     </div>
@@ -416,7 +430,7 @@
                         <div class="funnel-wrapper"><div id="funnelProbability" class="funnel-container"></div></div>
                     </div>
                     <div class="card" style="grid-column: 1 / -1;">
-                        <h3>受注予定タイムライン</h3>
+                        <h3>受注予定タイムライン (6月-5月)</h3>
                         <div class="chart-wrapper" style="height: 350px;"><canvas id="chartTimeline"></canvas></div>
                     </div>
                 </div>
@@ -466,10 +480,11 @@
                     </div>
                 </div>
                 <div class="card">
+                    <!-- 修正5: カレンダー操作ボタンレイアウト -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <button class="btn btn-secondary" onclick="app.changeMonth(-1)">前月</button>
-                        <h3 id="currentMonthLabel" style="margin: 0;"></h3>
-                        <button class="btn btn-secondary" onclick="app.changeMonth(1)">翌月</button>
+                        <button class="btn btn-secondary" style="min-width: 60px; padding: 0.4rem 0.6rem;" onclick="app.changeMonth(-1)">前月</button>
+                        <h3 id="currentMonthLabel" style="margin: 0; white-space: nowrap;"></h3>
+                        <button class="btn btn-secondary" style="min-width: 60px; padding: 0.4rem 0.6rem;" onclick="app.changeMonth(1)">翌月</button>
                     </div>
                     <div id="calendarView">
                         <div class="calendar-header"><div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div></div>
@@ -531,7 +546,11 @@
             <section id="kpiPage" class="page-section">
                 <h2 class="page-title">KPI設定</h2>
                 <div class="card">
-                    <h3>売上目標設定</h3>
+                    <!-- 修正8: タイトルとボタンを横並びに -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 style="margin: 0; border: none; padding: 0;">売上目標設定</h3>
+                        <button class="btn btn-primary" onclick="app.saveKPITargets()">目標保存</button>
+                    </div>
                     <div class="form-group">
                         <label>全体売上目標 (円) *</label>
                         <input type="text" id="kpiTotalTarget" required oninput="app.formatCurrency(this)">
@@ -540,11 +559,11 @@
                         <label>個人売上目標 (円) *</label>
                         <input type="text" id="kpiPersonalTarget" required oninput="app.formatCurrency(this)">
                     </div>
-                    <div class="actions"><button class="btn btn-primary" onclick="app.saveKPITargets()">目標保存</button></div>
                 </div>
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <h3 style="margin: 0;">個人別KPI (アクションプラン)</h3>
+                        <!-- 修正8: タイトルの改行防止 -->
+                        <h3 style="margin: 0; white-space: nowrap;">個人別KPI (アクションプラン)</h3>
                         <button class="btn btn-primary" onclick="app.openKPIModal()"><i class="fas fa-plus"></i> 項目追加</button>
                     </div>
                     <table id="personalKPITable">
@@ -558,10 +577,10 @@
         </main>
     </div>
 
-    <!-- Modals -->
+    <!-- Modals (修正7: 各モーダルタイトルの改行防止) -->
     <div id="customerModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header"><h3>顧客情報</h3><button class="close-btn" onclick="app.closeModal('customerModal')">×</button></div>
+            <div class="modal-header"><h3 style="white-space: nowrap;">顧客情報</h3><button class="close-btn" onclick="app.closeModal('customerModal')">×</button></div>
             <form onsubmit="app.saveCustomer(event)">
                 <input type="hidden" id="customerId">
                 <div class="form-group"><label>顧客名 *</label><input type="text" id="customerName" required></div>
@@ -587,7 +606,7 @@
 
     <div id="scheduleModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header"><h3>予定情報</h3><button class="close-btn" onclick="app.closeModal('scheduleModal')">×</button></div>
+            <div class="modal-header"><h3 style="white-space: nowrap;">予定情報</h3><button class="close-btn" onclick="app.closeModal('scheduleModal')">×</button></div>
             <form onsubmit="app.saveSchedule(event)">
                 <input type="hidden" id="scheduleId">
                 <div class="form-group"><label>タイトル *</label><input type="text" id="scheduleTitle" required></div>
@@ -605,7 +624,7 @@
 
     <div id="activityModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header"><h3>活動記録</h3><button class="close-btn" onclick="app.closeModal('activityModal')">×</button></div>
+            <div class="modal-header"><h3 style="white-space: nowrap;">活動記録</h3><button class="close-btn" onclick="app.closeModal('activityModal')">×</button></div>
             <form onsubmit="app.saveActivity(event)">
                 <input type="hidden" id="activityId">
                 <div class="form-group"><label>日付 *</label><input type="date" id="activityDate" required></div>
@@ -638,7 +657,7 @@
 
     <div id="kpiItemModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header"><h3>個人KPI項目</h3><button class="close-btn" onclick="app.closeModal('kpiItemModal')">×</button></div>
+            <div class="modal-header"><h3 style="white-space: nowrap;">個人KPI項目</h3><button class="close-btn" onclick="app.closeModal('kpiItemModal')">×</button></div>
             <form onsubmit="app.saveKPIItem(event)">
                 <input type="hidden" id="kpiItemId">
                 <div class="form-group"><label>対象項目 *</label><input type="text" id="kpiTargetItem" required></div>
@@ -658,16 +677,31 @@
 
     <script>
         // Constants & Global State
-        // Supabase Configuration
-let supabaseClient = null;
-const SUPABASE_URL = localStorage.getItem('supabaseUrl') || 'YOUR_SUPABASE_URL';
-const SUPABASE_KEY = localStorage.getItem('supabaseKey') || 'YOUR_SUPABASE_KEY';
+        // 修正1: USER_ACCOUNTSの修正（eimori）
+        const USER_ACCOUNTS = [
+            { username: 'admin', password: 'admin', assignee: 'admin', displayName: '管理者', role: 'admin', altUsername: 'admin' },
+            { username: '永森', password: 'eimori', assignee: '永森', displayName: '永森', role: 'staff', altUsername: 'eimori' },
+            { username: '箱崎', password: 'hakozaki', assignee: '箱崎', displayName: '箱崎', role: 'staff', altUsername: 'hakozaki' },
+            { username: '清水', password: 'shimizu', assignee: '清水', displayName: '清水', role: 'staff', altUsername: 'shimizu' },
+            { username: '杉田', password: 'sugita', assignee: '杉田', displayName: '杉田', role: 'staff', altUsername: 'sugita' },
+            { username: '安里', password: 'asato', assignee: '安里', displayName: '安里', role: 'staff', altUsername: 'asato' },
+            { username: '鎌田', password: 'kamata', assignee: '鎌田', displayName: '鎌田', role: 'staff', altUsername: 'kamata' },
+            { username: '大山', password: 'oyama', assignee: '大山', displayName: '大山', role: 'staff', altUsername: 'oyama' }
+        ];
 
-// Initialize Supabase
-if (SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-}
-const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大山'];
+        const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大山'];
+        let supabaseClient = null;
+        // LocalStorage優先のためデフォルトSupabase設定はダミー
+        const SUPABASE_URL = localStorage.getItem('supabaseUrl') || 'YOUR_SUPABASE_URL';
+        const SUPABASE_KEY = localStorage.getItem('supabaseKey') || 'YOUR_SUPABASE_KEY';
+
+        // Initialize Supabase if config exists
+        if (SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
+            try {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            } catch (e) { console.warn('Supabase init failed', e); }
+        }
+
         let CURRENT_USER = { id: '', username: '', assignee: '', displayName: '', role: 'staff' };
 
         class SalesApp {
@@ -693,7 +727,7 @@ const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大
                 this.loadData();
                 this.setupEventListeners();
                 
-                // Simple session check
+                // Simple session check (localStorage mode)
                 const sessionUser = sessionStorage.getItem('currentUser');
                 if (sessionUser) {
                     CURRENT_USER = JSON.parse(sessionUser);
@@ -708,6 +742,7 @@ const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大
                     const username = document.getElementById('username').value;
                     const password = document.getElementById('password').value;
                     
+                    // 修正1: ユーザー認証ロジック
                     const user = USER_ACCOUNTS.find(u => (u.username === username || u.assignee === username || u.altUsername === username) && u.password === password);
                     
                     if (user) {
@@ -826,7 +861,7 @@ const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大
                     options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
                 });
 
-                // Product Doughnut (Expanded Palette)
+                // Product Doughnut
                 const prods = {}; 
                 acts.forEach(a => { if(a.product) prods[a.product] = (prods[a.product] || 0) + (Number(a.amount) || 0); });
                 const colorPalette = [
@@ -850,7 +885,7 @@ const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大
                         <span class="funnel-label">${s}</span><span class="funnel-value">${stageCounts[s].count}件 / ¥${(stageCounts[s].amount / 10000).toFixed(0)}万</span>
                     </div>`).join('');
 
-                // Probability Funnel - EXCLUDE '受注'
+                // Probability Funnel
                 const actsForProb = acts.filter(a => a.stage !== '受注');
                 const probs = ['A', 'B', 'C', 'D'];
                 const probCounts = {}; probs.forEach(p => probCounts[p] = 0);
@@ -861,14 +896,16 @@ const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大
                         <span class="funnel-label">${p}</span><span class="funnel-value">${probCounts[p]}件</span>
                     </div>`).join('');
 
-                // Timeline (Cumulative, Monthly, Target)
-                const months = ['4月','5月','6月','7月','8月','9月','10月','11月','12月','1月','2月','3月'];
+                // Timeline (修正3: 営業年度 6月～5月)
+                const months = ['6月','7月','8月','9月','10月','11月','12月','1月','2月','3月','4月','5月'];
                 const monthly = new Array(12).fill(0);
                 acts.forEach(a => {
                     if (a.expected_date) {
                         const d = new Date(a.expected_date);
-                        let m = d.getMonth(); 
-                        let idx = (m >= 3) ? m - 3 : m + 9;
+                        let m = d.getMonth(); // 0(1月)..11(12月)
+                        // 6月(5) -> 0, 5月(4) -> 11
+                        // 式: (m - 5 + 12) % 12
+                        let idx = (m - 5 + 12) % 12;
                         if (idx >= 0 && idx < 12) monthly[idx] += (Number(a.amount) || 0);
                     }
                 });
@@ -941,9 +978,12 @@ const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大
                         <td>${c.status || '-'}</td>
                         <td>${c.assignee || '-'}</td>
                         <td>${c.staffs.length}</td>
+                        <!-- 修正4: ボタン配置修正 -->
                         <td>
-                            <button class="btn btn-secondary btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;" onclick="app.editCustomer('${c.id}')">編集</button>
-                            <button class="btn btn-danger btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;" onclick="app.deleteCustomer('${c.id}')">削除</button>
+                            <div class="btn-group">
+                                <button class="btn btn-secondary btn-sm" onclick="app.editCustomer('${c.id}')">編集</button>
+                                <button class="btn btn-danger btn-sm" onclick="app.deleteCustomer('${c.id}')">削除</button>
+                            </div>
                         </td>
                     </tr>`).join('');
             }
@@ -1002,30 +1042,41 @@ const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大
             }
 
             renderCalendar(list) {
-                const y = this.currentDate.getFullYear();
-                const m = this.currentDate.getMonth();
-                document.getElementById('currentMonthLabel').textContent = `${y}年 ${m + 1}月`;
-                
-                const first = new Date(y, m, 1);
-                const last = new Date(y, m + 1, 0);
-                const start = new Date(first); 
-                start.setDate(start.getDate() - start.getDay());
-                const end = new Date(last); 
-                end.setDate(end.getDate() + (6 - end.getDay()));
-                
-                let html = '';
-                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                    const dateStr = d.toISOString().split('T')[0];
-                    const isOther = d.getMonth() !== m;
-                    const isToday = dateStr === new Date().toISOString().split('T')[0];
-                    const dayScheds = list.filter(s => s.date === dateStr);
-                    html += `<div class="calendar-day ${isOther ? 'other-month' : ''} ${isToday ? 'today' : ''}">
-                        <div style="text-align:right; font-size:0.8rem; margin-bottom:2px;">${d.getDate()}</div>
-                        ${dayScheds.map(s => `<div class="schedule-item" onclick="app.editSchedule('${s.id}')">${s.time ? s.time + ' ' : ''}${s.title}</div>`).join('')}
-                    </div>`;
-                }
-                document.getElementById('calendarGrid').innerHTML = html;
-            }
+				const y = this.currentDate.getFullYear();
+				const m = this.currentDate.getMonth();
+				document.getElementById('currentMonthLabel').textContent = `${y}年 ${m + 1}月`;
+    
+				const first = new Date(y, m, 1);
+				const last = new Date(y, m + 1, 0);
+				const start = new Date(first);
+				start.setDate(start.getDate() - start.getDay());
+				const end = new Date(last);
+				end.setDate(end.getDate() + (6 - end.getDay()));
+    
+				let html = '';
+				for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+					// タイムゾーンの影響を受けないように、ローカル日付文字列を生成
+					const year = d.getFullYear();
+					const month = String(d.getMonth() + 1).padStart(2, '0');
+					const day = String(d.getDate()).padStart(2, '0');
+					const dateStr = `${year}-${month}-${day}`;
+        
+					const isOther = d.getMonth() !== m;
+        
+					// 今日の日付も同様にローカルで生成
+					const today = new Date();
+					const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+					const isToday = dateStr === todayStr;
+        
+					const dayScheds = list.filter(s => s.date === dateStr);
+					html += `<div class="calendar-day ${isOther ? 'other-month' : ''} ${isToday ? 'today' : ''}">
+						<div style="text-align:right; font-size:0.8rem; margin-bottom:2px;">${d.getDate()}</div>
+						${dayScheds.map(s => `<div class="schedule-item" onclick="app.editSchedule('${s.id}')">${s.time ? s.time + ' ' : ''}${s.title}</div>`).join('')}
+					</div>`;
+				}
+				document.getElementById('calendarGrid').innerHTML = html;
+			}
+
 
             changeMonth(delta) {
                 this.currentDate.setMonth(this.currentDate.getMonth() + delta);
@@ -1052,13 +1103,15 @@ const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大
                         <td>${a.customer}</td>
                         <td>${a.purpose}</td>
                         <td>${a.partner || '-'}</td>
-                        <td title="${a.content}" onclick="alert('${a.content}')" style="cursor:pointer; max-width:150px; overflow:hidden; text-overflow:ellipsis;">${a.content}</td>
+                        <td title="${a.content}" onclick="alert('${(a.content || '').replace(/'/g, "\\'")}');" style="cursor:pointer; max-width:150px; overflow:hidden; text-overflow:ellipsis;">${a.content || '-'}</td>
                         <td>${a.stage || '-'}</td>
                         <td>${a.probability || '-'}</td>
                         <td>¥${Number(a.amount).toLocaleString()}</td>
                         <td>
-                            <button class="btn btn-secondary btn-sm" style="padding:0.2rem 0.5rem;" onclick="app.editActivity('${a.id}')">編集</button>
-                            <button class="btn btn-danger btn-sm" style="padding:0.2rem 0.5rem;" onclick="app.deleteActivity('${a.id}')">削除</button>
+                            <div class="btn-group">
+                                <button class="btn btn-secondary btn-sm" onclick="app.editActivity('${a.id}')">編集</button>
+                                <button class="btn btn-danger btn-sm" onclick="app.deleteActivity('${a.id}')">削除</button>
+                            </div>
                         </td>
                     </tr>`).join('');
                 
@@ -1111,8 +1164,10 @@ const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大
                         <td>${i.deadline || '-'}</td>
                         <td>${i.currentStatus || '-'}</td>
                         <td>
-                            <button class="btn btn-secondary btn-sm" onclick="app.editKPIItem('${i.id}')">編集</button>
-                            <button class="btn btn-danger btn-sm" onclick="app.deleteKPIItem('${i.id}')">削除</button>
+                            <div class="btn-group">
+                                <button class="btn btn-secondary btn-sm" onclick="app.editKPIItem('${i.id}')">編集</button>
+                                <button class="btn btn-danger btn-sm" onclick="app.deleteKPIItem('${i.id}')">削除</button>
+                            </div>
                         </td>
                     </tr>`).join('');
             }
@@ -1140,8 +1195,7 @@ const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大
             }
 
             editCustomer(id) {
-                const c = this.data.customers.find(x =>
- x.id == id);
+                const c = this.data.customers.find(x => x.id == id);
                 if (!c) return;
                 document.getElementById('customerId').value = c.id;
                 document.getElementById('customerName').value = c.name;
@@ -1202,8 +1256,10 @@ const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大
                         <td>${s.dept || '-'}</td>
                         <td>${s.contact || '-'}</td>
                         <td>
-                            <button class="btn btn-secondary btn-sm" onclick="app.editCustomerStaff(${idx})">編集</button>
-                            <button class="btn btn-danger btn-sm" onclick="app.deleteCustomerStaff(${idx})">削除</button>
+                            <div class="btn-group">
+                                <button class="btn btn-secondary btn-sm" onclick="app.editCustomerStaff(${idx})">編集</button>
+                                <button class="btn btn-danger btn-sm" onclick="app.deleteCustomerStaff(${idx})">削除</button>
+                            </div>
                         </td>
                     </tr>`).join('');
             }
@@ -1479,17 +1535,6 @@ const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大
                 };
             }
         }
-
-        const USER_ACCOUNTS = [
-            { username: 'admin', password: 'admin', assignee: 'admin', displayName: '管理者', role: 'admin', altUsername: 'admin' },
-            { username: '永森', password: 'nagamori', assignee: '永森', displayName: '永森', role: 'staff', altUsername: 'nagamori' },
-            { username: '箱崎', password: 'hakozaki', assignee: '箱崎', displayName: '箱崎', role: 'staff', altUsername: 'hakozaki' },
-            { username: '清水', password: 'shimizu', assignee: '清水', displayName: '清水', role: 'staff', altUsername: 'shimizu' },
-            { username: '杉田', password: 'sugita', assignee: '杉田', displayName: '杉田', role: 'staff', altUsername: 'sugita' },
-            { username: '安里', password: 'asato', assignee: '安里', displayName: '安里', role: 'staff', altUsername: 'asato' },
-            { username: '鎌田', password: 'kamata', assignee: '鎌田', displayName: '鎌田', role: 'staff', altUsername: 'kamata' },
-            { username: '大山', password: 'oyama', assignee: '大山', displayName: '大山', role: 'staff', altUsername: 'oyama' }
-        ];
 
         let app;
         window.addEventListener('DOMContentLoaded', () => {
