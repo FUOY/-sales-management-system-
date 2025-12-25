@@ -957,7 +957,7 @@
 				} else if (activityPeriod === 'month') {
 					const now = new Date();
 					const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-					ilteredActs = acts.filter(a => new Date(a.date) >= monthStart);
+					filteredActs = acts.filter(a => new Date(a.date) >= monthStart);
 				}
 
 				const counts = {}; STAFFS.forEach(s => counts[s] = 0);
