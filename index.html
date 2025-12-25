@@ -945,12 +945,7 @@
                     parent.innerHTML = '';
                     parent.appendChild(newCanvas);
                 });
-				// タイムラインチャートの後に追加
-				document.getElementById('timelineTarget').textContent = target.toLocaleString();
-				document.getElementById('timelineOrdered').textContent = currentOrdered.toLocaleString();
-				document.getElementById('timelineExpected').textContent = totalExpected.toLocaleString();
-				document.getElementById('timelineShortage').textContent = shortage.toLocaleString();
-
+				
                 // Activity Bar - 期間フィルター対応
 				const activityPeriod = this.activityPeriod || 'all'; // 'all', 'week', 'month'
 				let filteredActs = acts;
@@ -1017,6 +1012,12 @@
 				const months = ['6月','7月','8月','9月','10月','11月','12月','1月','2月','3月','4月','5月'];
 				const monthlyOrdered = new Array(12).fill(0);  // 受注済
 				const monthlyExpected = new Array(12).fill(0); // 受注想定
+				
+				// タイムラインチャートの後に追加
+				document.getElementById('timelineTarget').textContent = target.toLocaleString();
+				document.getElementById('timelineOrdered').textContent = currentOrdered.toLocaleString();
+				document.getElementById('timelineExpected').textContent = totalExpected.toLocaleString();
+				document.getElementById('timelineShortage').textContent = shortage.toLocaleString();
 											
 				// 現在の月のインデックスを取得（営業年度基準）
 				const nowDate = new Date();
