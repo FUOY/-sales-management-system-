@@ -1013,12 +1013,11 @@
 				const monthlyOrdered = new Array(12).fill(0);  // 受注済
 				const monthlyExpected = new Array(12).fill(0); // 受注想定
 				
-				// タイムラインチャートの後に追加
 				document.getElementById('timelineTarget').textContent = target.toLocaleString();
 				document.getElementById('timelineOrdered').textContent = currentOrdered.toLocaleString();
 				document.getElementById('timelineExpected').textContent = totalExpected.toLocaleString();
 				document.getElementById('timelineShortage').textContent = shortage.toLocaleString();
-											
+												
 				// 現在の月のインデックスを取得（営業年度基準）
 				const nowDate = new Date();
 				const nowMonth = nowDate.getMonth(); // 0-11
