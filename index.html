@@ -692,13 +692,6 @@
     <div id="toast" class="toast"></div>
 
     <script>
-        const SUPABASE_URL = 'https://vflehlpohwuwploozobi.supabase.co';
-		const SUPABASE_KEY = 'sb_publishable_469r2OoTzw-xioLdkOHotQ_7b8RzjuY';
-
-		const supabase = supabase.createClient(
-		SUPABASE_URL,
-		SUPABASE_KEY
-		);
 		// Constants & Global State
         // 修正1: USER_ACCOUNTSの修正（eimori）
         const USER_ACCOUNTS = [
@@ -714,8 +707,14 @@
 
         const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大山'];
         let supabaseClient = null;
-        
-        // Initialize Supabase if config exists
+		// LocalStorage優先のためデフォルトSupabase設定
+		const SUPABASE_URL =
+			localStorage.getItem('supabaseUrl') || 'https://vflehlpohwuwploozobi.supabase.co';
+
+		const SUPABASE_KEY =
+			localStorage.getItem('supabaseKey') || 'sb_publishable_469r2OoTzw-xioLdkOHotQ_7b8RzjuY';
+
+		// Initialize Supabase if config exists
         if (SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
             try {
                 supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -1342,35 +1341,6 @@
                 this.saveData();
                 this.showToast('KPI目標を保存しました', 'success');
             }
-			
-			// ================================
-			// 保存専用関数（localStorage + Supabase）
-			// ================================
-			function saveSalesData(data) {
-				// ① これまで通り localStorage に保存
-				localStorage.setItem('salesData', JSON.stringify(data));
-
-				// ② Supabase にも送信
-				syncToSupabase(data);
-			}
-			
-			// ================================
-			// Supabase 同期処理
-			// ================================
-			async function syncToSupabase(data) {
-			const payload = {
-				...data,
-				_updatedBy: CURRENT_USER.assignee
-			};
-
-			await supabase
-				.from('sales_data')
-				.upsert({
-					id: 'shared',
-					payload: payload,
-					updated_at: new Date().toISOString()
-				});
-			}
 
             // Modal Management
             openCustomerModal() {
@@ -1706,20 +1676,11 @@
             }
 
             saveData() {
-				// ① 既存の localStorage 保存はそのまま
-				localStorage.setItem('salesCustomers', JSON.stringify(this.data.customers));
-				localStorage.setItem('salesSchedules', JSON.stringify(this.data.schedules));
-				localStorage.setItem('salesActivities', JSON.stringify(this.data.activities));
-				localStorage.setItem('salesKPI', JSON.stringify(this.data.kpiSettings));
-
-				// ② Supabase 用に「まとめたデータ」を送信
-				saveSalesData({
-					customers: this.data.customers,
-					schedules: this.data.schedules,
-					activities: this.data.activities,
-					kpiSettings: this.data.kpiSettings
-				});
-			}
+                localStorage.setItem('salesCustomers', JSON.stringify(this.data.customers));
+                localStorage.setItem('salesSchedules', JSON.stringify(this.data.schedules));
+                localStorage.setItem('salesActivities', JSON.stringify(this.data.activities));
+                localStorage.setItem('salesKPI', JSON.stringify(this.data.kpiSettings));
+            }
 
             loadData() {
                 this.data.customers = JSON.parse(localStorage.getItem('salesCustomers') || '[]');
@@ -1738,7 +1699,34 @@
         window.addEventListener('DOMContentLoaded', () => {
             app = new SalesApp();
         });
-    </script>
+		// ================================
+		// 保存専用関数（localStorage + Supabase）
+		// ================================
+		function saveSalesData(data) {
+		// ① これまで通り localStorage に保存
+		saveSalesData(this.data);   // ← ここに変更
+
+		// ② Supabase にも送信
+		syncToSupabase(data);
+		}
+		// ================================
+		// Supabase 同期処理
+		// ================================
+		async function syncToSupabase(data) {
+		const payload = {
+			...data,
+			_updatedBy: CURRENT_USER.assignee
+		};
+
+		await supabase
+			.from('sales_data')
+			.upsert({
+			id: 'shared',
+			payload: payload,
+			updated_at: new Date().toISOString()
+			});
+		}
+	</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </body>
 </html>
