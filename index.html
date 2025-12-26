@@ -714,10 +714,7 @@
 
         const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大山'];
         let supabaseClient = null;
-        // LocalStorage優先のためデフォルトSupabase設定はダミー
-        const SUPABASE_URL = localStorage.getItem('supabaseUrl') || 'YOUR_SUPABASE_URL';
-        const SUPABASE_KEY = localStorage.getItem('supabaseKey') || 'YOUR_SUPABASE_KEY';
-
+        
         // Initialize Supabase if config exists
         if (SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
             try {
