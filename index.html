@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>販売管理システム (localStorage版)</title>
+    <title>販売管理システム (テスト最終版)</title>
     <!-- External Libraries -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -325,7 +325,7 @@
         <div class="auth-card">
             <div class="auth-header">
                 <h2><i class="fas fa-chart-line"></i> 販売管理システム</h2>
-                <p>localStorage版</p>
+                <p>テスト最終版</p>
             </div>
             <form id="loginForm">
                 <div class="form-group" style="text-align: left;">
@@ -830,6 +830,12 @@
 
             // --- Dashboard Render ---
             renderDashboard() {
+				const customers = this.data.customers || [];
+				const schedules = this.data.schedules || [];
+				const activities = this.data.activities || [];
+
+				// ↓ 以降は customers / schedules / activities を使う
+
                 const filter = document.getElementById('dashboardFilter').value;
                 const isPersonal = filter === 'personal' && CURRENT_USER.role !== 'admin';
                 
@@ -1676,56 +1682,173 @@
             }
 
             saveData() {
-                localStorage.setItem('salesCustomers', JSON.stringify(this.data.customers));
-                localStorage.setItem('salesSchedules', JSON.stringify(this.data.schedules));
-                localStorage.setItem('salesActivities', JSON.stringify(this.data.activities));
-                localStorage.setItem('salesKPI', JSON.stringify(this.data.kpiSettings));
-            }
+				saveSalesData(this.data);
+			}
 
             loadData() {
-                this.data.customers = JSON.parse(localStorage.getItem('salesCustomers') || '[]');
-                this.data.schedules = JSON.parse(localStorage.getItem('salesSchedules') || '[]');
-                this.data.activities = JSON.parse(localStorage.getItem('salesActivities') || '[]');
-                const kpi = JSON.parse(localStorage.getItem('salesKPI') || '{}');
-                this.data.kpiSettings = {
-                    totalTarget: kpi.totalTarget || 300000000,
-                    personalTargets: kpi.personalTargets || { '永森': 100000000, '箱崎': 100000000, '清水': 100000000, '杉田': 100000000, '安里': 100000000, '鎌田': 100000000, '大山': 100000000 },
-                    personalItems: kpi.personalItems || []
-                };
-            }
+				const saved = JSON.parse(localStorage.getItem('salesData') || '{}');
+				this.data = {
+					customers: saved.customers || [],
+					schedules: saved.schedules || [],
+					activities: saved.activities || [],
+					kpiSettings: saved.kpiSettings || {
+						totalTarget: 300000000,
+						personalTargets: {
+							'永森': 100000000, '箱崎': 100000000, '清水': 100000000,
+							'杉田': 100000000, '安里': 100000000, '鎌田': 100000000, '大山': 100000000
+						},
+						personalItems: []
+					}
+				};
+			}
+
         }
 
         let app;
-        window.addEventListener('DOMContentLoaded', () => {
-            app = new SalesApp();
-        });
+		window.addEventListener('DOMContentLoaded', async () => {
+			app = new SalesApp();
+
+			// ★ Supabaseから最新データを取得（STEP②）
+			await loadFromSupabase();
+			async function loadFromSupabase() {
+				if (!supabaseClient) return;
+
+				const { data, error } = await supabaseClient
+					.from('sales_data')
+					.select('payload')
+					.eq('id', 'shared')
+					.single();
+
+				if (error) {
+					console.warn('Supabase load failed, fallback to localStorage', error);
+					return;
+				}
+
+				if (data?.payload) {
+					localStorage.setItem(
+						'salesData',
+						JSON.stringify(data.payload)
+					);
+
+					function loadFromSupabase(payload) {
+						app.data = {
+							customers: payload.customers || [],
+							schedules: payload.schedules || [],
+							activities: payload.activities || [],
+							kpiSettings: payload.kpiSettings || {
+								totalTarget: 300000000,
+								personalTargets: {},
+								personalItems: []
+							}
+						};
+
+						// localStorageにも反映
+						localStorage.setItem('salesCustomers', JSON.stringify(app.data.customers));
+						localStorage.setItem('salesSchedules', JSON.stringify(app.data.schedules));
+						localStorage.setItem('salesActivities', JSON.stringify(app.data.activities));
+						localStorage.setItem('salesKPI', JSON.stringify(app.data.kpiSettings));
+
+						app.renderDashboard();
+					}
+				}
+			}
+
+			// ★ Realtime購読開始
+			subscribeSalesDataRealtime();
+			function subscribeSalesDataRealtime() {
+				if (!supabaseClient) return;
+
+				supabaseClient
+					.channel('sales-data-channel')
+					.on(
+						'postgres_changes',
+						{
+							event: '*',
+							schema: 'public',
+							table: 'sales_data'
+						},
+						(payload) => {
+							console.log('Realtime update received', payload);
+
+							const newData = payload.new?.payload;
+							if (!newData) return;
+
+							// 自分の更新は無視（二重更新防止）
+							if (newData._updatedBy === CURRENT_USER.assignee) {
+								return;
+							}
+
+							// ★ 差分マージ（ここが最重要）
+							app.data = {
+								customers: newData.customers || app.data.customers || [],
+								schedules: newData.schedules || app.data.schedules || [],
+								activities: newData.activities || app.data.activities || [],
+								kpiSettings: newData.kpiSettings || app.data.kpiSettings
+							};
+
+							// localStorage も分割保存（安全）
+							localStorage.setItem('salesCustomers', JSON.stringify(app.data.customers));
+							localStorage.setItem('salesSchedules', JSON.stringify(app.data.schedules));
+							localStorage.setItem('salesActivities', JSON.stringify(app.data.activities));
+							localStorage.setItem('salesKPI', JSON.stringify(app.data.kpiSettings));
+
+							// 再描画
+							app.renderDashboard();
+							app.renderCustomers();
+							app.renderSchedules();
+							app.renderActivities();
+
+							app.showToast(
+								'他のユーザーがデータを更新しました',
+								'info'
+							);
+						}
+					)
+					.subscribe();
+			}
+
+		});
+
 		// ================================
 		// 保存専用関数（localStorage + Supabase）
 		// ================================
 		function saveSalesData(data) {
-		// ① これまで通り localStorage に保存
-		saveSalesData(this.data);   // ← ここに変更
+			// ① localStorage に保存（まとめて1つ）
+			localStorage.setItem('salesData', JSON.stringify(data));
 
-		// ② Supabase にも送信
-		syncToSupabase(data);
+			// ② Supabase に送信
+			syncToSupabase(data);
 		}
+
 		// ================================
 		// Supabase 同期処理
 		// ================================
 		async function syncToSupabase(data) {
-		const payload = {
-			...data,
-			_updatedBy: CURRENT_USER.assignee
-		};
+			if (!supabaseClient) {
+				console.warn('Supabase client not initialized');
+				return;
+			}
 
-		await supabase
-			.from('sales_data')
-			.upsert({
-			id: 'shared',
-			payload: payload,
-			updated_at: new Date().toISOString()
-			});
+			const payload = {
+				data: data,
+				_updatedBy: CURRENT_USER.assignee
+			};
+
+			const { error } = await supabaseClient
+				.from('sales_data')
+				.upsert({
+					id: 'shared',
+					payload: payload,
+					updated_at: new Date().toISOString()
+				});
+
+			if (error) {
+				console.error('Supabase upsert error:', error);
+			} else {
+				console.log('Supabase updated successfully', payload);
+			}
 		}
+
 	</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </body>
