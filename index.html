@@ -213,13 +213,60 @@
         .calendar-day.other-month { background-color: #f9f9f9; color: #ccc; }
         .calendar-day.today { background-color: #e3f2fd; }
 
-        .schedule-item {
-            background: var(--primary); color: white; padding: 2px 5px; margin-bottom: 2px;
-            border-radius: 3px; font-size: 0.75rem; cursor: pointer;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
+		.schedule-item {
+			background: var(--primary); color: white; padding: 2px 5px; margin-bottom: 2px;
+			border-radius: 3px; font-size: 0.75rem; cursor: pointer;
+			white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+			display: flex;
+			align-items: center;
+			gap: 4px;
+		}
 
-        /* Modals */
+		/* 担当者名バッジスタイル */
+		.schedule-assignee {
+			background: rgba(255, 255, 255, 0.3);
+			padding: 1px 4px;
+			border-radius: 2px;
+			font-size: 0.65rem;
+			font-weight: bold;
+			flex-shrink: 0;
+		}
+
+		/* 担当者別カラー設定 */
+		.schedule-item[data-assignee="永森"] { 
+			background-color: #e74c3c; 
+			border-left: 3px solid #c0392b; 
+		}
+		.schedule-item[data-assignee="箱崎"] { 
+			background-color: #3498db; 
+			border-left: 3px solid #2980b9; 
+		}
+		.schedule-item[data-assignee="清水"] { 
+			background-color: #2ecc71; 
+			border-left: 3px solid #27ae60; 
+		}
+		.schedule-item[data-assignee="杉田"] { 
+			background-color: #f39c12; 
+			border-left: 3px solid #e67e22; 
+		}
+		.schedule-item[data-assignee="安里"] { 
+			background-color: #9b59b6; 
+			border-left: 3px solid #8e44ad; 
+		}
+		.schedule-item[data-assignee="鎌田"] { 
+			background-color: #1abc9c; 
+			border-left: 3px solid #16a085; 
+		}
+		.schedule-item[data-assignee="大山"] { 
+			background-color: #34495e; 
+			border-left: 3px solid #2c3e50; 
+		}
+		.schedule-item[data-assignee="admin"] { 
+			background-color: #95a5a6; 
+			border-left: 3px solid #7f8c8d; 
+		}
+
+		/* Modals */
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.5); z-index: 10000; justify-content: center; align-items: center;
@@ -541,19 +588,21 @@
                 <div class="card table-container">
                     <table id="activitiesTable">
                         <thead>
-                            <tr>
-                                <th onclick="app.sortActivities('date')">日付 <i class="fas fa-sort" id="sortIconActivityDate"></i></th>
-                                <th>担当</th>
-                                <th>得意先</th>
-                                <th>目的</th>
-                                <th>相手</th>
-                                <th>商談内容</th>
-                                <th>ステージ</th>
-                                <th>確度</th>
-                                <th>金額</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
+							<tr>
+								<th onclick="app.sortActivities('date')">日付 <i class="fas fa-sort" id="sortIconActivityDate"></i></th>
+								<th onclick="app.sortActivities('assignee')">担当 <i class="fas fa-sort" id="sortIconActivityAssignee"></i></th>
+								<th onclick="app.sortActivities('customer')">得意先 <i class="fas fa-sort" id="sortIconActivityCustomer"></i></th>
+								<th onclick="app.sortActivities('purpose')">目的 <i class="fas fa-sort" id="sortIconActivityPurpose"></i></th>
+								<th>相手</th>
+								<th>機種名</th>
+								<th>商談内容</th>
+								<th onclick="app.sortActivities('stage')">ステージ <i class="fas fa-sort" id="sortIconActivityStage"></i></th>
+								<th onclick="app.sortActivities('expected_date')">受注予定日 <i class="fas fa-sort" id="sortIconExpectedDate"></i></th>
+								<th onclick="app.sortActivities('probability')">確度 <i class="fas fa-sort" id="sortIconActivityProbability"></i></th>
+								<th onclick="app.sortActivities('amount')">金額 <i class="fas fa-sort" id="sortIconActivityAmount"></i></th>
+								<th>操作</th>
+							</tr>
+						</thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -1211,39 +1260,49 @@
 				const y = this.currentDate.getFullYear();
 				const m = this.currentDate.getMonth();
 				document.getElementById('currentMonthLabel').textContent = `${y}年 ${m + 1}月`;
-    
+
 				const first = new Date(y, m, 1);
 				const last = new Date(y, m + 1, 0);
 				const start = new Date(first);
 				start.setDate(start.getDate() - start.getDay());
 				const end = new Date(last);
 				end.setDate(end.getDate() + (6 - end.getDay()));
-    
+
 				let html = '';
 				for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-					// タイムゾーンの影響を受けないように、ローカル日付文字列を生成
 					const year = d.getFullYear();
 					const month = String(d.getMonth() + 1).padStart(2, '0');
 					const day = String(d.getDate()).padStart(2, '0');
 					const dateStr = `${year}-${month}-${day}`;
-        
+					
 					const isOther = d.getMonth() !== m;
-        
-					// 今日の日付も同様にローカルで生成
+					
 					const today = new Date();
 					const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 					const isToday = dateStr === todayStr;
-        
-					const dayScheds = list.filter(s => s.date === dateStr);
+					
+					// その日の予定を取得して時間順にソート
+					const dayScheds = list.filter(s => s.date === dateStr).sort((a, b) => {
+						const timeA = a.time || '99:99';  // 時間未設定は最後に表示
+						const timeB = b.time || '99:99';
+						return timeA.localeCompare(timeB);
+					});
+					
 					html += `<div class="calendar-day ${isOther ? 'other-month' : ''} ${isToday ? 'today' : ''}">
 						<div style="text-align:right; font-size:0.8rem; margin-bottom:2px;">${d.getDate()}</div>
-						${dayScheds.map(s => `<div class="schedule-item" onclick="app.editSchedule('${s.id}')">${s.time ? s.time + ' ' : ''}${s.title}</div>`).join('')}
+						${dayScheds.map(s => `
+							<div class="schedule-item" 
+								 data-assignee="${s.assignee}" 
+								 onclick="app.editSchedule('${s.id}')"
+								 title="${s.assignee} - ${s.time ? s.time + ' ' : ''}${s.title}">
+								<span class="schedule-assignee">${s.assignee}</span>
+								<span>${s.time ? s.time + ' ' : ''}${s.title}</span>
+							</div>
+						`).join('')}
 					</div>`;
 				}
 				document.getElementById('calendarGrid').innerHTML = html;
 			}
-
-
             changeMonth(delta) {
                 this.currentDate.setMonth(this.currentDate.getMonth() + delta);
                 this.renderSchedule();
@@ -1251,42 +1310,93 @@
 
             // --- Activity Log ---
             renderActivities() {
-                const filter = document.getElementById('activitiesFilter').value;
-                let list = this.data.activities;
-                if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
-                    list = list.filter(a => a.assignee === CURRENT_USER.assignee);
-                }
-                
-                if (this.activitiesSortField === 'date') {
-                    list.sort((a, b) => this.activitiesSortOrder === 'asc' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
-                    document.getElementById('sortIconActivityDate').className = this.activitiesSortOrder === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
-                }
+				const filter = document.getElementById('activitiesFilter').value;
+				let list = this.data.activities;
+				if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
+					list = list.filter(a => a.assignee === CURRENT_USER.assignee);
+				}
+				
+				// 拡張ソート処理
+				if (this.activitiesSortField) {
+					list.sort((a, b) => {
+						let valA, valB;
+						
+						switch(this.activitiesSortField) {
+							case 'amount':
+								valA = Number(a.amount) || 0;
+								valB = Number(b.amount) || 0;
+								return this.activitiesSortOrder === 'asc' ? valA - valB : valB - valA;
+								
+							case 'date':
+							case 'expected_date':
+								valA = a[this.activitiesSortField] || '9999-12-31';
+								valB = b[this.activitiesSortField] || '9999-12-31';
+								break;
+								
+							default:
+								valA = (a[this.activitiesSortField] || '').toString();
+								valB = (b[this.activitiesSortField] || '').toString();
+						}
+						
+						if (this.activitiesSortField !== 'amount') {
+							const result = valA.localeCompare(valB, 'ja');
+							return this.activitiesSortOrder === 'asc' ? result : -result;
+						}
+					});
+					
+					// ソートアイコンの更新
+					const iconMap = {
+						'date': 'sortIconActivityDate',
+						'assignee': 'sortIconActivityAssignee', 
+						'customer': 'sortIconActivityCustomer',
+						'purpose': 'sortIconActivityPurpose',
+						'stage': 'sortIconActivityStage',
+						'expected_date': 'sortIconExpectedDate',
+						'probability': 'sortIconActivityProbability',
+						'amount': 'sortIconActivityAmount'
+					};
+					
+					// 全アイコンをリセット
+					Object.values(iconMap).forEach(iconId => {
+						const icon = document.getElementById(iconId);
+						if (icon) icon.className = 'fas fa-sort';
+					});
+					
+					// アクティブなソートアイコンを設定
+					const activeIcon = document.getElementById(iconMap[this.activitiesSortField]);
+					if (activeIcon) {
+						activeIcon.className = this.activitiesSortOrder === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+					}
+				}
 
-                document.querySelector('#activitiesTable tbody').innerHTML = list.map(a => `
-                    <tr>
-                        <td>${a.date}</td>
-                        <td>${a.assignee}</td>
-                        <td>${a.customer}</td>
-                        <td>${a.purpose}</td>
-                        <td>${a.partner || '-'}</td>
-                        <td title="${a.content}" onclick="alert('${(a.content || '').replace(/'/g, "\\'")}');" style="cursor:pointer; max-width:150px; overflow:hidden; text-overflow:ellipsis;">${a.content || '-'}</td>
-                        <td>${a.stage || '-'}</td>
-                        <td>${a.probability || '-'}</td>
-                        <td>¥${Number(a.amount).toLocaleString()}</td>
-                        <td>
-                            <div class="btn-group">
-                                <button class="btn btn-secondary btn-sm" onclick="app.editActivity('${a.id}')">編集</button>
-                                <button class="btn btn-danger btn-sm" onclick="app.deleteActivity('${a.id}')">削除</button>
-                            </div>
-                        </td>
-                    </tr>`).join('');
-                
-                // Sorted customer dropdown
-                const custSelect = document.getElementById('activityCustomer');
-                const sortedCustomers = [...this.data.customers].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-                custSelect.innerHTML = '<option value="">選択</option>' + sortedCustomers.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
-            }
-
+				// テーブル行の生成（機種名を追加）
+				document.querySelector('#activitiesTable tbody').innerHTML = list.map(a => `
+					<tr>
+						<td>${a.date}</td>
+						<td>${a.assignee}</td>
+						<td>${a.customer}</td>
+						<td>${a.purpose}</td>
+						<td>${a.partner || '-'}</td>
+						<td>${a.product || '-'}</td>
+						<td title="${a.content}" onclick="alert('${(a.content || '').replace(/'/g, "\\'")}');" style="cursor:pointer; max-width:150px; overflow:hidden; text-overflow:ellipsis;">${a.content || '-'}</td>
+						<td>${a.stage || '-'}</td>
+						<td>${a.expected_date || '-'}</td>
+						<td>${a.probability || '-'}</td>
+						<td>¥${Number(a.amount).toLocaleString()}</td>
+						<td>
+							<div class="btn-group">
+								<button class="btn btn-secondary btn-sm" onclick="app.editActivity('${a.id}')">編集</button>
+								<button class="btn btn-danger btn-sm" onclick="app.deleteActivity('${a.id}')">削除</button>
+							</div>
+						</td>
+					</tr>`).join('');
+				
+				// 顧客選択肢の更新
+				const custSelect = document.getElementById('activityCustomer');
+				const sortedCustomers = [...this.data.customers].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+				custSelect.innerHTML = '<option value="">選択</option>' + sortedCustomers.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+			}
+			
             sortActivities(field) {
                 if (this.activitiesSortField === field) {
                     this.activitiesSortOrder = this.activitiesSortOrder === 'asc' ? 'desc' : 'asc';
