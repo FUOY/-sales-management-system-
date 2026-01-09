@@ -355,9 +355,73 @@
             flex-wrap: wrap;
         }
         .filter-select {
-            width: 150px !important;
-            padding: 0.5rem;
-        }
+			width: 150px !important;
+			padding: 0.5rem;
+		}
+
+		/* Project Management Styles */
+		.project-alert-warning {
+			background-color: #fff3cd !important;
+			border-left: 4px solid #ffc107;
+		}
+		.project-alert-danger {
+			background-color: #f8d7da !important;
+			border-left: 4px solid #dc3545;
+			animation: pulse 2s infinite;
+		}
+		@keyframes pulse {
+			0%, 100% { opacity: 1; }
+			50% { opacity: 0.8; }
+		}
+
+		/* Document Upload Styles */
+		.drop-zone {
+			border: 2px dashed #ccc;
+			border-radius: 8px;
+			padding: 2rem;
+			text-align: center;
+			color: #666;
+			transition: all 0.3s;
+			background: #f9f9f9;
+			cursor: pointer;
+			margin-bottom: 1rem;
+		}
+		.drop-zone:hover,
+		.drop-zone.dragover {
+			border-color: var(--primary);
+			background: #e3f2fd;
+			color: var(--primary);
+		}
+
+		.file-item {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 0.75rem;
+			border: 1px solid #ddd;
+			border-radius: 4px;
+			margin-bottom: 0.5rem;
+			background: white;
+			transition: background 0.2s;
+		}
+		.file-item:hover {
+			background-color: #f8f9fa;
+		}
+
+		.version-badge {
+			background: #6c757d;
+			color: white;
+			font-size: 0.7rem;
+			padding: 2px 6px;
+			border-radius: 10px;
+			margin-right: 5px;
+		}
+
+		.stagnant-days {
+			font-weight: bold;
+		}
+		.stagnant-warning { color: #ffc107; }
+		.stagnant-danger { color: #dc3545; }
     </style>
 </head>
 <body>
@@ -403,12 +467,13 @@
         </header>
 
         <nav class="tab-menu">
-            <button class="tab-button active" onclick="app.showPage('dashboard')">ダッシュボード</button>
-            <button class="tab-button" onclick="app.showPage('customers')">顧客管理</button>
-            <button class="tab-button" onclick="app.showPage('schedule')">スケジュール</button>
-            <button class="tab-button" onclick="app.showPage('activities')">活動記録</button>
-            <button class="tab-button" onclick="app.showPage('kpi')">KPI設定</button>
-        </nav>
+			<button class="tab-button active" onclick="app.showPage('dashboard')">ダッシュボード</button>
+			<button class="tab-button" onclick="app.showPage('customers')">顧客管理</button>
+			<button class="tab-button" onclick="app.showPage('projects')">案件管理</button>
+			<button class="tab-button" onclick="app.showPage('schedule')">スケジュール</button>
+			<button class="tab-button" onclick="app.showPage('activities')">活動記録</button>
+			<button class="tab-button" onclick="app.showPage('kpi')">KPI設定</button>
+		</nav>
 
         <main class="main-content">
             <!-- Dashboard Section -->
@@ -608,7 +673,61 @@
                 </div>
             </section>
 
-            <!-- KPI Settings Section -->
+            <!-- Projects Section -->
+			<section id="projectsPage" class="page-section">
+				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
+					<h2 class="page-title" style="margin: 0;">案件管理</h2>
+					<div class="header-controls">
+						<select id="projectsFilter" onchange="app.renderProjects()" class="filter-select">
+							<option value="all">全員表示</option>
+							<option value="personal">個人表示</option>
+						</select>
+						<select id="projectsStatusFilter" onchange="app.renderProjects()" class="filter-select">
+							<option value="all">全ステータス</option>
+							<option value="進行中">進行中</option>
+							<option value="保留">保留</option>
+							<option value="完了">完了</option>
+							<option value="失注">失注</option>
+						</select>
+						<button class="btn btn-primary" onclick="app.openProjectModal()"><i class="fas fa-plus"></i> 新規案件</button>
+					</div>
+				</div>
+				
+				<!-- 滞留アラート表示エリア -->
+				<div id="projectAlerts" style="margin-bottom: 1.5rem;"></div>
+				
+				<div class="card">
+					<div style="margin-bottom: 1rem; font-size: 0.9rem;">
+						<span style="display:inline-block; width:15px; height:15px; background:#fff3cd; border:1px solid #ffc107; vertical-align:middle;"></span> 30日以上滞留　
+						<span style="display:inline-block; width:15px; height:15px; background:#f8d7da; border:1px solid #dc3545; vertical-align:middle; margin-left:10px;"></span> 60日以上滞留
+					</div>
+					
+					<div class="table-container">
+						<table id="projectsTable">
+							<thead>
+								<tr>
+									<th onclick="app.sortProjects('projectNumber')">案件番号 <i class="fas fa-sort" id="sortIconProjectNumber"></i></th>
+									<th onclick="app.sortProjects('projectName')">案件名 <i class="fas fa-sort" id="sortIconProjectName"></i></th>
+									<th onclick="app.sortProjects('customer')">得意先 <i class="fas fa-sort" id="sortIconProjectCustomer"></i></th>
+									<th>機種名</th>
+									<th>担当</th>
+									<th onclick="app.sortProjects('stage')">ステージ <i class="fas fa-sort" id="sortIconProjectStage"></i></th>
+									<th>確度</th>
+									<th onclick="app.sortProjects('estimatedAmount')">想定金額 <i class="fas fa-sort" id="sortIconProjectAmount"></i></th>
+									<th>受注予定日</th>
+									<th>滞留日数</th>
+									<th>ステータス</th>
+									<th>ドキュメント</th>
+									<th>操作</th>
+								</tr>
+							</thead>
+							<tbody></tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+			
+			<!-- KPI Settings Section -->
             <section id="kpiPage" class="page-section">
                 <h2 class="page-title">KPI設定</h2>
                 <div class="card">
@@ -738,6 +857,112 @@
         </div>
     </div>
 
+	<!-- Project Modal -->
+	<div id="projectModal" class="modal">
+		<div class="modal-content" style="max-width: 900px;">
+			<div class="modal-header">
+				<h3 style="white-space: nowrap;">案件情報</h3>
+				<button class="close-btn" onclick="app.closeModal('projectModal')">×</button>
+			</div>
+			<form onsubmit="app.saveProject(event)">
+				<input type="hidden" id="projectId">
+				
+				<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem;">
+					<div class="form-group">
+						<label>案件番号（自動採番）</label>
+						<input type="text" id="projectNumber" readonly style="background: #f0f0f0; font-weight: bold; color: var(--primary);">
+					</div>
+					<div class="form-group">
+						<label>案件名 *</label>
+						<input type="text" id="projectName" required placeholder="例：〇〇社 新工場設備導入案件">
+					</div>
+				</div>
+				
+				<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+					<div class="form-group">
+						<label>得意先 *</label>
+						<select id="projectCustomer" required></select>
+					</div>
+					<div class="form-group">
+						<label>機種名</label>
+						<input type="text" id="projectProduct" placeholder="製造機種名">
+					</div>
+					<div class="form-group">
+						<label>担当者 *</label>
+						<select id="projectAssignee" required class="staff-select"></select>
+					</div>
+				</div>
+				
+				<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1rem;">
+					<div class="form-group">
+						<label>ステージ *</label>
+						<select id="projectStage" required>
+							<option value="アプローチ">アプローチ</option>
+							<option value="ヒアリング">ヒアリング</option>
+							<option value="提案">提案</option>
+							<option value="見積提出">見積提出</option>
+							<option value="クロージング">クロージング</option>
+							<option value="受注">受注</option>
+						</select>
+					</div>
+					<div class="form-group">
+						<label>確度</label>
+						<select id="projectProbability">
+							<option value="A">A (高)</option>
+							<option value="B">B</option>
+							<option value="C">C</option>
+							<option value="D">D (低)</option>
+							<option value="受注済">受注済</option>
+						</select>
+					</div>
+					<div class="form-group">
+						<label>想定金額</label>
+						<input type="number" id="projectAmount" placeholder="円">
+					</div>
+					<div class="form-group">
+						<label>受注予定日</label>
+						<input type="date" id="projectExpectedDate">
+					</div>
+				</div>
+				
+				<div class="form-group">
+					<label>ステータス</label>
+					<select id="projectStatus">
+						<option value="進行中">進行中</option>
+						<option value="保留">保留</option>
+						<option value="完了">完了</option>
+						<option value="失注">失注</option>
+					</select>
+				</div>
+				
+				<div class="form-group">
+					<label>備考</label>
+					<textarea id="projectNotes" rows="2" placeholder="案件に関する特記事項"></textarea>
+				</div>
+
+				<!-- Phase 2-3: ドキュメント管理エリア -->
+				<div class="form-group">
+					<label><i class="fas fa-paperclip"></i> 関連ドキュメント（見積書・図面・資料等）</label>
+					<div id="dropZone" class="drop-zone">
+						<i class="fas fa-cloud-upload-alt" style="font-size: 2.5rem; margin-bottom: 0.5rem;"></i>
+						<p style="margin: 0;">ファイルをドラッグ&ドロップ<br>または<br>クリックして選択</p>
+						<input type="file" id="fileInput" style="display:none" multiple accept=".pdf,.xlsx,.xls,.dwg,.dxf,.jpg,.jpeg,.png,.doc,.docx">
+					</div>
+					<div id="uploadProgress" style="display:none; color:var(--primary); font-weight:bold; margin:0.5rem 0;">
+						<i class="fas fa-spinner fa-spin"></i> アップロード中...
+					</div>
+					<div id="fileList" style="margin-top: 1rem;"></div>
+				</div>
+				
+				<div class="actions">
+					<button type="button" class="btn btn-danger" id="deleteProjectBtn" style="display: none;" onclick="app.deleteProject()">削除</button>
+					<button type="button" class="btn btn-secondary" onclick="app.closeModal('projectModal')">キャンセル</button>
+					<button type="submit" class="btn btn-primary">保存</button>
+				</div>
+			</form>
+		</div>
+	</div>
+
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
@@ -793,6 +1018,9 @@
                 this.customersSortField = null; this.customersSortOrder = 'asc';
                 this.activitiesSortField = null; this.activitiesSortOrder = 'asc';
                 this.scheduleSortField = null; this.scheduleSortOrder = 'asc';
+				
+				// ★ここに追加
+				this.currentProjectFiles = []; // ファイル管理用の一時配列
                 
                 this.init();
             }
@@ -843,15 +1071,19 @@
                     }
                 });
             }
-
+			
             showApp() {
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('appContainer').style.display = 'flex';
                 document.getElementById('userInfoDisplay').textContent = CURRENT_USER.displayName;
                 this.setupSelectOptions();
                 this.showPage('dashboard');
-            }
-
+				// ★ここに追加
+				setTimeout(() => {
+					this.setupFileUploadEvents();
+				}, 100);
+			}
+			
             setupSelectOptions() {
                 const staffOptions = '<option value="">選択してください</option>' + STAFFS.map(s => `<option value="${s}">${s}</option>`).join('');
                 document.querySelectorAll('.staff-select').forEach(el => el.innerHTML = staffOptions);
@@ -868,11 +1100,12 @@
                 document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
                 document.getElementById(pageId + 'Page').classList.add('active');
                 document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
-                const idx = ['dashboard', 'customers', 'schedule', 'activities', 'kpi'].indexOf(pageId);
+                const idx = ['dashboard', 'customers', 'projects', 'schedule', 'activities', 'kpi'].indexOf(pageId);
                 if (idx !== -1) document.querySelectorAll('.tab-button')[idx].classList.add('active');
 
                 if (pageId === 'dashboard') this.renderDashboard();
                 if (pageId === 'customers') this.renderCustomers();
+				if (pageId === 'projects') this.renderProjects(); 
                 if (pageId === 'schedule') this.renderSchedule();
                 if (pageId === 'activities') this.renderActivities();
                 if (pageId === 'kpi') this.renderKPI();
@@ -1766,7 +1999,431 @@
                 this.showToast('KPI項目を削除しました', 'success');
             }
 
-            openModal(id) { document.getElementById(id).classList.add('active'); }
+            // ========================================
+			// Project Management Functions
+			// ========================================
+
+			generateProjectNumber() {
+				const year = new Date().getFullYear();
+				const existingProjects = this.data.projects.filter(p => p.projectNumber && p.projectNumber.startsWith(`PRJ-${year}`));
+				const nextNum = existingProjects.length + 1;
+				return `PRJ-${year}-${String(nextNum).padStart(3, '0')}`;
+			}
+
+			calculateStagnantDays(project) {
+				if (!project.lastActivityDate) return 0;
+				const lastDate = new Date(project.lastActivityDate);
+				const today = new Date();
+				const diffTime = Math.abs(today - lastDate);
+				return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+			}
+
+			renderProjects() {
+				const filter = document.getElementById('projectsFilter').value;
+				const statusFilter = document.getElementById('projectsStatusFilter').value;
+				
+				let list = this.data.projects || [];
+				
+				// フィルタリング
+				if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
+					list = list.filter(p => p.assignee === CURRENT_USER.assignee);
+				}
+				if (statusFilter !== 'all') {
+					list = list.filter(p => p.status === statusFilter);
+				}
+				
+				// ソート処理
+				if (this.projectsSortField) {
+					list.sort((a, b) => {
+						let valA, valB;
+						
+						if (this.projectsSortField === 'estimatedAmount') {
+							valA = Number(a.estimatedAmount) || 0;
+							valB = Number(b.estimatedAmount) || 0;
+							return this.projectsSortOrder === 'asc' ? valA - valB : valB - valA;
+						} else {
+							valA = (a[this.projectsSortField] || '').toString();
+							valB = (b[this.projectsSortField] || '').toString();
+							const result = valA.localeCompare(valB, 'ja');
+							return this.projectsSortOrder === 'asc' ? result : -result;
+						}
+					});
+				}
+				
+				// Phase 2-2: 滞留アラートの生成
+				const stagnantProjects = list.filter(p => {
+					const days = this.calculateStagnantDays(p);
+					return p.status === '進行中' && days >= 30;
+				}).sort((a, b) => this.calculateStagnantDays(b) - this.calculateStagnantDays(a));
+				
+				let alertsHtml = '';
+				if (stagnantProjects.length > 0) {
+					alertsHtml = '<div class="card"><h3 style="margin-top: 0; color: #dc3545;"><i class="fas fa-exclamation-triangle"></i> 滞留案件アラート</h3>';
+					stagnantProjects.slice(0, 5).forEach(p => {
+						const days = this.calculateStagnantDays(p);
+						const alertClass = days >= 60 ? 'project-alert-danger' : 'project-alert-warning';
+						const alertIcon = days >= 60 ? 'fas fa-exclamation-circle' : 'fas fa-exclamation-triangle';
+						alertsHtml += `
+							<div class="${alertClass}" style="padding: 1rem; margin-bottom: 0.5rem; border-radius: 8px; display: flex; align-items: center; gap: 1rem;">
+								<i class="${alertIcon}" style="font-size: 1.5rem;"></i>
+								<div style="flex: 1;">
+									<strong>${p.projectName}</strong> (${p.projectNumber})<br>
+									<small>担当: ${p.assignee} | ステージ: ${p.stage} | 滞留: ${days}日</small>
+								</div>
+								<button class="btn btn-sm btn-primary" onclick="app.editProject('${p.id}')">確認</button>
+							</div>
+						`;
+					});
+					alertsHtml += '</div>';
+				}
+				document.getElementById('projectAlerts').innerHTML = alertsHtml;
+				
+				// テーブル行の生成
+				document.querySelector('#projectsTable tbody').innerHTML = list.map(p => {
+					const stagnantDays = this.calculateStagnantDays(p);
+					let stagnantClass = '';
+					let stagnantText = `${stagnantDays}日`;
+					
+					if (p.status === '進行中') {
+						if (stagnantDays >= 60) {
+							stagnantClass = 'stagnant-danger';
+						} else if (stagnantDays >= 30) {
+							stagnantClass = 'stagnant-warning';
+						}
+					}
+					
+					const rowClass = p.status === '進行中' && stagnantDays >= 60 ? 'project-alert-danger' : 
+									p.status === '進行中' && stagnantDays >= 30 ? 'project-alert-warning' : '';
+					
+					const docCount = p.documents ? p.documents.length : 0;
+					
+					return `
+						<tr class="${rowClass}">
+							<td><strong>${p.projectNumber}</strong></td>
+							<td>${p.projectName}</td>
+							<td>${p.customer}</td>
+							<td>${p.product || '-'}</td>
+							<td>${p.assignee}</td>
+							<td>${p.stage}</td>
+							<td>${p.probability || '-'}</td>
+							<td>¥${Number(p.estimatedAmount || 0).toLocaleString()}</td>
+							<td>${p.expectedOrderDate || '-'}</td>
+							<td class="stagnant-days ${stagnantClass}">${stagnantText}</td>
+							<td><span style="padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; background: ${p.status === '進行中' ? '#28a745' : p.status === '完了' ? '#007bff' : '#6c757d'}; color: white;">${p.status}</span></td>
+							<td>
+								<button class="btn btn-sm btn-secondary" onclick="app.openDocumentModal('${p.id}')">
+									<i class="fas fa-folder"></i> ${docCount}
+								</button>
+							</td>
+							<td>
+								<div class="btn-group">
+									<button class="btn btn-secondary btn-sm" onclick="app.editProject('${p.id}')">編集</button>
+									<button class="btn btn-danger btn-sm" onclick="app.deleteProject('${p.id}')">削除</button>
+								</div>
+							</td>
+						</tr>
+					`;
+				}).join('');
+			}
+
+			sortProjects(field) {
+				if (this.projectsSortField === field) {
+					this.projectsSortOrder = this.projectsSortOrder === 'asc' ? 'desc' : 'asc';
+				} else {
+					this.projectsSortField = field;
+					this.projectsSortOrder = 'asc';
+				}
+				this.renderProjects();
+			}
+
+			openProjectModal() {
+				document.getElementById('projectId').value = '';
+				document.getElementById('projectNumber').value = this.generateProjectNumber();
+				document.getElementById('projectName').value = '';
+				document.getElementById('projectCustomer').value = '';
+				document.getElementById('projectProduct').value = '';
+				document.getElementById('projectAssignee').value = CURRENT_USER.assignee;
+				document.getElementById('projectStage').value = 'アプローチ';
+				document.getElementById('projectProbability').value = 'B';
+				document.getElementById('projectAmount').value = '';
+				document.getElementById('projectExpectedDate').value = '';
+				document.getElementById('projectStatus').value = '進行中';
+				document.getElementById('projectNotes').value = '';
+				document.getElementById('deleteProjectBtn').style.display = 'none';
+				
+				// 顧客選択肢の更新
+				const custSelect = document.getElementById('projectCustomer');
+				const sortedCustomers = [...this.data.customers].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+				custSelect.innerHTML = '<option value="">選択してください</option>' + sortedCustomers.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+				
+				// ファイルリストの初期化
+				this.currentProjectFiles = [];
+				this.renderFileList();
+				
+				this.openModal('projectModal');
+			}
+
+			editProject(id) {
+				const p = this.data.projects.find(x => x.id === id);
+				if (!p) return;
+				
+				document.getElementById('projectId').value = p.id;
+				document.getElementById('projectNumber').value = p.projectNumber;
+				document.getElementById('projectName').value = p.projectName;
+				document.getElementById('projectProduct').value = p.product || '';
+				document.getElementById('projectAssignee').value = p.assignee;
+				document.getElementById('projectStage').value = p.stage;
+				document.getElementById('projectProbability').value = p.probability || 'B';
+				document.getElementById('projectAmount').value = p.estimatedAmount || '';
+				document.getElementById('projectExpectedDate').value = p.expectedOrderDate || '';
+				document.getElementById('projectStatus').value = p.status;
+				document.getElementById('projectNotes').value = p.notes || '';
+				document.getElementById('deleteProjectBtn').style.display = 'inline-block';
+				
+				// 顧客選択肢の更新
+				const custSelect = document.getElementById('projectCustomer');
+				const sortedCustomers = [...this.data.customers].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+				custSelect.innerHTML = '<option value="">選択してください</option>' + sortedCustomers.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+				custSelect.value = p.customer;
+				
+				// ファイルリストの設定
+				this.currentProjectFiles = p.documents || [];
+				this.renderFileList();
+				
+				this.openModal('projectModal');
+			}
+
+			saveProject(e) {
+				e.preventDefault();
+				const id = document.getElementById('projectId').value;
+				const projectNumber = document.getElementById('projectNumber').value;
+				
+				const data = {
+					id: id || Date.now().toString(),
+					projectNumber: projectNumber,
+					projectName: document.getElementById('projectName').value,
+					customer: document.getElementById('projectCustomer').value,
+					product: document.getElementById('projectProduct').value,
+					assignee: document.getElementById('projectAssignee').value,
+					stage: document.getElementById('projectStage').value,
+					probability: document.getElementById('projectProbability').value,
+					estimatedAmount: Number(document.getElementById('projectAmount').value) || 0,
+					expectedOrderDate: document.getElementById('projectExpectedDate').value,
+					status: document.getElementById('projectStatus').value,
+					notes: document.getElementById('projectNotes').value,
+					lastActivityDate: new Date().toISOString().split('T')[0],
+					createdDate: id ? this.data.projects.find(p => p.id === id)?.createdDate : new Date().toISOString().split('T')[0],
+					documents: this.currentProjectFiles || []
+				};
+				
+				if (id) {
+					const idx = this.data.projects.findIndex(x => x.id === id);
+					if (idx !== -1) this.data.projects[idx] = data;
+				} else {
+					this.data.projects.push(data);
+				}
+				
+				this.saveData();
+				this.closeModal('projectModal');
+				this.renderProjects();
+				this.showToast('案件を保存しました', 'success');
+			}
+
+			deleteProject(id) {
+				if (!id) id = document.getElementById('projectId').value;
+				if (!confirm('この案件を削除しますか？関連ドキュメントも削除されます。')) return;
+				
+				this.data.projects = this.data.projects.filter(p => p.id !== id);
+				this.saveData();
+				this.closeModal('projectModal');
+				this.renderProjects();
+				this.showToast('案件を削除しました', 'success');
+			}
+			
+			// ========================================
+			// Phase 2-3: Document Management Functions
+			// ========================================
+
+			setupFileUploadEvents() {
+				const dropZone = document.getElementById('dropZone');
+				const fileInput = document.getElementById('fileInput');
+				
+				if (!dropZone || !fileInput) return;
+				
+				dropZone.addEventListener('click', () => fileInput.click());
+				
+				dropZone.addEventListener('dragover', (e) => {
+					e.preventDefault();
+					dropZone.classList.add('dragover');
+				});
+				
+				dropZone.addEventListener('dragleave', () => {
+					dropZone.classList.remove('dragover');
+				});
+				
+				dropZone.addEventListener('drop', (e) => {
+					e.preventDefault();
+					dropZone.classList.remove('dragover');
+					if (e.dataTransfer.files.length) {
+						this.handleFileUpload(e.dataTransfer.files);
+					}
+				});
+				
+				fileInput.addEventListener('change', (e) => {
+					if (e.target.files.length) {
+						this.handleFileUpload(e.target.files);
+					}
+				});
+			}
+
+			async handleFileUpload(files) {
+				if (!supabaseClient) {
+					alert('Supabase設定がされていないためアップロードできません');
+					return;
+				}
+				
+				const progressEl = document.getElementById('uploadProgress');
+				progressEl.style.display = 'block';
+				
+				for (let file of files) {
+					try {
+						// バージョン管理：同名ファイルの最新バージョン番号を取得
+						const existingFiles = this.currentProjectFiles.filter(f => f.originalName === file.name);
+						const version = existingFiles.length + 1;
+						
+						// ファイル名にタイムスタンプとバージョンを付与
+						const timestamp = new Date().getTime();
+						const fileExt = file.name.split('.').pop();
+						const fileName = `v${version}_${timestamp}_${file.name}`;
+						const filePath = `projects/${fileName}`;
+						
+						const { data, error } = await supabaseClient.storage
+							.from('project-files')
+							.upload(filePath, file);
+							
+						if (error) throw error;
+						
+						// 公開URLの取得
+						const { data: publicData } = supabaseClient.storage
+							.from('project-files')
+							.getPublicUrl(filePath);
+						
+						// ファイルメタデータを配列に追加
+						this.currentProjectFiles.push({
+							id: Date.now().toString() + Math.random(),
+							originalName: file.name,
+							fileName: fileName,
+							filePath: filePath,
+							publicUrl: publicData.publicUrl,
+							version: version,
+							fileSize: (file.size / 1024).toFixed(1) + ' KB',
+							uploadDate: new Date().toISOString().split('T')[0],
+							uploadedBy: CURRENT_USER.assignee,
+							fileType: fileExt.toLowerCase()
+						});
+						
+					} catch (err) {
+						console.error('Upload failed:', err);
+						alert(`アップロード失敗: ${file.name} - ${err.message}`);
+					}
+				}
+				
+				progressEl.style.display = 'none';
+				this.renderFileList();
+				this.showToast('ファイルをアップロードしました', 'success');
+			}
+
+			renderFileList() {
+				const listEl = document.getElementById('fileList');
+				if (!this.currentProjectFiles || this.currentProjectFiles.length === 0) {
+					listEl.innerHTML = '<p style="color: #666; font-style: italic;">まだドキュメントがありません</p>';
+					return;
+				}
+				
+				// ファイル名でグループ化してバージョン表示
+				const groupedFiles = {};
+				this.currentProjectFiles.forEach(f => {
+					if (!groupedFiles[f.originalName]) {
+						groupedFiles[f.originalName] = [];
+					}
+					groupedFiles[f.originalName].push(f);
+				});
+				
+				let html = '';
+				Object.keys(groupedFiles).forEach(fileName => {
+					const versions = groupedFiles[fileName].sort((a, b) => b.version - a.version);
+					const latest = versions[0];
+					const fileIcon = this.getFileIcon(latest.fileType);
+					
+					html += `
+						<div class="file-item">
+							<div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+								<i class="${fileIcon}" style="font-size: 1.5rem; color: var(--primary);"></i>
+								<div>
+									<div>
+										<span class="version-badge">v${latest.version}</span>
+										<a href="${latest.publicUrl}" target="_blank" style="font-weight: bold; text-decoration: underline;">
+											${latest.originalName}
+										</a>
+									</div>
+									<small style="color: #666;">
+										${latest.fileSize} | ${latest.uploadDate} | ${latest.uploadedBy}
+										${versions.length > 1 ? ` | 他${versions.length - 1}バージョン` : ''}
+									</small>
+								</div>
+							</div>
+							<div class="btn-group">
+								${versions.length > 1 ? `<button class="btn btn-sm btn-secondary" onclick="app.showFileVersions('${fileName}')">履歴</button>` : ''}
+								<button class="btn btn-sm btn-danger" onclick="app.removeFileGroup('${fileName}')">削除</button>
+							</div>
+						</div>
+					`;
+				});
+				
+				listEl.innerHTML = html;
+			}
+
+			getFileIcon(fileType) {
+				const iconMap = {
+					'pdf': 'fas fa-file-pdf',
+					'xlsx': 'fas fa-file-excel', 'xls': 'fas fa-file-excel',
+					'docx': 'fas fa-file-word', 'doc': 'fas fa-file-word',
+					'dwg': 'fas fa-drafting-compass', 'dxf': 'fas fa-drafting-compass',
+					'jpg': 'fas fa-file-image', 'jpeg': 'fas fa-file-image', 'png': 'fas fa-file-image',
+					'zip': 'fas fa-file-archive', 'rar': 'fas fa-file-archive'
+				};
+				return iconMap[fileType] || 'fas fa-file';
+			}
+
+			removeFileGroup(fileName) {
+				if (!confirm(`「${fileName}」の全バージョンを削除しますか？`)) return;
+				
+				this.currentProjectFiles = this.currentProjectFiles.filter(f => f.originalName !== fileName);
+				this.renderFileList();
+			}
+
+			showFileVersions(fileName) {
+				const versions = this.currentProjectFiles
+					.filter(f => f.originalName === fileName)
+					.sort((a, b) => b.version - a.version);
+				
+				let versionList = `「${fileName}」のバージョン履歴:\n\n`;
+				versions.forEach(v => {
+					versionList += `v${v.version} - ${v.uploadDate} (${v.uploadedBy}) - ${v.fileSize}\n`;
+				});
+				
+				alert(versionList);
+			}
+
+			openDocumentModal(projectId) {
+				// 将来的な拡張：プロジェクト専用ドキュメント管理画面
+				const project = this.data.projects.find(p => p.id === projectId);
+				if (!project) return;
+				
+				alert(`${project.projectName} のドキュメント管理機能は今後実装予定です。\n現在は案件編集画面からファイル管理をご利用ください。`);
+			}
+
+			openModal(id) { document.getElementById(id).classList.add('active'); }
             closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
             showToast(msg, type = 'success') {
@@ -1802,11 +2459,17 @@
 					customers: saved.customers || [],
 					schedules: saved.schedules || [],
 					activities: saved.activities || [],
+					projects: saved.projects || [],  // 新規追加
 					kpiSettings: saved.kpiSettings || {
 						totalTarget: 300000000,
 						personalTargets: {
-							'永森': 100000000, '箱崎': 100000000, '清水': 100000000,
-							'杉田': 100000000, '安里': 100000000, '鎌田': 100000000, '大山': 100000000
+							'永森': 100000000,
+							'箱崎': 100000000,
+							'清水': 100000000,
+							'杉田': 100000000,
+							'安里': 100000000,
+							'鎌田': 100000000,
+							'大山': 100000000
 						},
 						personalItems: []
 					}
@@ -1856,6 +2519,7 @@
 				customers: core.customers || [],
 				schedules: core.schedules || [],
 				activities: core.activities || [],
+				projects: core.projects || [],      
 				kpiSettings: core.kpiSettings || {
 				totalTarget: 300000000,
 					personalTargets: {},
@@ -1903,6 +2567,7 @@
                             customers: newPayload.customers || app.data.customers || [],
                             schedules: newPayload.schedules || app.data.schedules || [],
                             activities: newPayload.activities || app.data.activities || [],
+							projects: newPayload.projects || app.data.projects || [], 
                             kpiSettings: newPayload.kpiSettings || app.data.kpiSettings
                         };
 
