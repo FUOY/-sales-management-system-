@@ -221,6 +221,29 @@
 			align-items: center;
 			gap: 4px;
 		}
+		/* Calendar - Mobile対応 */
+		.calendar-scroll-container {
+			overflow-x: auto;
+			-webkit-overflow-scrolling: touch; /* iOS用スムーズスクロール */
+			border: 1px solid #ddd;
+			border-radius: 4px;
+		}
+
+		/* ヘッダーとグリッドの幅を統一してズレを防止 */
+		.calendar-scroll-container .calendar-header,
+		.calendar-scroll-container .calendar-grid {
+			min-width: 700px; /* 7列 × 100px想定。調整可能 */
+		}
+
+		.calendar-scroll-container .calendar-header {
+			border-radius: 0; /* コンテナ側で角丸を制御 */
+			margin-bottom: 0;
+		}
+
+		.calendar-scroll-container .calendar-grid {
+			border: none; /* 外枠はコンテナが担当 */
+		}
+
 
 		/* 担当者名バッジスタイル */
 		.schedule-assignee {
@@ -422,6 +445,90 @@
 		}
 		.stagnant-warning { color: #ffc107; }
 		.stagnant-danger { color: #dc3545; }
+		/* =========================================
+		   Mobile Responsive Optimization
+		   ========================================= */
+
+		/* タブレット・スマホ表示時の最適化 (768px以下) */
+		@media (max-width: 768px) {
+			/* スクロールヒント表示 */
+			.mobile-scroll-hint {
+				display: block !important;
+			}
+			
+			/* カレンダー全体の調整 */
+			.calendar-day {
+				min-height: 80px;
+				padding: 0.3rem;
+				font-size: 0.8rem;
+			}
+			
+			/* 予定アイテムの表示調整 */
+			.schedule-item {
+				font-size: 0.65rem;
+				padding: 1px 3px;
+				margin-bottom: 1px;
+				line-height: 1.2;
+			}
+			
+			/* 担当者バッジの調整 */
+			.schedule-assignee {
+				font-size: 0.6rem;
+				padding: 0px 2px;
+			}
+			
+			/* メインコンテンツの余白調整 */
+			.main-content {
+				padding: 1rem 0.5rem;
+			}
+			
+			/* カード要素の余白調整 */
+			.card {
+				padding: 1rem;
+			}
+			
+			/* ヘッダーコントロールの調整 */
+			.header-controls {
+				flex-direction: column;
+				width: 100%;
+				gap: 5px;
+			}
+			
+			.header-controls > * {
+				width: 100%;
+			}
+		}
+
+		/* 超小画面用の追加調整 (480px以下) */
+		@media (max-width: 480px) {
+			.calendar-day {
+				min-height: 60px;
+			}
+			
+			.schedule-item {
+				font-size: 0.6rem;
+			}
+			
+			/* 超小画面では担当者名を非表示にしてスペース確保 */
+			.schedule-assignee {
+				display: none;
+			}
+			
+			/* ボタンのサイズ調整 */
+			.btn {
+				font-size: 0.8rem;
+				padding: 0.4rem 0.8rem;
+			}
+			
+			/* テーブルの文字サイズ調整 */
+			table {
+				font-size: 0.75rem;
+			}
+			
+			th, td {
+				padding: 0.5rem;
+			}
+		}
     </style>
 </head>
 <body>
@@ -616,9 +723,16 @@
                         <button class="btn btn-secondary" style="min-width: 60px; padding: 0.4rem 0.6rem;" onclick="app.changeMonth(1)">翌月</button>
                     </div>
                     <div id="calendarView">
-                        <div class="calendar-header"><div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div></div>
-                        <div id="calendarGrid" class="calendar-grid"></div>
-                    </div>
+						<div class="calendar-scroll-container">
+							<div class="calendar-header">
+								<div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div>
+							</div>
+							<div id="calendarGrid" class="calendar-grid"></div>
+						</div>
+						<div style="text-align: center; font-size: 0.8rem; color: #666; margin-top: 5px; display: none;" class="mobile-scroll-hint">
+							<i class="fas fa-arrows-alt-h"></i> 横にスクロールできます
+						</div>
+					</div>
                     <div id="scheduleListView" style="display: none;">
                         <table id="scheduleListTable">
                             <thead>
@@ -1523,15 +1637,24 @@
 					
 					html += `<div class="calendar-day ${isOther ? 'other-month' : ''} ${isToday ? 'today' : ''}">
 						<div style="text-align:right; font-size:0.8rem; margin-bottom:2px;">${d.getDate()}</div>
-						${dayScheds.map(s => `
-							<div class="schedule-item" 
-								 data-assignee="${s.assignee}" 
-								 onclick="app.editSchedule('${s.id}')"
-								 title="${s.assignee} - ${s.time ? s.time + ' ' : ''}${s.title}">
-								<span class="schedule-assignee">${s.assignee}</span>
-								<span>${s.time ? s.time + ' ' : ''}${s.title}</span>
-							</div>
-						`).join('')}
+						${dayScheds.map(s => {
+							// モバイル用テキスト短縮
+							const isMobile = window.innerWidth <= 768;
+							const maxLength = isMobile ? 10 : 20;
+							const displayTitle = s.title.length > maxLength ? 
+								s.title.substring(0, maxLength) + '...' : s.title;
+							const timeDisplay = s.time ? s.time.substring(0, 5) + ' ' : '';
+							
+							return `
+								<div class="schedule-item" 
+									 data-assignee="${s.assignee}" 
+									 onclick="app.editSchedule('${s.id}')"
+									 title="${s.assignee} - ${s.time || ''} ${s.title}">
+									<span class="schedule-assignee">${s.assignee}</span>
+									<span>${timeDisplay}${displayTitle}</span>
+								</div>
+							`;
+						}).join('')}
 					</div>`;
 				}
 				document.getElementById('calendarGrid').innerHTML = html;
