@@ -946,6 +946,27 @@
                 <div class="form-group"><label>確度</label><select id="activityProbability"><option value="A">A (高)</option><option value="B">B</option><option value="C">C</option><option value="D">D (低)</option></select></div>
                 <div class="form-group"><label>受注想定価格</label><input type="number" id="activityAmount"></div>
                 <div class="form-group"><label>受注予定日</label><input type="date" id="activityExpectedDate"></div>
+				
+				<!-- ★案件連携セクション追加 -->
+				<input type="hidden" id="activityProjectId">
+				<div class="form-group" id="projectLinkSection" style="background: #e3f2fd; padding: 1rem; border-radius: 4px; display: none;">
+					<label style="color: var(--primary);"><i class="fas fa-link"></i> 案件連携中</label>
+					<div id="linkedProjectInfo" style="font-size: 0.9rem; margin-bottom: 0.5rem;"></div>
+					<button type="button" class="btn btn-secondary btn-sm" onclick="app.unlinkProject()">連携解除</button>
+				</div>
+				<div class="form-group" id="projectSelectSection">
+					<label>関連案件 (任意)</label>
+					<select id="activityProject" onchange="app.linkToProject()">
+						<option value="">案件なし（通常活動）</option>
+					</select>
+					<small style="color: #666;">※案件を選択すると、ステージや確度が案件側に自動反映されます</small>
+				</div>
+				<div id="projectCreateSection" style="margin-top: 0.5rem;">
+					<button type="button" class="btn btn-success" onclick="app.createProjectFromActivity()" style="width: 100%;">
+						<i class="fas fa-briefcase"></i> この活動から新規案件を作成
+					</button>
+				</div>
+				
                 <div class="actions">
                     <button type="button" class="btn btn-secondary" onclick="app.closeModal('activityModal')">キャンセル</button>
                     <button type="submit" class="btn btn-primary">保存</button>
@@ -2029,38 +2050,84 @@
                 
                 document.getElementById('activityAmount').value = a.amount || '';
                 document.getElementById('activityExpectedDate').value = a.expected_date || '';
+				
+				// ★案件選択肢の更新
+				this.updateActivityProjectOptions(a.customer);
+
+				// ★案件連携情報の表示
+				document.getElementById('activityProjectId').value = a.projectId || '';
+				document.getElementById('activityProject').value = a.projectId || '';
+
+				if (a.projectId) {
+					const linkedProject = this.data.projects.find(p => p.id === a.projectId);
+					if (linkedProject) {
+						this.updateProjectLinkUI(linkedProject);
+					}
+				} else {
+					document.getElementById('projectLinkSection').style.display = 'none';
+					document.getElementById('projectCreateSection').style.display = 'block';
+				}
+
                 this.openModal('activityModal');
+				
+				updateActivityProjectOptions(customerName) {
+					const projectSelect = document.getElementById('activityProject');
+					projectSelect.innerHTML = '<option value="">案件なし（通常活動）</option>';
+					
+					if (!customerName) return;
+					
+					// その顧客の進行中・保留中の案件のみ表示
+					const relatedProjects = this.data.projects.filter(p => 
+						p.customer === customerName && 
+						(p.status === '進行中' || p.status === '保留')
+					);
+					
+					relatedProjects.forEach(p => {
+						const option = document.createElement('option');
+						option.value = p.id;
+						option.textContent = `[${p.stage}] ${p.projectName}`;
+						projectSelect.appendChild(option);
+					});
+				}
             }
 
             saveActivity(e) {
-                e.preventDefault();
-                const id = document.getElementById('activityId').value;
-                const data = {
-                    date: document.getElementById('activityDate').value,
-                    assignee: document.getElementById('activityAssignee').value,
-                    customer: document.getElementById('activityCustomer').value,
-                    purpose: document.getElementById('activityPurpose').value,
-                    partner: document.getElementById('activityPartner').value,
-                    product: document.getElementById('activityProduct').value,
-                    content: document.getElementById('activityContent').value,
-                    stage: document.getElementById('activityStage').value,
-                    probability: document.getElementById('activityProbability').value,
-                    amount: Number(document.getElementById('activityAmount').value) || 0,
-                    expected_date: document.getElementById('activityExpectedDate').value
-                };
+				e.preventDefault();
+				const id = document.getElementById('activityId').value;
+				const data = {
+					date: document.getElementById('activityDate').value,
+					assignee: document.getElementById('activityAssignee').value,
+					customer: document.getElementById('activityCustomer').value,
+					purpose: document.getElementById('activityPurpose').value,
+					partner: document.getElementById('activityPartner').value,
+					product: document.getElementById('activityProduct').value,
+					content: document.getElementById('activityContent').value,
+					stage: document.getElementById('activityStage').value,
+					probability: document.getElementById('activityProbability').value,
+					amount: Number(document.getElementById('activityAmount').value) || 0,
+					expected_date: document.getElementById('activityExpectedDate').value,
+					projectId: document.getElementById('activityProjectId')?.value || null  // ★案件連携
+				};
 
-                if (id) {
-                    const idx = this.data.activities.findIndex(x => x.id == id);
-                    if (idx !== -1) this.data.activities[idx] = { ...this.data.activities[idx], ...data };
-                } else {
-                    this.data.activities.push({ id: Date.now().toString(), ...data });
-                }
+				if (id) {
+					const idx = this.data.activities.findIndex(x => x.id === id);
+					if (idx !== -1) {
+						this.data.activities[idx] = { ...this.data.activities[idx], ...data };
+						
+						// ★既存案件の自動更新
+						if (data.projectId) {
+							this.updateProjectFromActivity(data.projectId, data);
+						}
+					}
+				} else {
+					this.data.activities.push({ id: Date.now().toString(), ...data });
+				}
 
-                this.saveData();
-                this.closeModal('activityModal');
-                this.renderActivities();
-                this.showToast('活動記録を保存しました', 'success');
-            }
+				this.saveData();
+				this.closeModal('activityModal');
+				this.renderActivities();
+				this.showToast('活動記録を保存しました', 'success');
+			}
 
             deleteActivity(id) {
                 if (!confirm('この活動記録を削除しますか?')) return;
@@ -2361,6 +2428,112 @@
 				this.closeModal('projectModal');
 				this.renderProjects();
 				this.showToast('案件を削除しました', 'success');
+			}
+			
+			// ========================================
+			// 活動記録⇔案件連携機能
+			// ========================================
+
+			createProjectFromActivity() {
+				// フォームデータの取得
+				const customerName = document.getElementById('activityCustomer').value;
+				const productName = document.getElementById('activityProduct').value;
+				const assignee = document.getElementById('activityAssignee').value;
+				const stage = document.getElementById('activityStage').value;
+				const probability = document.getElementById('activityProbability').value;
+				const amount = document.getElementById('activityAmount').value;
+				const expectedDate = document.getElementById('activityExpectedDate').value;
+				const content = document.getElementById('activityContent').value;
+				
+				if (!customerName) {
+					alert('得意先を選択してください');
+					return;
+				}
+				
+				// 案件自動生成
+				const projectNumber = this.generateProjectNumber();
+				const projectName = `${customerName} ${productName || '案件'} (活動記録から作成)`;
+				
+				const newProject = {
+					id: Date.now().toString(),
+					projectNumber: projectNumber,
+					projectName: projectName,
+					customer: customerName,
+					product: productName || '',
+					assignee: assignee,
+					stage: stage,
+					probability: probability || 'B',
+					estimatedAmount: Number(amount) || 0,
+					expectedOrderDate: expectedDate,
+					status: '進行中',
+					notes: `活動記録から自動作成\n初回商談内容: ${content}`,
+					lastActivityDate: document.getElementById('activityDate').value,
+					createdDate: new Date().toISOString().split('T')[0],
+					documents: [],
+					relatedActivityIds: []
+				};
+				
+				this.data.projects.push(newProject);
+				
+				// UI更新
+				document.getElementById('activityProjectId').value = newProject.id;
+				this.updateProjectLinkUI(newProject);
+				
+				this.saveData();
+				this.showToast(`案件 ${projectNumber} を作成しました`, 'success');
+			}
+
+			updateProjectFromActivity(projectId, activityData) {
+				const project = this.data.projects.find(p => p.id === projectId);
+				if (!project) return;
+				
+				// 案件情報を最新の活動記録で自動更新
+				project.stage = activityData.stage;
+				project.probability = activityData.probability;
+				project.estimatedAmount = Number(activityData.amount) || project.estimatedAmount;
+				project.expectedOrderDate = activityData.expected_date || project.expectedOrderDate;
+				project.lastActivityDate = activityData.date;
+				
+				// ステータスの自動更新
+				if (activityData.stage === '受注') {
+					project.status = '完了';
+				}
+				
+				this.saveData();
+				this.showToast('関連案件も自動更新されました', 'info');
+			}
+
+			linkToProject() {
+				const projectId = document.getElementById('activityProject').value;
+				document.getElementById('activityProjectId').value = projectId;
+				
+				if (projectId) {
+					const project = this.data.projects.find(p => p.id === projectId);
+					if (project) {
+						this.updateProjectLinkUI(project);
+					}
+				} else {
+					document.getElementById('projectLinkSection').style.display = 'none';
+				}
+			}
+
+			updateProjectLinkUI(project) {
+				document.getElementById('linkedProjectInfo').innerHTML = `
+					<strong>${project.projectNumber}</strong>: ${project.projectName}<br>
+					<small>この活動は案件に自動連携されます</small>
+				`;
+				document.getElementById('projectLinkSection').style.display = 'block';
+				document.getElementById('projectCreateSection').style.display = 'none';
+			}
+
+			unlinkProject() {
+				if (!confirm('案件との連携を解除しますか？\n（案件自体は削除されません）')) return;
+				
+				document.getElementById('activityProjectId').value = '';
+				document.getElementById('activityProject').value = '';
+				document.getElementById('projectLinkSection').style.display = 'none';
+				document.getElementById('projectCreateSection').style.display = 'block';
+				this.showToast('案件連携を解除しました', 'success');
 			}
 			
 			// ========================================
