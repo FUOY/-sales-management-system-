@@ -2024,37 +2024,49 @@
                 document.getElementById('activityProbability').value = 'A';
                 document.getElementById('activityAmount').value = '';
                 document.getElementById('activityExpectedDate').value = '';
+				
+				// 案件選択肢の初期化
+				document.getElementById('activityProject').innerHTML = '<option value="">案件なし（通常活動）</option>';
+				document.getElementById('projectLinkSection').style.display = 'none';
+				document.getElementById('projectCreateSection').style.display = 'block';
+
+				// 得意先変更時の案件更新イベント
+				const custSelect = document.getElementById('activityCustomer');
+				custSelect.onchange = (e) => {
+					this.updateActivityProjectOptions(e.target.value);
+				};
+
                 this.openModal('activityModal');
             }
 
-            editActivity(id) {
-                const a = this.data.activities.find(x => x.id == id);
-                if (!a) return;
-                document.getElementById('activityId').value = a.id;
-                document.getElementById('activityDate').value = a.date;
-                document.getElementById('activityAssignee').value = a.assignee;
-                document.getElementById('activityCustomer').value = a.customer;
-                document.getElementById('activityPurpose').value = a.purpose;
-                document.getElementById('activityPartner').value = a.partner || '';
-                document.getElementById('activityProduct').value = a.product || '';
-                document.getElementById('activityContent').value = a.content || '';
-                document.getElementById('activityStage').value = a.stage || 'アプローチ';
-                
-                const probSelect = document.getElementById('activityProbability');
-                if (a.stage === '受注') {
-                    probSelect.innerHTML = '<option value="">空白</option><option value="受注済">受注済</option>';
-                } else {
-                    probSelect.innerHTML = '<option value="A">A (高)</option><option value="B">B</option><option value="C">C</option><option value="D">D (低)</option>';
-                }
-                probSelect.value = a.probability || '';
-                
-                document.getElementById('activityAmount').value = a.amount || '';
-                document.getElementById('activityExpectedDate').value = a.expected_date || '';
+			editActivity(id) {
+				const a = this.data.activities.find(x => x.id == id);
+				if (!a) return;
+				document.getElementById('activityId').value = a.id;
+				document.getElementById('activityDate').value = a.date;
+				document.getElementById('activityAssignee').value = a.assignee;
+				document.getElementById('activityCustomer').value = a.customer;
+				document.getElementById('activityPurpose').value = a.purpose;
+				document.getElementById('activityPartner').value = a.partner || '';
+				document.getElementById('activityProduct').value = a.product || '';
+				document.getElementById('activityContent').value = a.content || '';
+				document.getElementById('activityStage').value = a.stage || 'アプローチ';
 				
-				// ★案件選択肢の更新
+				const probSelect = document.getElementById('activityProbability');
+				if (a.stage === '受注') {
+					probSelect.innerHTML = '<option value="">空白</option><option value="受注済">受注済</option>';
+				} else {
+					probSelect.innerHTML = '<option value="A">A (高)</option><option value="B">B</option><option value="C">C</option><option value="D">D (低)</option>';
+				}
+				probSelect.value = a.probability || '';
+				
+				document.getElementById('activityAmount').value = a.amount || '';
+				document.getElementById('activityExpectedDate').value = a.expected_date || '';
+				
+				// 案件選択肢の更新
 				this.updateActivityProjectOptions(a.customer);
 
-				// ★案件連携情報の表示
+				// 案件連携情報の表示
 				document.getElementById('activityProjectId').value = a.projectId || '';
 				document.getElementById('activityProject').value = a.projectId || '';
 
@@ -2068,29 +2080,29 @@
 					document.getElementById('projectCreateSection').style.display = 'block';
 				}
 
-                this.openModal('activityModal');
+				this.openModal('activityModal');
+			}
 				
-				updateActivityProjectOptions(customerName) {
-					const projectSelect = document.getElementById('activityProject');
-					projectSelect.innerHTML = '<option value="">案件なし（通常活動）</option>';
+			updateActivityProjectOptions(customerName) {
+				const projectSelect = document.getElementById('activityProject');
+				projectSelect.innerHTML = '<option value="">案件なし（通常活動）</option>';
 					
-					if (!customerName) return;
+				if (!customerName) return;
 					
-					// その顧客の進行中・保留中の案件のみ表示
-					const relatedProjects = this.data.projects.filter(p => 
-						p.customer === customerName && 
-						(p.status === '進行中' || p.status === '保留')
-					);
+				// その顧客の進行中・保留中の案件のみ表示
+				const relatedProjects = this.data.projects.filter(p => 
+					p.customer === customerName && 
+					(p.status === '進行中' || p.status === '保留')
+				);
 					
-					relatedProjects.forEach(p => {
-						const option = document.createElement('option');
-						option.value = p.id;
-						option.textContent = `[${p.stage}] ${p.projectName}`;
-						projectSelect.appendChild(option);
-					});
-				}
-            }
-
+				relatedProjects.forEach(p => {
+					const option = document.createElement('option');
+					option.value = p.id;
+					option.textContent = `[${p.stage}] ${p.projectName}`;
+					projectSelect.appendChild(option);
+				});
+			}
+        
             saveActivity(e) {
 				e.preventDefault();
 				const id = document.getElementById('activityId').value;
@@ -2778,14 +2790,14 @@
 
         // DOM読み込み後にアプリ起動
         window.addEventListener('DOMContentLoaded', async () => {
-            app = new SalesApp();
-
-            // Supabase → localStorage → 画面反映
-            await loadFromSupabaseAndApply();
-
-            // Realtime購読開始
-            subscribeSalesDataRealtime();
-        });
+			app = new SalesApp();
+			
+			// アプリ初期化完了を待つ
+			await new Promise(resolve => setTimeout(resolve, 100));
+			
+			await loadFromSupabaseAndApply();
+			subscribeSalesDataRealtime();
+		});
 
         // ================================
         // Supabase から初期データ取得
