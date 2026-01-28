@@ -529,7 +529,126 @@
 				padding: 0.5rem;
 			}
 		}
-    </style>
+		/* ========================================
+		  Phase 1: 案件管理強化スタイル
+		  ======================================== */
+
+		/* ダッシュボードカードのクリック機能 */
+		.clickable-card {
+			cursor: pointer;
+			transition: transform 0.2s, box-shadow 0.2s;
+		}
+
+		.clickable-card:hover {
+			transform: translateY(-3px);
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+		}
+
+		.clickable-card:active {
+			transform: translateY(-1px);
+		}
+
+		/* 商談履歴タイムライン */
+		.history-section {
+			margin-top: 2rem;
+			border-top: 2px solid #eee;
+			padding-top: 1.5rem;
+		}
+
+		.history-timeline {
+			border-left: 3px solid #ddd;
+			margin-left: 10px;
+			padding-left: 20px;
+			margin-top: 1rem;
+			max-height: 400px;
+			overflow-y: auto;
+		}
+
+		.history-item {
+			position: relative;
+			margin-bottom: 1.5rem;
+			background: #f9f9f9;
+			padding: 1rem;
+			border-radius: 6px;
+			border: 1px solid #eee;
+			transition: background 0.2s;
+		}
+
+		.history-item:hover {
+			background: #f0f0f0;
+		}
+
+		.history-item::before {
+			content: '';
+			position: absolute;
+			left: -28px;
+			top: 15px;
+			width: 14px;
+			height: 14px;
+			background: var(--primary);
+			border-radius: 50%;
+			border: 3px solid white;
+			box-shadow: 0 0 0 2px #ddd;
+		}
+
+		.history-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 0.5rem;
+			font-size: 0.9rem;
+		}
+
+		.history-date {
+			font-weight: bold;
+			color: var(--primary);
+		}
+
+		.history-assignee {
+			background: #e9ecef;
+			padding: 2px 8px;
+			border-radius: 12px;
+			font-size: 0.8rem;
+		}
+
+		.history-content {
+			margin: 0.5rem 0;
+			line-height: 1.6;
+		}
+
+		.history-content strong {
+			color: #333;
+			display: block;
+			margin-bottom: 0.3rem;
+		}
+
+		.history-meta {
+			margin-top: 0.5rem;
+			display: flex;
+			gap: 0.5rem;
+			flex-wrap: wrap;
+			align-items: center;
+		}
+
+		.stage-tag, .prob-tag, .amount-tag {
+			background: #e9ecef;
+			padding: 3px 8px;
+			border-radius: 4px;
+			font-size: 0.75rem;
+			font-weight: 500;
+		}
+
+		.stage-tag { background: #d1ecf1; color: #0c5460; }
+		.prob-tag { background: #fff3cd; color: #856404; }
+		.amount-tag { background: #d4edda; color: #155724; font-weight: bold; }
+
+		.history-empty {
+			text-align: center;
+			padding: 2rem;
+			color: #999;
+			font-style: italic;
+		}
+	</style>
 </head>
 <body>
 
@@ -1088,7 +1207,17 @@
 					</div>
 					<div id="fileList" style="margin-top: 1rem;"></div>
 				</div>
-				
+				<!-- Phase 1: 商談履歴セクション -->
+				<div id="projectHistorySection" class="history-section" style="display: none;">
+					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+						<h3 style="margin: 0; border: none;"><i class="fas fa-history"></i> 商談履歴</h3>
+						<button type="button" class="btn btn-success btn-sm" onclick="app.addActivityFromProject()">
+							<i class="fas fa-plus"></i> この案件の活動を追加
+						</button>
+					</div>
+					<div id="projectHistoryContainer" class="history-timeline"></div>
+				</div>
+
 				<div class="actions">
 					<button type="button" class="btn btn-danger" id="deleteProjectBtn" style="display: none;" onclick="app.deleteProject()">削除</button>
 					<button type="button" class="btn btn-secondary" onclick="app.closeModal('projectModal')">キャンセル</button>
@@ -1208,12 +1337,16 @@
             }
 			
             showApp() {
-                document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('appContainer').style.display = 'flex';
-                document.getElementById('userInfoDisplay').textContent = CURRENT_USER.displayName;
-                this.setupSelectOptions();
-                this.showPage('dashboard');
-				// ★ここに追加
+				document.getElementById('loginScreen').style.display = 'none';
+				document.getElementById('appContainer').style.display = 'flex';
+				document.getElementById('userInfoDisplay').textContent = CURRENT_USER.displayName;
+				this.setupSelectOptions();
+				
+				// ★ Phase 1: ダッシュボードクリック機能の初期化
+				this.setupDashboardClicks();
+				
+				this.showPage('dashboard');
+				
 				setTimeout(() => {
 					this.setupFileUploadEvents();
 				}, 100);
@@ -2138,6 +2271,13 @@
 				this.saveData();
 				this.closeModal('activityModal');
 				this.renderActivities();
+				
+				// ★ Phase 1: 案件モーダルが開いている場合は履歴を更新
+				const openProjectId = document.getElementById('projectId')?.value;
+				if (openProjectId && document.getElementById('projectModal').classList.contains('active')) {
+					this.renderProjectHistory(openProjectId);
+				}
+				
 				this.showToast('活動記録を保存しました', 'success');
 			}
 
@@ -2362,6 +2502,9 @@
 				this.currentProjectFiles = [];
 				this.renderFileList();
 				
+				// ★ Phase 1: 新規案件なので履歴は非表示
+				this.renderProjectHistory(null);
+						
 				this.openModal('projectModal');
 			}
 
@@ -2392,9 +2535,12 @@
 				this.currentProjectFiles = p.documents || [];
 				this.renderFileList();
 				
+				// ★ Phase 1: 商談履歴の表示
+				this.renderProjectHistory(p.id);
+				
 				this.openModal('projectModal');
 			}
-
+				
 			saveProject(e) {
 				e.preventDefault();
 				const id = document.getElementById('projectId').value;
@@ -2783,7 +2929,165 @@
 					}
 				};
 			}
+            // ========================================
+            // Phase 1: 商談履歴・ダッシュボード機能
+            // ========================================
 
+            /**
+             * 案件に紐づく活動履歴を取得
+             */
+            getProjectHistory(projectId) {
+                if (!projectId) return [];
+                return this.data.activities
+                    .filter(a => a.projectId === projectId)
+                    .sort((a, b) => new Date(b.date) - new Date(a.date)); // 新しい順
+            }
+
+            /**
+             * 案件詳細モーダル内に履歴表示
+             */
+            renderProjectHistory(projectId) {
+                const container = document.getElementById('projectHistoryContainer');
+                const section = document.getElementById('projectHistorySection');
+                
+                // エラーハンドリング
+                if (!container || !section) return;
+                
+                if (!projectId) {
+                    section.style.display = 'none';
+                    return;
+                }
+                
+                const history = this.getProjectHistory(projectId);
+                section.style.display = 'block';
+                
+                if (history.length === 0) {
+                    container.innerHTML = `
+                        <div class="history-empty">
+                            <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 1rem; display: block; color: #ccc;"></i>
+                            <p>この案件の活動履歴はまだありません</p>
+                            <p style="font-size: 0.9rem;">上の「活動を追加」ボタンから商談記録を登録してください</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                container.innerHTML = history.map(h => {
+                    const contentPreview = h.content ? 
+                        (h.content.length > 100 ? h.content.substring(0, 100) + '...' : h.content) : 
+                        '内容なし';
+                    
+                    return `
+                        <div class="history-item">
+                            <div class="history-header">
+                                <span class="history-date"><i class="fas fa-calendar-alt"></i> ${h.date}</span>
+                                <span class="history-assignee">${h.assignee}</span>
+                            </div>
+                            <div class="history-content">
+                                <strong>${h.purpose} ${h.partner ? '- ' + h.partner : ''}</strong>
+                                <p style="margin: 0.5rem 0; color: #555;">${contentPreview}</p>
+                            </div>
+                            <div class="history-meta">
+                                <span class="stage-tag"><i class="fas fa-layer-group"></i> ${h.stage}</span>
+                                <span class="prob-tag"><i class="fas fa-chart-line"></i> 確度: ${h.probability || '-'}</span>
+                                ${h.amount ? `<span class="amount-tag"><i class="fas fa-yen-sign"></i> ${Number(h.amount).toLocaleString()}</span>` : ''}
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="app.editActivity('${h.id}')">
+                                    <i class="fas fa-edit"></i> 編集
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            /**
+             * 案件詳細から活動を追加
+             */
+            addActivityFromProject() {
+                const projectId = document.getElementById('projectId').value;
+                const project = this.data.projects.find(p => p.id === projectId);
+                
+                if (!project) {
+                    alert('案件情報が見つかりません');
+                    return;
+                }
+                
+                // 活動モーダルを開く
+                this.openActivityModal();
+                
+                // 案件情報を自動入力
+                document.getElementById('activityCustomer').value = project.customer;
+                document.getElementById('activityProduct').value = project.product || '';
+                document.getElementById('activityStage').value = project.stage;
+                document.getElementById('activityProbability').value = project.probability || 'B';
+                document.getElementById('activityAmount').value = project.estimatedAmount || '';
+                document.getElementById('activityExpectedDate').value = project.expectedOrderDate || '';
+                
+                // 案件連携を設定（DOM更新を待つ）
+                this.updateActivityProjectOptions(project.customer);
+                setTimeout(() => {
+                    document.getElementById('activityProject').value = projectId;
+                    document.getElementById('activityProjectId').value = projectId;
+                    this.updateProjectLinkUI(project);
+                }, 50);
+            }
+
+            /**
+             * ダッシュボード要素のクリックイベント設定
+             */
+            setupDashboardClicks() {
+                // DOMが完全に読み込まれてから実行
+                setTimeout(() => {
+                    // 総顧客数カード
+                    const customerCard = document.getElementById('statTotalCustomers')?.parentElement;
+                    if (customerCard) {
+                        customerCard.classList.add('clickable-card');
+                        customerCard.onclick = () => {
+                            this.showPage('customers');
+                            document.getElementById('customersFilter').value = 'all';
+                            this.renderCustomers();
+                        };
+                        customerCard.title = 'クリックで顧客管理へ';
+                    }
+                    
+                    // 本日の予定カード
+                    const scheduleCard = document.getElementById('statTodaySchedule')?.parentElement;
+                    if (scheduleCard) {
+                        scheduleCard.classList.add('clickable-card');
+                        scheduleCard.onclick = () => {
+                            this.showPage('schedule');
+                            document.getElementById('scheduleViewType').value = 'list';
+                            this.renderSchedule();
+                        };
+                        scheduleCard.title = 'クリックでスケジュールへ';
+                    }
+                    
+                    // 今週の活動カード
+                    const activityCard = document.getElementById('statWeekActivities')?.parentElement;
+                    if (activityCard) {
+                        activityCard.classList.add('clickable-card');
+                        activityCard.onclick = () => {
+                            this.showPage('activities');
+                            document.getElementById('activitiesFilter').value = 'all';
+                            this.renderActivities();
+                        };
+                        activityCard.title = 'クリックで活動記録へ';
+                    }
+                    
+                    // 受注想定価格合計カード
+                    const salesCard = document.getElementById('statTotalSales')?.parentElement;
+                    if (salesCard) {
+                        salesCard.classList.add('clickable-card');
+                        salesCard.onclick = () => {
+                            this.showPage('projects');
+                            document.getElementById('projectsFilter').value = 'all';
+                            document.getElementById('projectsStatusFilter').value = '進行中';
+                            this.renderProjects();
+                        };
+                        salesCard.title = 'クリックで案件管理へ';
+                    }
+                }, 500);
+            }
         }
 
         let app;
