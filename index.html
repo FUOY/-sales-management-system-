@@ -788,6 +788,256 @@
 				align-self: flex-end;
 			}
 		}
+		
+		/* ========================================
+		   Phase 3A: 案件カンバンボード
+		   ======================================== */
+
+		/* ビュー切替ボタン */
+		.view-toggle {
+			display: flex;
+			gap: 0.5rem;
+			background: #f0f0f0;
+			padding: 0.25rem;
+			border-radius: 6px;
+			margin-left: 1rem;
+		}
+
+		.view-toggle-btn {
+			padding: 0.5rem 1rem;
+			border: none;
+			background: transparent;
+			cursor: pointer;
+			border-radius: 4px;
+			font-weight: 500;
+			transition: all 0.2s;
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+		}
+
+		.view-toggle-btn.active {
+			background: var(--primary);
+			color: white;
+		}
+
+		.view-toggle-btn:hover:not(.active) {
+			background: #e0e0e0;
+		}
+
+		/* カンバンボード全体 */
+		.kanban-board {
+			display: none;
+			overflow-x: auto;
+			padding: 1rem 0;
+			min-height: 600px;
+			gap: 1rem;
+		}
+
+		.kanban-board.active {
+			display: flex;
+		}
+
+		/* カンバン列 */
+		.kanban-column {
+			flex: 0 0 280px;
+			background: #f8f9fa;
+			border-radius: 8px;
+			display: flex;
+			flex-direction: column;
+			max-height: 80vh;
+			border-top: 4px solid var(--primary);
+		}
+
+		/* ステージ別カラー */
+		.kanban-column[data-stage="アプローチ"] { border-top-color: #6c757d; }
+		.kanban-column[data-stage="ヒアリング"] { border-top-color: #17a2b8; }
+		.kanban-column[data-stage="提案"] { border-top-color: #ffc107; }
+		.kanban-column[data-stage="見積提出"] { border-top-color: #fd7e14; }
+		.kanban-column[data-stage="クロージング"] { border-top-color: #dc3545; }
+		.kanban-column[data-stage="受注"] { border-top-color: #28a745; }
+
+		.kanban-header {
+			padding: 1rem;
+			background: var(--primary);
+			color: white;
+			border-radius: 8px 8px 0 0;
+			font-weight: bold;
+			text-align: center;
+		}
+
+		.kanban-column[data-stage="受注"] .kanban-header {
+			background: #28a745;
+		}
+
+		.kanban-header-title {
+			font-size: 1rem;
+			margin-bottom: 0.5rem;
+		}
+
+		.kanban-header-stats {
+			font-size: 0.85rem;
+			display: flex;
+			justify-content: space-around;
+			padding-top: 0.5rem;
+			border-top: 1px solid rgba(255,255,255,0.3);
+		}
+
+		.kanban-cards {
+			flex: 1;
+			overflow-y: auto;
+			padding: 0.5rem;
+			min-height: 100px;
+		}
+
+		/* カンバンカード */
+		.kanban-card {
+			background: white;
+			border-radius: 6px;
+			padding: 0.75rem;
+			margin-bottom: 0.5rem;
+			box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+			cursor: move;
+			transition: all 0.2s;
+			border-left: 4px solid var(--primary);
+			position: relative;
+		}
+
+		.kanban-card:hover {
+			box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+			transform: translateY(-2px);
+		}
+
+		.kanban-card.dragging {
+			opacity: 0.5;
+			transform: rotate(5deg);
+		}
+
+		.kanban-card-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 0.5rem;
+		}
+
+		.kanban-card-number {
+			font-weight: bold;
+			color: var(--primary);
+			font-size: 0.85rem;
+		}
+
+		.kanban-card-probability {
+			padding: 2px 6px;
+			border-radius: 10px;
+			font-size: 0.7rem;
+			font-weight: bold;
+		}
+
+		.prob-A { background: #d4edda; color: #155724; }
+		.prob-B { background: #fff3cd; color: #856404; }
+		.prob-C { background: #f8d7da; color: #721c24; }
+		.prob-D { background: #e2e3e5; color: #383d41; }
+		.prob-受注済 { background: #28a745; color: white; }
+
+		.kanban-card-title {
+			font-weight: bold;
+			margin-bottom: 0.5rem;
+			font-size: 0.9rem;
+			line-height: 1.3;
+			display: -webkit-box;
+			-webkit-line-clamp: 2;
+			-webkit-box-orient: vertical;
+			overflow: hidden;
+		}
+
+		.kanban-card-customer {
+			font-size: 0.85rem;
+			color: #666;
+			margin-bottom: 0.5rem;
+			display: flex;
+			align-items: center;
+			gap: 0.25rem;
+		}
+
+		.kanban-card-amount {
+			font-size: 1.1rem;
+			font-weight: bold;
+			color: #28a745;
+			margin-bottom: 0.5rem;
+		}
+
+		.kanban-card-footer {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding-top: 0.5rem;
+			border-top: 1px solid #eee;
+			font-size: 0.8rem;
+		}
+
+		.kanban-card-assignee {
+			display: flex;
+			align-items: center;
+			gap: 0.25rem;
+			color: #666;
+		}
+
+		.kanban-card-warning {
+			color: #dc3545;
+			font-weight: bold;
+		}
+
+		/* ドラッグオーバー時のスタイル */
+		.kanban-cards.drag-over {
+			background: #e3f2fd;
+			border: 2px dashed var(--primary);
+			border-radius: 4px;
+		}
+
+		/* 空の列の表示 */
+		.kanban-empty {
+			text-align: center;
+			padding: 2rem 1rem;
+			color: #999;
+			font-style: italic;
+			font-size: 0.9rem;
+		}
+
+		/* ステージ別カードボーダー */
+		.stage-アプローチ { border-left-color: #6c757d; }
+		.stage-ヒアリング { border-left-color: #17a2b8; }
+		.stage-提案 { border-left-color: #ffc107; }
+		.stage-見積提出 { border-left-color: #fd7e14; }
+		.stage-クロージング { border-left-color: #dc3545; }
+		.stage-受注 { border-left-color: #28a745; }
+
+		/* レスポンシブ対応 */
+		@media (max-width: 1024px) {
+			.kanban-column {
+				flex: 0 0 240px;
+			}
+		}
+
+		@media (max-width: 768px) {
+			.kanban-board {
+				flex-direction: column;
+				padding: 0.5rem 0;
+			}
+			
+			.kanban-column {
+				flex: 1 1 auto;
+				max-height: 400px;
+			}
+			
+			.view-toggle {
+				margin: 0.5rem 0;
+			}
+			
+			.header-controls {
+				flex-direction: column;
+				align-items: stretch;
+			}
+		}
 	</style>
 </head>
 <body>
@@ -1052,6 +1302,16 @@
 				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
 					<h2 class="page-title" style="margin: 0;">案件管理</h2>
 					<div class="header-controls">
+						<!-- ★ Phase 3A: ビュー切替ボタン追加 -->
+						<div class="view-toggle">
+							<button class="view-toggle-btn active" id="tableViewBtn" onclick="app.switchProjectView('table')">
+								<i class="fas fa-table"></i> テーブル
+							</button>
+							<button class="view-toggle-btn" id="kanbanViewBtn" onclick="app.switchProjectView('kanban')">
+								<i class="fas fa-columns"></i> カンバン
+							</button>
+						</div>
+						
 						<select id="projectsFilter" onchange="app.renderProjects()" class="filter-select">
 							<option value="all">全員表示</option>
 							<option value="personal">個人表示</option>
@@ -1079,9 +1339,78 @@
 				<!-- 滞留アラート表示エリア -->
 				<div id="projectAlerts" style="margin-bottom: 1.5rem;"></div>
 				
-				<div class="card">
+				<!-- ★ Phase 3A: カンバンボード追加 -->
+				<div id="projectKanbanView" class="kanban-board">
+					<div class="kanban-column" data-stage="アプローチ">
+						<div class="kanban-header">
+							<div class="kanban-header-title">アプローチ</div>
+							<div class="kanban-header-stats">
+								<span><i class="fas fa-briefcase"></i> <span class="stage-count">0</span>件</span>
+								<span><i class="fas fa-yen-sign"></i> <span class="stage-amount">0</span>万</span>
+							</div>
+						</div>
+						<div class="kanban-cards" data-stage="アプローチ"></div>
+					</div>
+					
+					<div class="kanban-column" data-stage="ヒアリング">
+						<div class="kanban-header">
+							<div class="kanban-header-title">ヒアリング</div>
+							<div class="kanban-header-stats">
+								<span><i class="fas fa-briefcase"></i> <span class="stage-count">0</span>件</span>
+								<span><i class="fas fa-yen-sign"></i> <span class="stage-amount">0</span>万</span>
+							</div>
+						</div>
+						<div class="kanban-cards" data-stage="ヒアリング"></div>
+					</div>
+					
+					<div class="kanban-column" data-stage="提案">
+						<div class="kanban-header">
+							<div class="kanban-header-title">提案</div>
+							<div class="kanban-header-stats">
+								<span><i class="fas fa-briefcase"></i> <span class="stage-count">0</span>件</span>
+								<span><i class="fas fa-yen-sign"></i> <span class="stage-amount">0</span>万</span>
+							</div>
+						</div>
+						<div class="kanban-cards" data-stage="提案"></div>
+					</div>
+					
+					<div class="kanban-column" data-stage="見積提出">
+						<div class="kanban-header">
+							<div class="kanban-header-title">見積提出</div>
+							<div class="kanban-header-stats">
+								<span><i class="fas fa-briefcase"></i> <span class="stage-count">0</span>件</span>
+								<span><i class="fas fa-yen-sign"></i> <span class="stage-amount">0</span>万</span>
+							</div>
+						</div>
+						<div class="kanban-cards" data-stage="見積提出"></div>
+					</div>
+					
+					<div class="kanban-column" data-stage="クロージング">
+						<div class="kanban-header">
+							<div class="kanban-header-title">クロージング</div>
+							<div class="kanban-header-stats">
+								<span><i class="fas fa-briefcase"></i> <span class="stage-count">0</span>件</span>
+								<span><i class="fas fa-yen-sign"></i> <span class="stage-amount">0</span>万</span>
+							</div>
+						</div>
+						<div class="kanban-cards" data-stage="クロージング"></div>
+					</div>
+					
+					<div class="kanban-column" data-stage="受注">
+						<div class="kanban-header">
+							<div class="kanban-header-title">受注</div>
+							<div class="kanban-header-stats">
+								<span><i class="fas fa-briefcase"></i> <span class="stage-count">0</span>件</span>
+								<span><i class="fas fa-yen-sign"></i> <span class="stage-amount">0</span>万</span>
+							</div>
+						</div>
+						<div class="kanban-cards" data-stage="受注"></div>
+					</div>
+				</div>
+
+				<div id="projectTableView" class="card">
 					<div style="margin-bottom: 1rem; font-size: 0.9rem;">
-						<span style="display:inline-block; width:15px; height:15px; background:#fff3cd; border:1px solid #ffc107; vertical-align:middle;"></span> 30日以上滞留　
+						<span style="display:inline-block; width:15px; height:15px; background:#fff3cd; border:1px solid #ffc107; vertical-align:middle;"></span> 30日以上滞留
 						<span style="display:inline-block; width:15px; height:15px; background:#f8d7da; border:1px solid #dc3545; vertical-align:middle; margin-left:10px;"></span> 60日以上滞留
 					</div>
 					
@@ -1435,7 +1764,10 @@
                 this.activitiesSortField = null; this.activitiesSortOrder = 'asc';
                 this.scheduleSortField = null; this.scheduleSortOrder = 'asc';
 				
-				// ★ここに追加
+				// ★ Phase 3A: カンバンボード状態管理
+				this.projectViewMode = 'table'; // 'table' or 'kanban'
+				this.draggedProjectId = null;
+				
 				this.currentProjectFiles = []; // ファイル管理用の一時配列
                 
                 this.init();
@@ -2529,133 +2861,140 @@
 			}
 
 			renderProjects() {
-				const filter = document.getElementById('projectsFilter').value;
-				const statusFilter = document.getElementById('projectsStatusFilter').value;
-				
-				let list = this.data.projects || [];
-				
-				// フィルタリング
-				if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
-					list = list.filter(p => p.assignee === CURRENT_USER.assignee);
-				}
-				if (statusFilter !== 'all') {
-					list = list.filter(p => p.status === statusFilter);
-				}
-				
-				// ★ Phase 2: ステージフィルター追加
-				const stageFilter = document.getElementById('projectsStageFilter')?.value;
-				if (stageFilter && stageFilter !== 'all') {
-					list = list.filter(p => p.stage === stageFilter);
-				}
-				
-				// ソート処理
-				if (this.projectsSortField) {
-					list.sort((a, b) => {
-						let valA, valB;
-						
-						if (this.projectsSortField === 'estimatedAmount') {
-							valA = Number(a.estimatedAmount) || 0;
-							valB = Number(b.estimatedAmount) || 0;
-							return this.projectsSortOrder === 'asc' ? valA - valB : valB - valA;
-						} else {
-							valA = (a[this.projectsSortField] || '').toString();
-							valB = (b[this.projectsSortField] || '').toString();
-							const result = valA.localeCompare(valB, 'ja');
-							return this.projectsSortOrder === 'asc' ? result : -result;
-						}
-					});
-				}
-				
-				// Phase 2-2: 滞留アラートの生成
-				const stagnantProjects = list.filter(p => {
-					const days = this.calculateStagnantDays(p);
-					return p.status === '進行中' && days >= 30;
-				}).sort((a, b) => this.calculateStagnantDays(b) - this.calculateStagnantDays(a));
-				
-				let alertsHtml = '';
-				if (stagnantProjects.length > 0) {
-					alertsHtml = '<div class="card"><h3 style="margin-top: 0; color: #dc3545;"><i class="fas fa-exclamation-triangle"></i> 滞留案件アラート</h3>';
-					stagnantProjects.slice(0, 5).forEach(p => {
-						const days = this.calculateStagnantDays(p);
-						const alertClass = days >= 60 ? 'project-alert-danger' : 'project-alert-warning';
-						const alertIcon = days >= 60 ? 'fas fa-exclamation-circle' : 'fas fa-exclamation-triangle';
-						
-						alertsHtml += `
-							<div class="stagnant-alert-item ${alertClass}">
-								<div class="stagnant-alert-icon">
-									<i class="${alertIcon}"></i>
-								</div>
-								<div class="stagnant-alert-content">
-									<div class="stagnant-alert-title" title="${p.projectName} (${p.projectNumber})">
-										${p.projectNumber}: ${p.projectName}
-									</div>
-									<div class="stagnant-alert-details">
-										<span><i class="fas fa-user"></i> ${p.assignee}</span>
-										<span><i class="fas fa-layer-group"></i> ${p.stage}</span>
-										<span style="color: ${days >= 60 ? '#dc3545' : '#f57c00'}; font-weight: bold;">
-											<i class="fas fa-clock"></i> 滞留${days}日
-										</span>
-									</div>
-								</div>
-								<div class="stagnant-alert-action">
-									<button class="btn btn-sm btn-primary" onclick="app.editProject('${p.id}')" title="案件詳細を確認">
-										<i class="fas fa-search"></i> 確認
-									</button>
-								</div>
-							</div>
-						`;
-					});
-					alertsHtml += '</div>';
-				}
-				document.getElementById('projectAlerts').innerHTML = alertsHtml;
-				
-				// テーブル行の生成
-				document.querySelector('#projectsTable tbody').innerHTML = list.map(p => {
-					const stagnantDays = this.calculateStagnantDays(p);
-					let stagnantClass = '';
-					let stagnantText = `${stagnantDays}日`;
-					
-					if (p.status === '進行中') {
-						if (stagnantDays >= 60) {
-							stagnantClass = 'stagnant-danger';
-						} else if (stagnantDays >= 30) {
-							stagnantClass = 'stagnant-warning';
-						}
-					}
-					
-					const rowClass = p.status === '進行中' && stagnantDays >= 60 ? 'project-alert-danger' : 
-									p.status === '進行中' && stagnantDays >= 30 ? 'project-alert-warning' : '';
-					
-					const docCount = p.documents ? p.documents.length : 0;
-					
-					return `
-						<tr class="${rowClass}">
-							<td><strong>${p.projectNumber}</strong></td>
-							<td>${p.projectName}</td>
-							<td>${p.customer}</td>
-							<td>${p.product || '-'}</td>
-							<td>${p.assignee}</td>
-							<td>${p.stage}</td>
-							<td>${p.probability || '-'}</td>
-							<td>¥${Number(p.estimatedAmount || 0).toLocaleString()}</td>
-							<td>${p.expectedOrderDate || '-'}</td>
-							<td class="stagnant-days ${stagnantClass}">${stagnantText}</td>
-							<td><span style="padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; background: ${p.status === '進行中' ? '#28a745' : p.status === '完了' ? '#007bff' : '#6c757d'}; color: white;">${p.status}</span></td>
-							<td>
-								<button class="btn btn-sm btn-secondary" onclick="app.openDocumentModal('${p.id}')">
-									<i class="fas fa-folder"></i> ${docCount}
-								</button>
-							</td>
-							<td>
-								<div class="btn-group">
-									<button class="btn btn-secondary btn-sm" onclick="app.editProject('${p.id}')">編集</button>
-									<button class="btn btn-danger btn-sm" onclick="app.deleteProject('${p.id}')">削除</button>
-								</div>
-							</td>
-						</tr>
-					`;
-				}).join('');
-			}
+                // ★ Phase 3A: カンバンビューの場合はカンバンを描画
+                if (this.projectViewMode === 'kanban') {
+                    this.renderKanbanBoard();
+                    return;
+                }
+                
+                // テーブル表示の処理
+                const filter = document.getElementById('projectsFilter').value;
+                const statusFilter = document.getElementById('projectsStatusFilter').value;
+                
+                let list = this.data.projects || [];
+                
+                // フィルタリング
+                if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
+                    list = list.filter(p => p.assignee === CURRENT_USER.assignee);
+                }
+                if (statusFilter !== 'all') {
+                    list = list.filter(p => p.status === statusFilter);
+                }
+                
+                // ★ Phase 2: ステージフィルター追加
+                const stageFilter = document.getElementById('projectsStageFilter')?.value;
+                if (stageFilter && stageFilter !== 'all') {
+                    list = list.filter(p => p.stage === stageFilter);
+                }
+                
+                // ソート処理
+                if (this.projectsSortField) {
+                    list.sort((a, b) => {
+                        let valA, valB;
+                        
+                        if (this.projectsSortField === 'estimatedAmount') {
+                            valA = Number(a.estimatedAmount) || 0;
+                            valB = Number(b.estimatedAmount) || 0;
+                            return this.projectsSortOrder === 'asc' ? valA - valB : valB - valA;
+                        } else {
+                            valA = (a[this.projectsSortField] || '').toString();
+                            valB = (b[this.projectsSortField] || '').toString();
+                            const result = valA.localeCompare(valB, 'ja');
+                            return this.projectsSortOrder === 'asc' ? result : -result;
+                        }
+                    });
+                }
+                
+                // 滞留アラートの生成
+                const stagnantProjects = list.filter(p => {
+                    const days = this.calculateStagnantDays(p);
+                    return p.status === '進行中' && days >= 30;
+                }).sort((a, b) => this.calculateStagnantDays(b) - this.calculateStagnantDays(a));
+                
+                let alertsHtml = '';
+                if (stagnantProjects.length > 0) {
+                    alertsHtml = '<div class="card"><h3 style="margin-top: 0; color: #dc3545;"><i class="fas fa-exclamation-triangle"></i> 滞留案件アラート</h3>';
+                    stagnantProjects.slice(0, 5).forEach(p => {
+                        const days = this.calculateStagnantDays(p);
+                        const alertClass = days >= 60 ? 'project-alert-danger' : 'project-alert-warning';
+                        const alertIcon = days >= 60 ? 'fas fa-exclamation-circle' : 'fas fa-exclamation-triangle';
+                        
+                        alertsHtml += `
+                            <div class="stagnant-alert-item ${alertClass}">
+                                <div class="stagnant-alert-icon">
+                                    <i class="${alertIcon}"></i>
+                                </div>
+                                <div class="stagnant-alert-content">
+                                    <div class="stagnant-alert-title" title="${p.projectName} (${p.projectNumber})">
+                                        ${p.projectNumber}: ${p.projectName}
+                                    </div>
+                                    <div class="stagnant-alert-details">
+                                        <span><i class="fas fa-user"></i> ${p.assignee}</span>
+                                        <span><i class="fas fa-layer-group"></i> ${p.stage}</span>
+                                        <span style="color: ${days >= 60 ? '#dc3545' : '#f57c00'}; font-weight: bold;">
+                                            <i class="fas fa-clock"></i> 滞留${days}日
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="stagnant-alert-action">
+                                    <button class="btn btn-sm btn-primary" onclick="app.editProject('${p.id}')" title="案件詳細を確認">
+                                        <i class="fas fa-search"></i> 確認
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    alertsHtml += '</div>';
+                }
+                document.getElementById('projectAlerts').innerHTML = alertsHtml;
+                
+                // テーブル行の生成
+                document.querySelector('#projectsTable tbody').innerHTML = list.map(p => {
+                    const stagnantDays = this.calculateStagnantDays(p);
+                    let stagnantClass = '';
+                    let stagnantText = `${stagnantDays}日`;
+                    
+                    if (p.status === '進行中') {
+                        if (stagnantDays >= 60) {
+                            stagnantClass = 'stagnant-danger';
+                        } else if (stagnantDays >= 30) {
+                            stagnantClass = 'stagnant-warning';
+                        }
+                    }
+                    
+                    const rowClass = p.status === '進行中' && stagnantDays >= 60 ? 'project-alert-danger' : 
+                                    p.status === '進行中' && stagnantDays >= 30 ? 'project-alert-warning' : '';
+                    
+                    const docCount = p.documents ? p.documents.length : 0;
+                    
+                    return `
+                        <tr class="${rowClass}">
+                            <td><strong>${p.projectNumber}</strong></td>
+                            <td>${p.projectName}</td>
+                            <td>${p.customer}</td>
+                            <td>${p.product || '-'}</td>
+                            <td>${p.assignee}</td>
+                            <td>${p.stage}</td>
+                            <td>${p.probability || '-'}</td>
+                            <td>¥${Number(p.estimatedAmount || 0).toLocaleString()}</td>
+                            <td>${p.expectedOrderDate || '-'}</td>
+                            <td class="stagnant-days ${stagnantClass}">${stagnantText}</td>
+                            <td><span style="padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; background: ${p.status === '進行中' ? '#28a745' : p.status === '完了' ? '#007bff' : '#6c757d'}; color: white;">${p.status}</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-secondary" onclick="app.openDocumentModal('${p.id}')">
+                                    <i class="fas fa-folder"></i> ${docCount}
+                                </button>
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <button class="btn btn-secondary btn-sm" onclick="app.editProject('${p.id}')">編集</button>
+                                    <button class="btn btn-danger btn-sm" onclick="app.deleteProject('${p.id}')">削除</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
 
 			sortProjects(field) {
 				if (this.projectsSortField === field) {
@@ -3476,6 +3815,246 @@
                 } catch (error) {
                     console.error('案件情報取得エラー:', error);
                     return null;
+                }
+            }
+			// ========================================
+            // Phase 3A: 案件カンバンボード機能
+            // ========================================
+
+            /**
+             * プロジェクトビューの切替
+             */
+            switchProjectView(mode) {
+                this.projectViewMode = mode;
+                
+                // ボタンの状態更新
+                const tableBtn = document.getElementById('tableViewBtn');
+                const kanbanBtn = document.getElementById('kanbanViewBtn');
+                
+                if (tableBtn && kanbanBtn) {
+                    tableBtn.classList.toggle('active', mode === 'table');
+                    kanbanBtn.classList.toggle('active', mode === 'kanban');
+                }
+                
+                // ビューの表示切替
+                const tableView = document.getElementById('projectTableView');
+                const kanbanView = document.getElementById('projectKanbanView');
+                
+                if (tableView && kanbanView) {
+                    tableView.style.display = mode === 'table' ? 'block' : 'none';
+                    kanbanView.classList.toggle('active', mode === 'kanban');
+                }
+                
+                if (mode === 'kanban') {
+                    this.renderKanbanBoard();
+                } else {
+                    this.renderProjects();
+                }
+            }
+
+            /**
+             * フィルタ済み案件リストを取得
+             */
+            getFilteredProjectsList() {
+                const filter = document.getElementById('projectsFilter')?.value || 'all';
+                const statusFilter = document.getElementById('projectsStatusFilter')?.value || 'all';
+                const stageFilter = document.getElementById('projectsStageFilter')?.value || 'all';
+                
+                let list = this.data.projects || [];
+                
+                // フィルタリング
+                if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
+                    list = list.filter(p => p.assignee === CURRENT_USER.assignee);
+                }
+                if (statusFilter !== 'all') {
+                    list = list.filter(p => p.status === statusFilter);
+                }
+                if (stageFilter !== 'all') {
+                    list = list.filter(p => p.stage === stageFilter);
+                }
+                
+                return list;
+            }
+
+            /**
+             * カンバンボードのレンダリング
+             */
+            renderKanbanBoard() {
+                const list = this.getFilteredProjectsList();
+                const stages = ['アプローチ', 'ヒアリング', '提案', '見積提出', 'クロージング', '受注'];
+                
+                // ステージ別に分類
+                const stageData = {};
+                stages.forEach(stage => {
+                    stageData[stage] = {
+                        projects: list.filter(p => p.stage === stage),
+                        count: 0,
+                        amount: 0
+                    };
+                    
+                    stageData[stage].count = stageData[stage].projects.length;
+                    stageData[stage].amount = stageData[stage].projects.reduce((sum, p) => 
+                        sum + (Number(p.estimatedAmount) || 0), 0
+                    );
+                });
+                
+                // 各列にカードを描画
+                stages.forEach(stage => {
+                    const container = document.querySelector(`.kanban-cards[data-stage="${stage}"]`);
+                    const column = container?.closest('.kanban-column');
+                    
+                    if (!container || !column) return;
+                    
+                    // ヘッダーの統計情報更新
+                    const countElement = column.querySelector('.stage-count');
+                    const amountElement = column.querySelector('.stage-amount');
+                    
+                    if (countElement) countElement.textContent = stageData[stage].count;
+                    if (amountElement) amountElement.textContent = (stageData[stage].amount / 10000).toFixed(0);
+                    
+                    // カードの描画
+                    if (stageData[stage].projects.length === 0) {
+                        container.innerHTML = '<div class="kanban-empty"><i class="fas fa-inbox"></i><br>案件なし</div>';
+                    } else {
+                        container.innerHTML = stageData[stage].projects.map(p => this.createKanbanCard(p)).join('');
+                    }
+                });
+                
+                // ドラッグ&ドロップイベントの設定
+                this.setupKanbanDragAndDrop();
+            }
+
+            /**
+             * カンバンカードのHTML生成
+             */
+            createKanbanCard(project) {
+                const stagnantDays = this.calculateStagnantDays(project);
+                const stagnantWarning = project.status === '進行中' && stagnantDays >= 30 ? 
+                    `<span class="kanban-card-warning" title="滞留${stagnantDays}日">
+                        <i class="fas fa-exclamation-triangle"></i> ${stagnantDays}日
+                    </span>` : '';
+                
+                return `
+                    <div class="kanban-card stage-${project.stage}" 
+                         draggable="true" 
+                         data-project-id="${project.id}"
+                         ondblclick="app.editProject('${project.id}')">
+                        <div class="kanban-card-header">
+                            <span class="kanban-card-number">${project.projectNumber}</span>
+                            <span class="kanban-card-probability prob-${project.probability || 'B'}">${project.probability || 'B'}</span>
+                        </div>
+                        <div class="kanban-card-title" title="${project.projectName}">${project.projectName}</div>
+                        <div class="kanban-card-customer">
+                            <i class="fas fa-building"></i> ${project.customer}
+                        </div>
+                        <div class="kanban-card-amount">¥${Number(project.estimatedAmount || 0).toLocaleString()}</div>
+                        <div class="kanban-card-footer">
+                            <span class="kanban-card-assignee">
+                                <i class="fas fa-user"></i> ${project.assignee}
+                            </span>
+                            ${stagnantWarning}
+                        </div>
+                    </div>
+                `;
+            }
+
+            /**
+             * ドラッグ&ドロップイベントの設定
+             */
+            setupKanbanDragAndDrop() {
+                // カードのドラッグイベント
+                document.querySelectorAll('.kanban-card').forEach(card => {
+                    card.addEventListener('dragstart', (e) => {
+                        this.draggedProjectId = card.dataset.projectId;
+                        card.classList.add('dragging');
+                        e.dataTransfer.effectAllowed = 'move';
+                    });
+                    
+                    card.addEventListener('dragend', (e) => {
+                        card.classList.remove('dragging');
+                    });
+                });
+                
+                // 列のドロップイベント
+                document.querySelectorAll('.kanban-cards').forEach(container => {
+                    container.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        container.classList.add('drag-over');
+                        e.dataTransfer.dropEffect = 'move';
+                    });
+                    
+                    container.addEventListener('dragleave', (e) => {
+                        if (e.target === container) {
+                            container.classList.remove('drag-over');
+                        }
+                    });
+                    
+                    container.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        container.classList.remove('drag-over');
+                        
+                        const newStage = container.dataset.stage;
+                        if (this.draggedProjectId && newStage) {
+                            this.moveProjectToStage(this.draggedProjectId, newStage);
+                        }
+                        this.draggedProjectId = null;
+                    });
+                });
+            }
+
+            /**
+             * 案件をステージ移動
+             */
+            moveProjectToStage(projectId, newStage) {
+                try {
+                    const project = this.data.projects.find(p => p.id === projectId);
+                    if (!project) {
+                        this.showToast('案件が見つかりません', 'error');
+                        return;
+                    }
+                    
+                    const oldStage = project.stage;
+                    if (oldStage === newStage) return;
+                    
+                    // 確認ダイアログ
+                    if (!confirm(`「${project.projectName}」を「${oldStage}」から「${newStage}」に移動しますか？`)) {
+                        this.renderKanbanBoard();
+                        return;
+                    }
+                    
+                    // ステージ更新
+                    project.stage = newStage;
+                    project.lastActivityDate = new Date().toISOString().split('T')[0];
+                    
+                    // 受注時の自動処理
+                    if (newStage === '受注') {
+                        project.status = '完了';
+                        if (project.probability !== '受注済') {
+                            project.probability = '受注済';
+                        }
+                    } else if (oldStage === '受注' && newStage !== '受注') {
+                        // 受注から戻した場合
+                        project.status = '進行中';
+                        if (project.probability === '受注済') {
+                            project.probability = 'A';
+                        }
+                    }
+                    
+                    // ステージ変更履歴を記録
+                    this.recordStageChange(projectId, oldStage, newStage, CURRENT_USER.assignee);
+                    
+                    // データ保存
+                    this.saveData();
+                    
+                    // カンバンボード再描画
+                    this.renderKanbanBoard();
+                    
+                    this.showToast(`「${project.projectName}」を「${newStage}」に移動しました`, 'success');
+                    
+                } catch (error) {
+                    console.error('ステージ移動エラー:', error);
+                    this.showToast('ステージ移動中にエラーが発生しました', 'error');
+                    this.renderKanbanBoard();
                 }
             }
 		}
