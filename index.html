@@ -648,6 +648,146 @@
 			color: #999;
 			font-style: italic;
 		}
+		/* ========================================
+		   Phase 2: ダッシュボード分析機能強化
+		   ======================================== */
+
+		/* ファネルクリック機能 */
+		.funnel-clickable {
+			cursor: pointer;
+			transition: all 0.3s ease;
+		}
+
+		.funnel-clickable:hover {
+			transform: scale(1.05);
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+			filter: brightness(1.1);
+		}
+
+		.funnel-clickable:active {
+			transform: scale(0.98);
+		}
+
+		/* 活動記録の案件リンク */
+		.activity-project-link {
+			color: var(--primary);
+			text-decoration: none;
+			font-weight: bold;
+			padding: 3px 8px;
+			border-radius: 4px;
+			background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+			display: inline-block;
+			transition: all 0.2s;
+			font-size: 0.85rem;
+			border: 1px solid #2196f3;
+		}
+
+		.activity-project-link:hover {
+			background: linear-gradient(135deg, #bbdefb 0%, #90caf9 100%);
+			text-decoration: none;
+			transform: translateY(-1px);
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+		}
+
+		.activity-no-project {
+			color: #999;
+			font-style: italic;
+			font-size: 0.85rem;
+		}
+
+		/* 案件番号バッジ */
+		.project-number-badge {
+			background: var(--primary);
+			color: white;
+			padding: 2px 6px;
+			border-radius: 3px;
+			font-size: 0.75rem;
+			font-weight: bold;
+			margin-right: 0.5rem;
+		}
+
+		/* フィルター適用時の視覚的フィードバック */
+		.filter-applied {
+			background: #fff3cd !important;
+			border: 2px solid #ffc107 !important;
+		}
+
+		/* ステージ変更履歴 */
+		.stage-history-item {
+			padding: 0.5rem;
+			margin: 0.25rem 0;
+			background: #f8f9fa;
+			border-left: 3px solid var(--primary);
+			border-radius: 4px;
+			font-size: 0.85rem;
+		}
+		/* ========================================
+		   滞留案件アラート レイアウト修正
+		   ======================================== */
+
+		.stagnant-alert-item {
+			display: flex;
+			align-items: center;
+			gap: 1rem;
+			padding: 1rem;
+			margin-bottom: 0.5rem;
+			border-radius: 8px;
+			min-height: 70px;
+			width: 100%;
+			box-sizing: border-box;
+		}
+
+		.stagnant-alert-icon {
+			flex-shrink: 0; /* アイコンサイズを固定 */
+			font-size: 1.5rem;
+			width: 30px;
+			text-align: center;
+		}
+
+		.stagnant-alert-content {
+			flex: 1; /* 残りスペースを全て使用 */
+			min-width: 0; /* ★重要: 長いテキストでのレイアウト崩れを防止 */
+			overflow: hidden;
+		}
+
+		.stagnant-alert-title {
+			font-weight: bold;
+			margin-bottom: 0.3rem;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis; /* 長い案件名は...で省略 */
+			color: #333;
+		}
+
+		.stagnant-alert-details {
+			font-size: 0.85rem;
+			color: #666;
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.75rem;
+			align-items: center;
+		}
+
+		.stagnant-alert-action {
+			flex-shrink: 0; /* ボタンサイズを固定 */
+		}
+
+		/* レスポンシブ対応 */
+		@media (max-width: 768px) {
+			.stagnant-alert-item {
+				flex-direction: column;
+				align-items: flex-start;
+				gap: 0.75rem;
+			}
+			
+			.stagnant-alert-content {
+				width: 100%;
+			}
+			
+			.stagnant-alert-action {
+				align-self: flex-end;
+			}
+		}
 	</style>
 </head>
 <body>
@@ -890,6 +1030,7 @@
 								<th onclick="app.sortActivities('date')">日付 <i class="fas fa-sort" id="sortIconActivityDate"></i></th>
 								<th onclick="app.sortActivities('assignee')">担当 <i class="fas fa-sort" id="sortIconActivityAssignee"></i></th>
 								<th onclick="app.sortActivities('customer')">得意先 <i class="fas fa-sort" id="sortIconActivityCustomer"></i></th>
+								<th>関連案件</th>
 								<th onclick="app.sortActivities('purpose')">目的 <i class="fas fa-sort" id="sortIconActivityPurpose"></i></th>
 								<th>相手</th>
 								<th>機種名</th>
@@ -921,6 +1062,15 @@
 							<option value="保留">保留</option>
 							<option value="完了">完了</option>
 							<option value="失注">失注</option>
+						</select>
+						<select id="projectsStageFilter" onchange="app.renderProjects()" class="filter-select">
+							<option value="all">全ステージ</option>
+							<option value="アプローチ">アプローチ</option>
+							<option value="ヒアリング">ヒアリング</option>
+							<option value="提案">提案</option>
+							<option value="見積提出">見積提出</option>
+							<option value="クロージング">クロージング</option>
+							<option value="受注">受注</option>
 						</select>
 						<button class="btn btn-primary" onclick="app.openProjectModal()"><i class="fas fa-plus"></i> 新規案件</button>
 					</div>
@@ -1207,11 +1357,13 @@
 					</div>
 					<div id="fileList" style="margin-top: 1rem;"></div>
 				</div>
-				<!-- Phase 1: 商談履歴セクション -->
+				<!-- Phase 1: 商談履歴セクション (修正版) -->
 				<div id="projectHistorySection" class="history-section" style="display: none;">
-					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-						<h3 style="margin: 0; border: none;"><i class="fas fa-history"></i> 商談履歴</h3>
-						<button type="button" class="btn btn-success btn-sm" onclick="app.addActivityFromProject()">
+					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: nowrap; gap: 1rem;">
+						<h3 style="margin: 0; border: none; white-space: nowrap; flex-shrink: 0;">
+							<i class="fas fa-history"></i> 商談履歴
+						</h3>
+						<button type="button" class="btn btn-success btn-sm" onclick="app.addActivityFromProject()" style="white-space: nowrap; flex-shrink: 0;">
 							<i class="fas fa-plus"></i> この案件の活動を追加
 						</button>
 					</div>
@@ -1425,6 +1577,9 @@
                 document.getElementById('dashboardKpiCurrent').textContent = '¥' + ordered.toLocaleString();
 
                 this.renderCharts(acts, target);
+				
+				 // ★ Phase 2: ファネルクリック機能の初期化
+				this.setupFunnelClickEvents();
 				
 				// 個人表示時のKPI状況表示
 				if (isPersonal) {
@@ -1880,27 +2035,40 @@
 				}
 
 				// テーブル行の生成（機種名を追加）
-				document.querySelector('#activitiesTable tbody').innerHTML = list.map(a => `
-					<tr>
-						<td>${a.date}</td>
-						<td>${a.assignee}</td>
-						<td>${a.customer}</td>
-						<td>${a.purpose}</td>
-						<td>${a.partner || '-'}</td>
-						<td>${a.product || '-'}</td>
-						<td title="${a.content}" onclick="alert('${(a.content || '').replace(/'/g, "\\'")}');" style="cursor:pointer; max-width:150px; overflow:hidden; text-overflow:ellipsis;">${a.content || '-'}</td>
-						<td>${a.stage || '-'}</td>
-						<td>${a.expected_date || '-'}</td>
-						<td>${a.probability || '-'}</td>
-						<td>¥${Number(a.amount).toLocaleString()}</td>
-						<td>
-							<div class="btn-group">
-								<button class="btn btn-secondary btn-sm" onclick="app.editActivity('${a.id}')">編集</button>
-								<button class="btn btn-danger btn-sm" onclick="app.deleteActivity('${a.id}')">削除</button>
-							</div>
-						</td>
-					</tr>`).join('');
-				
+				document.querySelector('#activitiesTable tbody').innerHTML = list.map(a => {
+					// Phase 2: 関連案件情報を取得
+					const project = this.getActivityProjectInfo(a);
+					const projectCell = project ? 
+						`<a href="#" class="activity-project-link" onclick="app.openProjectFromActivity('${project.id}'); return false;" title="案件詳細: ${project.projectName}">
+							<span class="project-number-badge">${project.projectNumber}</span>
+							${project.projectName.length > 12 ? project.projectName.substring(0, 12) + '...' : project.projectName}
+						</a>` : 
+						'<span class="activity-no-project">-</span>';
+					
+					return `
+						<tr>
+							<td>${a.date}</td>
+							<td>${a.assignee}</td>
+							<td>${a.customer}</td>
+							<td>${projectCell}</td>
+							<td>${a.purpose}</td>
+							<td>${a.partner || '-'}</td>
+							<td>${a.product || '-'}</td>
+							<td title="${a.content}" onclick="alert('${(a.content || '').replace(/'/g, "\\'")}');" style="cursor:pointer; max-width:150px; overflow:hidden; text-overflow:ellipsis;">${a.content || '-'}</td>
+							<td>${a.stage || '-'}</td>
+							<td>${a.expected_date || '-'}</td>
+							<td>${a.probability || '-'}</td>
+							<td>¥${Number(a.amount).toLocaleString()}</td>
+							<td>
+								<div class="btn-group">
+									<button class="btn btn-secondary btn-sm" onclick="app.editActivity('${a.id}')">編集</button>
+									<button class="btn btn-danger btn-sm" onclick="app.deleteActivity('${a.id}')">削除</button>
+								</div>
+							</td>
+						</tr>
+					`;
+				}).join('');
+	
 				// 顧客選択肢の更新
 				const custSelect = document.getElementById('activityCustomer');
 				const sortedCustomers = [...this.data.customers].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
@@ -2374,6 +2542,12 @@
 					list = list.filter(p => p.status === statusFilter);
 				}
 				
+				// ★ Phase 2: ステージフィルター追加
+				const stageFilter = document.getElementById('projectsStageFilter')?.value;
+				if (stageFilter && stageFilter !== 'all') {
+					list = list.filter(p => p.stage === stageFilter);
+				}
+				
 				// ソート処理
 				if (this.projectsSortField) {
 					list.sort((a, b) => {
@@ -2405,14 +2579,29 @@
 						const days = this.calculateStagnantDays(p);
 						const alertClass = days >= 60 ? 'project-alert-danger' : 'project-alert-warning';
 						const alertIcon = days >= 60 ? 'fas fa-exclamation-circle' : 'fas fa-exclamation-triangle';
+						
 						alertsHtml += `
-							<div class="${alertClass}" style="padding: 1rem; margin-bottom: 0.5rem; border-radius: 8px; display: flex; align-items: center; gap: 1rem;">
-								<i class="${alertIcon}" style="font-size: 1.5rem;"></i>
-								<div style="flex: 1;">
-									<strong>${p.projectName}</strong> (${p.projectNumber})<br>
-									<small>担当: ${p.assignee} | ステージ: ${p.stage} | 滞留: ${days}日</small>
+							<div class="stagnant-alert-item ${alertClass}">
+								<div class="stagnant-alert-icon">
+									<i class="${alertIcon}"></i>
 								</div>
-								<button class="btn btn-sm btn-primary" onclick="app.editProject('${p.id}')">確認</button>
+								<div class="stagnant-alert-content">
+									<div class="stagnant-alert-title" title="${p.projectName} (${p.projectNumber})">
+										${p.projectNumber}: ${p.projectName}
+									</div>
+									<div class="stagnant-alert-details">
+										<span><i class="fas fa-user"></i> ${p.assignee}</span>
+										<span><i class="fas fa-layer-group"></i> ${p.stage}</span>
+										<span style="color: ${days >= 60 ? '#dc3545' : '#f57c00'}; font-weight: bold;">
+											<i class="fas fa-clock"></i> 滞留${days}日
+										</span>
+									</div>
+								</div>
+								<div class="stagnant-alert-action">
+									<button class="btn btn-sm btn-primary" onclick="app.editProject('${p.id}')" title="案件詳細を確認">
+										<i class="fas fa-search"></i> 確認
+									</button>
+								</div>
 							</div>
 						`;
 					});
@@ -2645,8 +2834,14 @@
 				const project = this.data.projects.find(p => p.id === projectId);
 				if (!project) return;
 				
+				// ★ Phase 2: ステージ変更履歴を記録
+				const oldStage = project.stage;
+				
 				// 案件情報を最新の活動記録で自動更新
 				project.stage = activityData.stage;
+				
+				// ステージ変更があった場合は履歴に記録
+				this.recordStageChange(projectId, oldStage, activityData.stage, activityData.assignee);
 				project.probability = activityData.probability;
 				project.estimatedAmount = Number(activityData.amount) || project.estimatedAmount;
 				project.expectedOrderDate = activityData.expected_date || project.expectedOrderDate;
@@ -2877,8 +3072,34 @@
 				alert(`${project.projectName} のドキュメント管理機能は今後実装予定です。\n現在は案件編集画面からファイル管理をご利用ください。`);
 			}
 
-			openModal(id) { document.getElementById(id).classList.add('active'); }
-            closeModal(id) { document.getElementById(id).classList.remove('active'); }
+			/**
+			 * モーダルを開く
+			 */
+			openModal(id) {
+				const modal = document.getElementById(id);
+				if (!modal) return;
+				
+				modal.classList.add('active');
+				
+				// 活動モーダルを案件モーダルから開く場合のz-index調整
+				if (id === 'activityModal') {
+					const projectModal = document.getElementById('projectModal');
+					if (projectModal && projectModal.classList.contains('active')) {
+						modal.style.zIndex = '10100';
+					}
+				}
+			}
+
+			/**
+			 * モーダルを閉じる
+			 */
+			closeModal(id) {
+				const modal = document.getElementById(id);
+				if (!modal) return;
+				
+				modal.classList.remove('active');
+				modal.style.zIndex = ''; // z-indexをリセット
+			}
 
             showToast(msg, type = 'success') {
                 const toast = document.getElementById('toast');
@@ -2930,7 +3151,7 @@
 				};
 			}
             // ========================================
-            // Phase 1: 商談履歴・ダッシュボード機能
+            // Phase 1 & 2: 統合機能実装（修正版）
             // ========================================
 
             /**
@@ -2940,7 +3161,7 @@
                 if (!projectId) return [];
                 return this.data.activities
                     .filter(a => a.projectId === projectId)
-                    .sort((a, b) => new Date(b.date) - new Date(a.date)); // 新しい順
+                    .sort((a, b) => new Date(b.date) - new Date(a.date));
             }
 
             /**
@@ -2950,7 +3171,6 @@
                 const container = document.getElementById('projectHistoryContainer');
                 const section = document.getElementById('projectHistorySection');
                 
-                // エラーハンドリング
                 if (!container || !section) return;
                 
                 if (!projectId) {
@@ -2991,7 +3211,7 @@
                                 <span class="stage-tag"><i class="fas fa-layer-group"></i> ${h.stage}</span>
                                 <span class="prob-tag"><i class="fas fa-chart-line"></i> 確度: ${h.probability || '-'}</span>
                                 ${h.amount ? `<span class="amount-tag"><i class="fas fa-yen-sign"></i> ${Number(h.amount).toLocaleString()}</span>` : ''}
-                                <button type="button" class="btn btn-sm btn-secondary" onclick="app.editActivity('${h.id}')">
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="app.editActivity('${h.id}'); return false;" style="margin-left: 0.5rem;">
                                     <i class="fas fa-edit"></i> 編集
                                 </button>
                             </div>
@@ -3001,94 +3221,264 @@
             }
 
             /**
-             * 案件詳細から活動を追加
+             * 案件詳細から活動を追加（エラーハンドリング強化版）
              */
             addActivityFromProject() {
-                const projectId = document.getElementById('projectId').value;
-                const project = this.data.projects.find(p => p.id === projectId);
+                console.log('addActivityFromProject called');
                 
-                if (!project) {
-                    alert('案件情報が見つかりません');
-                    return;
+                try {
+                    const projectIdInput = document.getElementById('projectId');
+                    if (!projectIdInput) {
+                        alert('案件IDが取得できません。案件を保存してから再試行してください。');
+                        return;
+                    }
+                    
+                    const projectId = projectIdInput.value;
+                    if (!projectId) {
+                        alert('案件IDが設定されていません。');
+                        return;
+                    }
+                    
+                    const project = this.data.projects.find(p => p.id === projectId);
+                    if (!project) {
+                        alert('案件情報が見つかりません');
+                        return;
+                    }
+                    
+                    // 活動モーダルを開く
+                    this.openActivityModal();
+                    
+                    // DOM更新を待ってから値を設定
+                    setTimeout(() => {
+                        const elements = {
+                            customer: document.getElementById('activityCustomer'),
+                            product: document.getElementById('activityProduct'),
+                            stage: document.getElementById('activityStage'),
+                            probability: document.getElementById('activityProbability'),
+                            amount: document.getElementById('activityAmount'),
+                            expectedDate: document.getElementById('activityExpectedDate'),
+                            projectSelect: document.getElementById('activityProject'),
+                            projectId: document.getElementById('activityProjectId')
+                        };
+                        
+                        if (!elements.customer) {
+                            alert('活動記録フォームの初期化に失敗しました');
+                            return;
+                        }
+                        
+                        // 値を設定
+                        elements.customer.value = project.customer || '';
+                        if (elements.product) elements.product.value = project.product || '';
+                        elements.stage.value = project.stage || 'アプローチ';
+                        if (elements.probability) elements.probability.value = project.probability || 'B';
+                        if (elements.amount) elements.amount.value = project.estimatedAmount || '';
+                        if (elements.expectedDate) elements.expectedDate.value = project.expectedOrderDate || '';
+                        
+                        // 案件連携設定
+                        this.updateActivityProjectOptions(project.customer);
+                        setTimeout(() => {
+                            if (elements.projectSelect && elements.projectId) {
+                                elements.projectSelect.value = project.id;
+                                elements.projectId.value = project.id;
+                                this.updateProjectLinkUI(project);
+                            }
+                        }, 100);
+                    }, 150);
+                    
+                } catch (error) {
+                    console.error('addActivityFromProject エラー:', error);
+                    alert('活動追加機能でエラーが発生しました');
                 }
-                
-                // 活動モーダルを開く
-                this.openActivityModal();
-                
-                // 案件情報を自動入力
-                document.getElementById('activityCustomer').value = project.customer;
-                document.getElementById('activityProduct').value = project.product || '';
-                document.getElementById('activityStage').value = project.stage;
-                document.getElementById('activityProbability').value = project.probability || 'B';
-                document.getElementById('activityAmount').value = project.estimatedAmount || '';
-                document.getElementById('activityExpectedDate').value = project.expectedOrderDate || '';
-                
-                // 案件連携を設定（DOM更新を待つ）
-                this.updateActivityProjectOptions(project.customer);
-                setTimeout(() => {
-                    document.getElementById('activityProject').value = projectId;
-                    document.getElementById('activityProjectId').value = projectId;
-                    this.updateProjectLinkUI(project);
-                }, 50);
             }
 
             /**
              * ダッシュボード要素のクリックイベント設定
              */
             setupDashboardClicks() {
-                // DOMが完全に読み込まれてから実行
                 setTimeout(() => {
-                    // 総顧客数カード
-                    const customerCard = document.getElementById('statTotalCustomers')?.parentElement;
-                    if (customerCard) {
-                        customerCard.classList.add('clickable-card');
-                        customerCard.onclick = () => {
-                            this.showPage('customers');
-                            document.getElementById('customersFilter').value = 'all';
-                            this.renderCustomers();
-                        };
-                        customerCard.title = 'クリックで顧客管理へ';
-                    }
-                    
-                    // 本日の予定カード
-                    const scheduleCard = document.getElementById('statTodaySchedule')?.parentElement;
-                    if (scheduleCard) {
-                        scheduleCard.classList.add('clickable-card');
-                        scheduleCard.onclick = () => {
-                            this.showPage('schedule');
-                            document.getElementById('scheduleViewType').value = 'list';
-                            this.renderSchedule();
-                        };
-                        scheduleCard.title = 'クリックでスケジュールへ';
-                    }
-                    
-                    // 今週の活動カード
-                    const activityCard = document.getElementById('statWeekActivities')?.parentElement;
-                    if (activityCard) {
-                        activityCard.classList.add('clickable-card');
-                        activityCard.onclick = () => {
-                            this.showPage('activities');
-                            document.getElementById('activitiesFilter').value = 'all';
-                            this.renderActivities();
-                        };
-                        activityCard.title = 'クリックで活動記録へ';
-                    }
-                    
-                    // 受注想定価格合計カード
-                    const salesCard = document.getElementById('statTotalSales')?.parentElement;
-                    if (salesCard) {
-                        salesCard.classList.add('clickable-card');
-                        salesCard.onclick = () => {
-                            this.showPage('projects');
-                            document.getElementById('projectsFilter').value = 'all';
-                            document.getElementById('projectsStatusFilter').value = '進行中';
-                            this.renderProjects();
-                        };
-                        salesCard.title = 'クリックで案件管理へ';
+                    try {
+                        // 総顧客数カード
+                        const customerCard = document.getElementById('statTotalCustomers')?.parentElement;
+                        if (customerCard) {
+                            customerCard.classList.add('clickable-card');
+                            customerCard.onclick = () => {
+                                this.showPage('customers');
+                                const filter = document.getElementById('customersFilter');
+                                if (filter) filter.value = 'all';
+                                this.renderCustomers();
+                            };
+                            customerCard.title = 'クリックで顧客管理へ';
+                        }
+                        
+                        // 本日の予定カード
+                        const scheduleCard = document.getElementById('statTodaySchedule')?.parentElement;
+                        if (scheduleCard) {
+                            scheduleCard.classList.add('clickable-card');
+                            scheduleCard.onclick = () => {
+                                this.showPage('schedule');
+                                const viewType = document.getElementById('scheduleViewType');
+                                if (viewType) viewType.value = 'list';
+                                this.renderSchedule();
+                            };
+                            scheduleCard.title = 'クリックでスケジュールへ';
+                        }
+                        
+                        // 今週の活動カード
+                        const activityCard = document.getElementById('statWeekActivities')?.parentElement;
+                        if (activityCard) {
+                            activityCard.classList.add('clickable-card');
+                            activityCard.onclick = () => {
+                                this.showPage('activities');
+                                const filter = document.getElementById('activitiesFilter');
+                                if (filter) filter.value = 'all';
+                                this.renderActivities();
+                            };
+                            activityCard.title = 'クリックで活動記録へ';
+                        }
+                        
+                        // 受注想定価格合計カード
+                        const salesCard = document.getElementById('statTotalSales')?.parentElement;
+                        if (salesCard) {
+                            salesCard.classList.add('clickable-card');
+                            salesCard.onclick = () => {
+                                this.showPage('projects');
+                                const filter1 = document.getElementById('projectsFilter');
+                                const filter2 = document.getElementById('projectsStatusFilter');
+                                if (filter1) filter1.value = 'all';
+                                if (filter2) filter2.value = '進行中';
+                                this.renderProjects();
+                            };
+                            salesCard.title = 'クリックで案件管理へ';
+                        }
+                        
+                    } catch (error) {
+                        console.error('ダッシュボードクリック設定エラー:', error);
                     }
                 }, 500);
             }
-        }
+
+            /**
+             * ダッシュボードファネルから案件管理へのドリルダウン
+             */
+            drillDownToProjectsByStage(stage) {
+                try {
+                    this.showPage('projects');
+                    
+                    // フィルター設定
+                    const filters = {
+                        projectsFilter: document.getElementById('projectsFilter'),
+                        projectsStatusFilter: document.getElementById('projectsStatusFilter'),
+                        projectsStageFilter: document.getElementById('projectsStageFilter')
+                    };
+                    
+                    if (filters.projectsFilter) filters.projectsFilter.value = 'all';
+                    if (filters.projectsStatusFilter) filters.projectsStatusFilter.value = 'all';
+                    if (filters.projectsStageFilter) {
+                        filters.projectsStageFilter.value = stage;
+                        filters.projectsStageFilter.classList.add('filter-applied');
+                        setTimeout(() => {
+                            filters.projectsStageFilter.classList.remove('filter-applied');
+                        }, 2000);
+                    }
+                    
+                    this.renderProjects();
+                    this.showToast(`「${stage}」ステージの案件を表示しています`, 'success');
+                    
+                } catch (error) {
+                    console.error('ステージドリルダウンエラー:', error);
+                }
+            }
+
+            /**
+             * 活動記録から案件詳細を開く
+             */
+            openProjectFromActivity(projectId) {
+                try {
+                    const project = this.data.projects.find(p => p.id === projectId);
+                    if (!project) {
+                        this.showToast('案件が見つかりません', 'error');
+                        return;
+                    }
+                    
+                    this.showPage('projects');
+                    setTimeout(() => {
+                        this.editProject(projectId);
+                    }, 300);
+                    
+                } catch (error) {
+                    console.error('案件詳細表示エラー:', error);
+                    this.showToast('案件詳細の表示でエラーが発生しました', 'error');
+                }
+            }
+
+            /**
+             * ファネルアイテムにクリック機能を追加
+             */
+            setupFunnelClickEvents() {
+                setTimeout(() => {
+                    try {
+                        const funnelItems = document.querySelectorAll('#funnelStage .funnel-item');
+                        funnelItems.forEach(item => {
+                            item.classList.add('funnel-clickable');
+                            
+                            const stageLabel = item.querySelector('.funnel-label');
+                            if (stageLabel) {
+                                const stage = stageLabel.textContent.trim();
+                                item.onclick = () => this.drillDownToProjectsByStage(stage);
+                                item.title = `クリックで「${stage}」の案件一覧を表示`;
+                            }
+                        });
+                    } catch (error) {
+                        console.error('ファネルクリック設定エラー:', error);
+                    }
+                }, 300);
+            }
+
+            /**
+             * ステージ変更履歴を記録（簡易版）
+             */
+            recordStageChange(projectId, oldStage, newStage, changedBy) {
+                try {
+                    if (!projectId || oldStage === newStage) return;
+                    
+                    const project = this.data.projects.find(p => p.id === projectId);
+                    if (!project) return;
+                    
+                    if (!project.stageHistory) {
+                        project.stageHistory = [];
+                    }
+                    
+                    project.stageHistory.push({
+                        date: new Date().toISOString().split('T')[0],
+                        time: new Date().toTimeString().split(' ')[0].substring(0, 5),
+                        from: oldStage,
+                        to: newStage,
+                        changedBy: changedBy || 'システム'
+                    });
+                    
+                    // 履歴は最新10件まで保持
+                    if (project.stageHistory.length > 10) {
+                        project.stageHistory = project.stageHistory.slice(-10);
+                    }
+                    
+                } catch (error) {
+                    console.error('ステージ変更履歴記録エラー:', error);
+                }
+            }
+
+            /**
+             * 活動記録に関連案件情報を取得
+             */
+            getActivityProjectInfo(activity) {
+                try {
+                    if (!activity || !activity.projectId) return null;
+                    return this.data.projects.find(p => p.id === activity.projectId) || null;
+                } catch (error) {
+                    console.error('案件情報取得エラー:', error);
+                    return null;
+                }
+            }
+		}
 
         let app;
 
