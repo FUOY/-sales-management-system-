@@ -382,6 +382,95 @@
 			padding: 0.5rem;
 		}
 
+		/* ★ Phase 2: リスク検知アラート専用スタイル */
+		.risk-alert-section {
+			margin-bottom: 1.5rem;
+		}
+
+		.risk-alert-card {
+			background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
+			border-left: 5px solid #dc3545;
+			padding: 1.5rem;
+			border-radius: 8px;
+			box-shadow: 0 4px 8px rgba(220, 53, 69, 0.15);
+		}
+
+		.risk-alert-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 1rem;
+		}
+
+		.risk-alert-title {
+			font-size: 1.2rem;
+			font-weight: bold;
+			color: #dc3545;
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+		}
+
+		.risk-badge {
+			background: #dc3545;
+			color: white;
+			padding: 0.25rem 0.75rem;
+			border-radius: 12px;
+			font-size: 0.9rem;
+			font-weight: bold;
+		}
+
+		.risk-item {
+			background: white;
+			padding: 1rem;
+			margin-bottom: 0.75rem;
+			border-radius: 6px;
+			border-left: 4px solid #ffc107;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			transition: all 0.2s;
+		}
+
+		.risk-item:hover {
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+			transform: translateX(5px);
+		}
+
+		.risk-item.high-risk {
+			border-left-color: #dc3545;
+			background: #fff5f5;
+		}
+
+		.risk-content {
+			flex: 1;
+		}
+
+		.risk-project-name {
+			font-weight: bold;
+			color: #333;
+			margin-bottom: 0.5rem;
+		}
+
+		.risk-details {
+			display: flex;
+			gap: 1rem;
+			font-size: 0.85rem;
+			color: #666;
+			flex-wrap: wrap;
+		}
+
+		.risk-factor {
+			display: flex;
+			align-items: center;
+			gap: 0.25rem;
+		}
+
+		.risk-action {
+			flex-shrink: 0;
+		}
+		/* ★ Phase 2: リスクアラートCSS終了 */
+
 		/* Project Management Styles */
 		.project-alert-warning {
 			background-color: #fff3cd !important;
@@ -1074,13 +1163,22 @@
 
     <!-- Main App Container -->
     <div id="appContainer" class="app-container">
-        <header class="app-header">
-            <div class="app-title"><i class="fas fa-chart-line"></i> 販売管理システム</div>
-            <div class="user-info">
-                <span id="userInfoDisplay"></span>
-                <button id="logoutBtn" class="btn btn-secondary" style="border: 1px solid white;">ログアウト</button>
-            </div>
-        </header>
+		<header class="app-header">
+			<div class="app-title"><i class="fas fa-chart-line"></i> 販売管理システム</div>
+			
+			<!-- ★ Phase 3: 検索ボックス追加 -->
+			<div style="flex: 1; max-width: 400px; margin: 0 2rem; position: relative;">
+				<i class="fas fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #aaa;"></i>
+				<input type="text" id="globalSearchInput" placeholder="検索 (顧客名, 案件名, 担当者...)" 
+					   style="width: 100%; padding: 8px 8px 8px 35px; border-radius: 20px; border: none; height: 36px; font-size: 0.9rem;"
+					   oninput="app.handleGlobalSearch(this.value)">
+			</div>
+
+			<div class="user-info">
+				<span id="userInfoDisplay"></span>
+				<button id="logoutBtn" class="btn btn-secondary" style="border: 1px solid white;">ログアウト</button>
+			</div>
+		</header>
 
         <nav class="tab-menu">
 			<button class="tab-button active" onclick="app.showPage('dashboard')">ダッシュボード</button>
@@ -1103,24 +1201,36 @@
                 </div>
 
                 <div class="card">
-                    <h3>売上達成状況</h3>
-                    <div style="margin-bottom: 1.5rem;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <strong id="dashboardKpiLabel">全体達成率</strong>
-                            <div>
-                                <span style="color: var(--primary); font-size: 1.2rem; font-weight: bold;" id="dashboardKpiRate">0%</span>
-                                <span style="margin-left: 1rem; color: #dc3545;">不足: <span id="dashboardKpiShortage">¥0</span></span>
-                            </div>
-                        </div>
-                        <div class="progress-bar-container">
-                            <div id="dashboardKpiBar" class="progress-bar" style="width: 0%">0%</div>
-                        </div>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.9rem;">
-                        <div><strong>売上目標:</strong> <span id="dashboardKpiTarget">¥0</span></div>
-                        <div><strong>現在売上:</strong> <span id="dashboardKpiCurrent">¥0</span></div>
-                    </div>
-                </div>
+					<h3>売上達成状況</h3>
+					<div style="margin-bottom: 1.5rem;">
+						<div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+							<strong id="dashboardKpiLabel">達成率（確定ベース）</strong>
+							<div>
+								<span style="color: var(--primary); font-size: 1.2rem; font-weight: bold;" id="dashboardKpiRate">0%</span>
+								<span style="margin-left: 1rem; color: #dc3545; font-size: 0.9rem;">不足: <span id="dashboardKpiShortage">¥0</span></span>
+							</div>
+						</div>
+						<div class="progress-bar-container">
+							<div id="dashboardKpiBar" class="progress-bar" style="width: 0%">0%</div>
+						</div>
+					</div>
+					
+					<!-- ★ Phase 1: 詳細情報を3列で表示 -->
+					<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; font-size: 0.9rem; background: #f8f9fa; padding: 1rem; border-radius: 4px;">
+						<div>
+							<div style="color: #666; font-size: 0.8rem;">売上目標</div>
+							<div style="font-weight: bold; font-size: 1.1rem;" id="dashboardKpiTarget">¥0</div>
+						</div>
+						<div>
+							<div style="color: #666; font-size: 0.8rem;">受注確定</div>
+							<div style="font-weight: bold; font-size: 1.1rem; color: #28a745;" id="dashboardKpiCurrent">¥0</div>
+						</div>
+						<div>
+							<div style="color: #666; font-size: 0.8rem;">着地見込(加重)</div>
+							<div style="font-weight: bold; font-size: 1.1rem; color: #007bff;" id="dashboardKpiForecast">¥0</div>
+						</div>
+					</div>
+				</div>
 
                 <div class="grid-stats">
                     <div class="stat-card">
@@ -1339,6 +1449,9 @@
 				<!-- 滞留アラート表示エリア -->
 				<div id="projectAlerts" style="margin-bottom: 1.5rem;"></div>
 				
+				<!-- ★ Phase 2: リスク検知アラート表示エリア -->
+				<div id="projectRiskAlerts"></div>
+				
 				<!-- ★ Phase 3A: カンバンボード追加 -->
 				<div id="projectKanbanView" class="kanban-board">
 					<div class="kanban-column" data-stage="アプローチ">
@@ -1470,6 +1583,31 @@
                         <tbody></tbody>
                     </table>
                 </div>
+				<!-- 管理者専用: 個人別KPI確認ビュー -->
+				<div id="adminKpiView" class="card" style="display: none;">
+					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+						<h3 style="margin: 0;">個人別KPI確認（管理者専用）</h3>
+						<select id="adminKpiStaffFilter" onchange="app.renderAdminKpiView()" class="filter-select">
+							<option value="all">全員</option>
+						</select>
+					</div>
+					<table id="adminKpiTable">
+						<thead>
+							<tr>
+								<th>担当者</th>
+								<th>売上目標</th>
+								<th>現在売上</th>
+								<th>達成率</th>
+								<th>不足額</th>
+								<th>KPI項目数</th>
+							</tr>
+						</thead>
+						<tbody></tbody>
+					</table>
+					<div id="adminKpiDetails" style="margin-top: 2rem; border-top: 2px solid #eee; padding-top: 1.5rem;">
+						<p style="text-align: center; color: #999; font-style: italic;">担当者をクリックして詳細を表示</p>
+					</div>
+				</div>
             </section>
         </main>
     </div>
@@ -1726,7 +1864,21 @@
         ];
 
         const STAFFS = ['永森', '箱崎', '清水', '杉田', '安里', '鎌田', '大山'];
-        let supabaseClient = null;
+        const PROBABILITY_WEIGHTS = {
+			'受注': 1.0,
+			'受注済': 1.0,
+			'A': 0.9,    // 90%の確率
+			'B': 0.6,    // 60%の確率  
+			'C': 0.3,    // 30%の確率
+			'D': 0.1     // 10%の確率
+		};
+
+		// 確度から重み付けを取得する関数
+		function getWinRate(probability) {
+			return PROBABILITY_WEIGHTS[probability || 'C'] || 0.3;
+		}
+		
+		let supabaseClient = null;
 		// LocalStorage優先のためデフォルトSupabase設定
 		const SUPABASE_URL =
 			localStorage.getItem('supabaseUrl') || 'https://vflehlpohwuwploozobi.supabase.co';
@@ -1758,6 +1910,7 @@
                 };
                 this.currentDate = new Date();
                 this.currentEditingCustomerId = null;
+				this.searchKeyword = ''; // ★ Phase 3: 検索ワード初期化
                 
                 // Sort state
                 this.customersSortField = null; this.customersSortOrder = 'asc';
@@ -1888,25 +2041,62 @@
                 const weekActs = acts.filter(a => new Date(a.date) >= weekStart);
                 document.getElementById('statWeekActivities').textContent = weekActs.length; 
                 
-                // 受注済と受注想定を分離
+				// ★ Phase 1: 案件ベースの予測売上計算
+				const projects = isPersonal ? 
+					(this.data.projects || []).filter(p => p.assignee === CURRENT_USER.assignee) : 
+					(this.data.projects || []);
+
+				// 1. 受注確定額
+				const orderedProjects = projects.filter(p => 
+					p.stage === '受注' || p.status === '完了' || p.probability === '受注済'
+				);
+				const orderedAmount = orderedProjects.reduce((sum, p) => 
+					sum + (Number(p.estimatedAmount) || 0), 0
+				);
+
+				// 2. 進行中案件の加重平均予測
+				const activeProjects = projects.filter(p => 
+					p.status === '進行中' && p.stage !== '受注' && p.probability !== '受注済'
+				);
+
+				let weightedPipeline = 0;
+				let rawPipeline = 0;
+
+				activeProjects.forEach(p => {
+					const amount = Number(p.estimatedAmount) || 0;
+					const weight = getWinRate(p.probability);
+					
+					rawPipeline += amount;
+					weightedPipeline += Math.floor(amount * weight);
+				});
+
+				// 3. 総着地見込（確定 + 加重平均）
+				const totalForecast = orderedAmount + weightedPipeline;
+
+				// 4. 統計カード表示（既存形式を維持）
 				const orderedSales = acts.filter(a => a.stage === '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
 				const expectedSales = acts.filter(a => a.stage !== '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
-				const totalSales = orderedSales + expectedSales;
-				document.getElementById('statTotalSales').textContent = '¥' + totalSales.toLocaleString();
-				document.getElementById('statTotalSalesDetail').textContent = `受注済: ¥${orderedSales.toLocaleString()} / 想定: ¥${expectedSales.toLocaleString()}`;
+				document.getElementById('statTotalSales').textContent = '¥' + totalForecast.toLocaleString();
+				document.getElementById('statTotalSalesDetail').textContent = 
+					`確定: ¥${orderedAmount.toLocaleString()} / 予測: ¥${weightedPipeline.toLocaleString()}`;
 
-                // KPI Achievement
-                const ordered = acts.filter(a => a.stage === '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
-                const target = isPersonal ? (this.data.kpiSettings.personalTargets[CURRENT_USER.assignee] || 0) : this.data.kpiSettings.totalTarget;
-                const rate = target > 0 ? Math.round((ordered / target) * 100) : 0;
-                
-                document.getElementById('dashboardKpiLabel').textContent = isPersonal ? '個人達成率' : '全体達成率';
-                document.getElementById('dashboardKpiRate').textContent = rate + '%';
-                document.getElementById('dashboardKpiShortage').textContent = '¥' + Math.max(target - ordered, 0).toLocaleString();
-                document.getElementById('dashboardKpiBar').style.width = Math.min(rate, 100) + '%';
-                document.getElementById('dashboardKpiBar').textContent = rate + '%';
-                document.getElementById('dashboardKpiTarget').textContent = '¥' + Number(target).toLocaleString();
-                document.getElementById('dashboardKpiCurrent').textContent = '¥' + ordered.toLocaleString();
+				// 5. KPI Achievement（確定・予測・着地見込を分離表示）
+				const target = isPersonal ? (this.data.kpiSettings.personalTargets[CURRENT_USER.assignee] || 0) : this.data.kpiSettings.totalTarget;
+				const orderedRate = target > 0 ? Math.round((orderedAmount / target) * 100) : 0;
+
+				document.getElementById('dashboardKpiLabel').textContent = isPersonal ? '個人達成率（確定ベース）' : '全体達成率（確定ベース）';
+				document.getElementById('dashboardKpiRate').textContent = orderedRate + '%';
+				document.getElementById('dashboardKpiShortage').textContent = '¥' + Math.max(target - orderedAmount, 0).toLocaleString();
+				document.getElementById('dashboardKpiBar').style.width = Math.min(orderedRate, 100) + '%';
+				document.getElementById('dashboardKpiBar').textContent = orderedRate + '%';
+				document.getElementById('dashboardKpiTarget').textContent = '¥' + Number(target).toLocaleString();
+				document.getElementById('dashboardKpiCurrent').textContent = '¥' + orderedAmount.toLocaleString();
+
+				// 着地見込の表示
+				const forecastElement = document.getElementById('dashboardKpiForecast');
+				if (forecastElement) {
+					forecastElement.textContent = '¥' + totalForecast.toLocaleString();
+				}
 
                 this.renderCharts(acts, target);
 				
@@ -1982,6 +2172,105 @@
 					if (personalKpiCard) personalKpiCard.style.display = 'none';
 				}
             }
+			
+			// 管理者用KPI一覧表示
+			renderAdminKpiView() {
+				const selectedStaff = document.getElementById('adminKpiStaffFilter').value;
+				let staffList = selectedStaff === 'all' ? STAFFS : [selectedStaff];
+				
+				// 各担当者のKPI状況を集計
+				const kpiSummary = staffList.map(staff => {
+					const target = this.data.kpiSettings.personalTargets[staff] || 0;
+					const ordered = this.data.activities
+						.filter(a => a.assignee === staff && a.stage === '受注')
+						.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+					const rate = target > 0 ? Math.round((ordered / target) * 100) : 0;
+					const shortage = Math.max(target - ordered, 0);
+					const itemCount = this.data.kpiSettings.personalItems.filter(i => i.userId === staff).length;
+					
+					return {
+						staff,
+						target,
+						ordered,
+						rate,
+						shortage,
+						itemCount
+					};
+				});
+				
+				// テーブル生成
+				document.querySelector('#adminKpiTable tbody').innerHTML = kpiSummary.map(s => {
+					let rateColor = s.rate >= 100 ? '#28a745' : s.rate >= 70 ? '#ffc107' : '#dc3545';
+					return `
+					<tr onclick="app.showAdminKpiDetails('${s.staff}')" style="cursor: pointer;" onmouseover="this.style.backgroundColor='#f5f5f5'" onmouseout="this.style.backgroundColor=''">
+						<td><strong>${s.staff}</strong></td>
+						<td>¥${s.target.toLocaleString()}</td>
+						<td>¥${s.ordered.toLocaleString()}</td>
+						<td style="color: ${rateColor}; font-weight: bold;">${s.rate}%</td>
+						<td style="color: #dc3545;">¥${s.shortage.toLocaleString()}</td>
+						<td>${s.itemCount}件</td>
+					</tr>`;
+				}).join('');
+			}
+
+			// 個別担当者のKPI詳細表示
+			showAdminKpiDetails(staff) {
+				const items = this.data.kpiSettings.personalItems.filter(i => i.userId === staff);
+				const target = this.data.kpiSettings.personalTargets[staff] || 0;
+				const ordered = this.data.activities
+					.filter(a => a.assignee === staff && a.stage === '受注')
+					.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+				const rate = target > 0 ? Math.round((ordered / target) * 100) : 0;
+				
+				const detailsDiv = document.getElementById('adminKpiDetails');
+				
+				if (items.length === 0) {
+					detailsDiv.innerHTML = `
+						<div style="padding: 2rem; text-align: center; color: #999;">
+							<p><strong>${staff}</strong> のKPI項目はまだ登録されていません。</p>
+							<p style="margin-top: 1rem;">売上目標: ¥${target.toLocaleString()} | 達成率: ${rate}%</p>
+						</div>`;
+					return;
+				}
+				
+				detailsDiv.innerHTML = `
+					<h4 style="margin-bottom: 1.5rem; color: var(--primary);"><i class="fas fa-user-circle"></i> ${staff} のKPI詳細</h4>
+					<div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
+						<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; text-align: center;">
+							<div><strong>売上目標</strong><br>¥${target.toLocaleString()}</div>
+							<div><strong>現在売上</strong><br>¥${ordered.toLocaleString()}</div>
+							<div><strong>達成率</strong><br><span style="color: ${rate >= 100 ? '#28a745' : rate >= 70 ? '#ffc107' : '#dc3545'}; font-weight: bold;">${rate}%</span></div>
+						</div>
+					</div>
+					${items.map(i => {
+						// 進捗率計算（数値型の場合）
+						let progressHtml = '';
+						const goalNum = parseFloat(i.goalValue);
+						const currentNum = parseFloat(i.currentStatus);
+						if (!isNaN(goalNum) && !isNaN(currentNum) && goalNum > 0) {
+							const progress = Math.min(Math.round((currentNum / goalNum) * 100), 100);
+							const progressColor = progress >= 100 ? '#28a745' : progress >= 70 ? '#ffc107' : '#dc3545';
+							progressHtml = `
+								<div class="progress-bar-container" style="margin-top: 0.5rem;">
+									<div class="progress-bar" style="width: ${progress}%; background-color: ${progressColor};">${progress}%</div>
+								</div>`;
+						}
+						
+						return `
+						<div class="card" style="padding: 1rem; margin-bottom: 1rem;">
+							<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+								<strong style="font-size: 1rem; color: #333;">${i.targetItem}</strong>
+								${i.deadline ? `<span style="font-size: 0.85rem; color: #666;"><i class="fas fa-calendar-alt"></i> ${i.deadline}</span>` : ''}
+							</div>
+							<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.75rem; font-size: 0.9rem;">
+								<div><strong>目標:</strong> ${i.goalValue}</div>
+								<div><strong>現状:</strong> ${i.currentStatus || '未入力'}</div>
+							</div>
+							${progressHtml}
+						</div>`;
+					}).join('')}
+				`;
+			}
 
             renderCharts(acts, target) {
                 ['chartActivity', 'chartProduct', 'chartTimeline'].forEach(id => {
@@ -2044,115 +2333,168 @@
                         <span class="funnel-label">${s}</span><span class="funnel-value">${stageCounts[s].count}件 / ¥${(stageCounts[s].amount / 10000).toFixed(0)}万</span>
                     </div>`).join('');
 
-                // Probability Funnel
-                const actsForProb = acts.filter(a => a.stage !== '受注');
-                const probs = ['A', 'B', 'C', 'D'];
-                const probCounts = {}; probs.forEach(p => probCounts[p] = 0);
-                actsForProb.forEach(a => { if (probCounts[a.probability] !== undefined) probCounts[a.probability]++; });
-                const maxProb = Math.max(...Object.values(probCounts), 1);
-                document.getElementById('funnelProbability').innerHTML = probs.map(p => `
-                    <div class="funnel-item" style="width: ${Math.max((probCounts[p] / maxProb) * 100, 10)}%; min-width: 50px; background-color: #28a745;">
-                        <span class="funnel-label">${p}</span><span class="funnel-value">${probCounts[p]}件</span>
-                    </div>`).join('');
-	
-				// Timeline - 受注済と受注想定を分離、KPI達成状況を明確化
-				const months = ['6月','7月','8月','9月','10月','11月','12月','1月','2月','3月','4月','5月'];
-				const monthlyOrdered = new Array(12).fill(0);  // 受注済
-				const monthlyExpected = new Array(12).fill(0); // 受注想定
-																							
-				// 現在の月のインデックスを取得（営業年度基準）
-				const nowDate = new Date();
-				const nowMonth = nowDate.getMonth(); // 0-11
-				const nowIdx = (nowMonth - 5 + 12) % 12;
+                // Probability Funnel - クリック機能追加
+				const actsForProb = acts.filter(a => a.stage !== '受注');
+				const probs = ['A', 'B', 'C', 'D'];
+				const probCounts = {}; probs.forEach(p => probCounts[p] = 0);
+				actsForProb.forEach(a => { if (probCounts[a.probability] !== undefined) probCounts[a.probability]++; });
+				const maxProb = Math.max(...Object.values(probCounts), 1);
+				document.getElementById('funnelProbability').innerHTML = probs.map(p => `
+					<div class="funnel-item funnel-clickable" style="width: ${Math.max((probCounts[p] / maxProb) * 100, 10)}%; min-width: 50px; background-color: #28a745; cursor: pointer;" 
+						 onclick="app.filterProjectsByProbability('${p}')" 
+						 title="クリックで確度${p}の案件一覧を表示">
+						<span class="funnel-label">${p}</span><span class="funnel-value">${probCounts[p]}件</span>
+					</div>`).join('');
+					
+
 				
+				// ステージ変更日からの経過日数を計算
+				calculateStaleActivities() {
+					const now = new Date();
+					return this.data.activities.filter(a => {
+						if (a.stage === '受注') return false; // 受注済は除外
+						
+						// stage_updated_at または created_at を基準日とする
+						const baseDate = a.stage_updated_at ? new Date(a.stage_updated_at) : 
+										 a.created_at ? new Date(a.created_at) : 
+										 new Date(a.date); // フォールバック
+						
+						const diffTime = now - baseDate;
+						const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+						
+						return diffDays >= 30; // 30日以上滞留
+					});
+				}
+	
+				// Timeline - 営業年度ごとに分離表示
+				const months = ['6月','7月','8月','9月','10月','11月','12月','1月','2月','3月','4月','5月'];
+
+				// 現在の営業年度を算出（6月開始）
+				const now = new Date();
+				const currentMonth = now.getMonth(); // 0-11
+				const currentYear = now.getFullYear();
+				const fiscalYear = currentMonth >= 5 ? currentYear : currentYear - 1;
+
+				// 現年度・翌年度のデータ配列
+				const currentYearOrdered = new Array(12).fill(0);
+				const currentYearExpected = new Array(12).fill(0);
+				const nextYearOrdered = new Array(12).fill(0);
+				const nextYearExpected = new Array(12).fill(0);
+
 				acts.forEach(a => {
 					if (a.expected_date) {
 						const d = new Date(a.expected_date);
-						let m = d.getMonth();
-						let idx = (m - 5 + 12) % 12;
-						if (idx >= 0 && idx < 12) {
-							const amount = Number(a.amount) || 0;
+						const year = d.getFullYear();
+						const m = d.getMonth(); // 0-11
+						
+						// 営業年度を判定（6月以降なら当該年度、5月以前なら前年度扱い）
+						const actFiscalYear = m >= 5 ? year : year - 1;
+						
+						// 月インデックス: 6月(5)→0, 5月(4)→11
+						const idx = (m - 5 + 12) % 12;
+						const amount = Number(a.amount) || 0;
+						
+						if (actFiscalYear === fiscalYear) {
+							// 現年度
 							if (a.stage === '受注') {
-								monthlyOrdered[idx] += amount;
+								currentYearOrdered[idx] += amount;
 							} else {
-								monthlyExpected[idx] += amount;
+								currentYearExpected[idx] += amount;
+							}
+						} else if (actFiscalYear === fiscalYear + 1) {
+							// 翌年度
+							if (a.stage === '受注') {
+								nextYearOrdered[idx] += amount;
+							} else {
+								nextYearExpected[idx] += amount;
 							}
 						}
 					}
 				});
 
-				// 累積（受注済のみ）
-				let cumOrdered = 0;
-				const cumulativeOrdered = monthlyOrdered.map(v => cumOrdered += v);
+				// 累積（現年度・翌年度それぞれ）
+				let cumCurrent = 0;
+				const cumulativeCurrent = currentYearOrdered.map(v => cumCurrent += v);
+				let cumNext = 0;
+				const cumulativeNext = nextYearOrdered.map(v => cumNext += v);
 
-				// 現時点の受注済合計
+				// 集計値表示
 				const currentOrdered = acts.filter(a => a.stage === '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
-				// 受注想定合計（ファネル）
 				const totalExpected = acts.filter(a => a.stage !== '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
-				// 不足額
 				const shortage = Math.max(target - currentOrdered, 0);
-				// その後で表示更新
-				document.getElementById('timelineTarget').textContent   = target.toLocaleString();
-				document.getElementById('timelineOrdered').textContent  = currentOrdered.toLocaleString();
+
+				document.getElementById('timelineTarget').textContent = target.toLocaleString();
+				document.getElementById('timelineOrdered').textContent = currentOrdered.toLocaleString();
 				document.getElementById('timelineExpected').textContent = totalExpected.toLocaleString();
 				document.getElementById('timelineShortage').textContent = shortage.toLocaleString();
-				
+
+				// Chart.js データセット（年度別に4本の系列）
 				new Chart(document.getElementById('chartTimeline'), {
 					type: 'bar',
 					data: {
 						labels: months,
 						datasets: [
-							{ 
-								label: '累積受注済', 
-								data: cumulativeOrdered, 
-								borderColor: '#FF6384', 
-								backgroundColor: 'rgba(255, 99, 132, 0.2)', 
-								type: 'line', 
-								fill: false, 
-								order: 1 
+							{
+								label: `${fiscalYear}年度 累積受注済`,
+								data: cumulativeCurrent,
+								borderColor: '#FF6384',
+								backgroundColor: 'rgba(255, 99, 132, 0.2)',
+								type: 'line',
+								fill: false,
+								order: 1
 							},
-							{ 
-								label: '月次受注済', 
-								data: monthlyOrdered, 
-								backgroundColor: 'rgba(75, 192, 192, 0.6)', 
-								type: 'bar', 
-								stack: 'stack1',
+							{
+								label: `${fiscalYear}年度 月次`,
+								data: currentYearOrdered.map((v, i) => v + currentYearExpected[i]),
+								backgroundColor: 'rgba(54, 162, 235, 0.6)',
+								type: 'bar',
+								stack: 'current',
 								order: 3
 							},
-							{ 
-								label: '月次受注想定', 
-								data: monthlyExpected, 
-								backgroundColor: 'rgba(255, 206, 86, 0.6)', 
-								type: 'bar', 
-								stack: 'stack1',
+							{
+								label: `${fiscalYear + 1}年度 累積受注済`,
+								data: cumulativeNext,
+								borderColor: '#36A2EB',
+								backgroundColor: 'rgba(54, 162, 235, 0.2)',
+								type: 'line',
+								fill: false,
+								order: 2,
+								borderDash: [3, 3]
+							},
+							{
+								label: `${fiscalYear + 1}年度 月次`,
+								data: nextYearOrdered.map((v, i) => v + nextYearExpected[i]),
+								backgroundColor: 'rgba(255, 206, 86, 0.6)',
+								type: 'bar',
+								stack: 'next',
 								order: 3
 							},
-							{ 
-								label: 'KPI目標', 
-								data: Array(12).fill(target), 
-								borderColor: '#4BC0C0', 
-								borderDash: [5, 5], 
-								pointRadius: 0, 
-								type: 'line', 
-								order: 0 
+							{
+								label: 'KPI目標',
+								data: Array(12).fill(target),
+								borderColor: '#4BC0C0',
+								borderDash: [5, 5],
+								pointRadius: 0,
+								type: 'line',
+								order: 0
 							}
 						]
 					},
-					options: { 
+					options: {
 						maintainAspectRatio: false,
 						interaction: { mode: 'index', intersect: false },
 						plugins: {
 							tooltip: {
 								callbacks: {
 									footer: function(context) {
-										return `\n現在の受注済: ¥${currentOrdered.toLocaleString()}\n受注想定: ¥${totalExpected.toLocaleString()}\n不足額: ¥${shortage.toLocaleString()}`;
+										return `\n【${fiscalYear}年度】\n受注済: ¥${currentOrdered.toLocaleString()}\n【全体】\n想定: ¥${totalExpected.toLocaleString()}\n不足: ¥${shortage.toLocaleString()}`;
 									}
 								}
 							}
 						}
 					}
 				});
-            }
+			}
 
             // --- Customer Management ---
             renderCustomers() {
@@ -2161,7 +2503,15 @@
                 if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
                     list = list.filter(c => c.assignee === CURRENT_USER.assignee);
                 }
-                
+				
+				// ★ Phase 3: 検索フィルタ追加
+				if (this.searchKeyword) {
+					list = list.filter(c => 
+						c.name.toLowerCase().includes(this.searchKeyword) || 
+						(c.industry && c.industry.toLowerCase().includes(this.searchKeyword)) ||
+						(c.assignee && c.assignee.toLowerCase().includes(this.searchKeyword))
+					);
+				}         
                 if (this.customersSortField) {
                     list.sort((a, b) => {
                         const va = a[this.customersSortField] || '';
@@ -2313,6 +2663,73 @@
 					list = list.filter(a => a.assignee === CURRENT_USER.assignee);
 				}
 				
+				if (this.activitiesSortField === 'date') {
+					list.sort((a, b) => this.activitiesSortOrder === 'asc' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
+					document.getElementById('sortIconActivityDate').className = this.activitiesSortOrder === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+				}
+
+				const now = new Date();
+				document.querySelector('#activitiesTable tbody').innerHTML = list.map(a => {
+					// ★ ステージ変更日からの経過日数を計算
+					const baseDate = a.stage_updated_at ? new Date(a.stage_updated_at) : 
+									 a.created_at ? new Date(a.created_at) : 
+									 new Date(a.date);
+					const diffTime = now - baseDate;
+					const staleDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+					
+					// 滞留アイコン生成
+					let staleIcon = '';
+					let rowBg = '';
+					if (a.stage !== '受注' && staleDays >= 30) {
+						staleIcon = `<i class="fas fa-exclamation-triangle" style="color: ${staleDays >= 60 ? '#dc3545' : '#ffc107'};" title="${staleDays}日間滞留中"></i> `;
+						rowBg = staleDays >= 60 ? 'background-color: #ffe6e6;' : 'background-color: #fff8e1;';
+					}
+					
+					return `
+					<tr style="${rowBg}">
+						<td>${a.date}</td>
+						<td>${a.assignee}</td>
+						<td>${a.customer}</td>
+						<td>${a.purpose}</td>
+						<td>${a.partner || '-'}</td>
+						<td title="${(a.content || '').replace(/"/g, '&quot;')}" onclick="alert('${(a.content || '').replace(/'/g, "\\'")}');" style="cursor:pointer; max-width:150px; overflow:hidden; text-overflow:ellipsis;">${staleIcon}${a.content || '-'}</td>
+						<td>${a.stage || '-'}</td>
+						<td>${a.probability || '-'}</td>
+						<td>¥${Number(a.amount).toLocaleString()}</td>
+						<td>
+							<div class="btn-group">
+								<button class="btn btn-secondary btn-sm" onclick="app.editActivity('${a.id}')">編集</button>
+								<button class="btn btn-danger btn-sm" onclick="app.deleteActivity('${a.id}')">削除</button>
+							</div>
+						</td>
+					</tr>`;
+				}).join('');
+				
+				// 滞留案件の警告トースト
+				const staleCount = this.calculateStaleActivities().length;
+				if (staleCount > 0) {
+					setTimeout(() => {
+						this.showToast(`⚠️ ${staleCount}件の案件が30日以上滞留しています`, 'error');
+					}, 500);
+				}
+				
+				// Sorted customer dropdown
+				const custSelect = document.getElementById('activityCustomer');
+				const sortedCustomers = [...this.data.customers].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+				custSelect.innerHTML = '<option value="">選択</option>' + sortedCustomers.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+			}
+				
+				// ★ Phase 3: 検索フィルタ追加
+				if (this.searchKeyword) {
+					list = list.filter(a => 
+						a.customer.toLowerCase().includes(this.searchKeyword) ||
+						(a.content && a.content.toLowerCase().includes(this.searchKeyword)) ||
+						(a.partner && a.partner.toLowerCase().includes(this.searchKeyword)) ||
+						(a.product && a.product.toLowerCase().includes(this.searchKeyword)) ||
+						(a.assignee && a.assignee.toLowerCase().includes(this.searchKeyword))
+					);
+				}		
+				
 				// 拡張ソート処理
 				if (this.activitiesSortField) {
 					list.sort((a, b) => {
@@ -2434,29 +2851,42 @@
 
             // --- KPI Settings ---
             renderKPI() {
-                const totalTarget = this.data.kpiSettings.totalTarget || 0;
-                const personalTarget = this.data.kpiSettings.personalTargets[CURRENT_USER.assignee] || 0;
-                
-                document.getElementById('kpiTotalTarget').value = totalTarget.toLocaleString();
-                document.getElementById('kpiPersonalTarget').value = personalTarget.toLocaleString();
-                
-                // Filter personal items by current user
-                const userItems = this.data.kpiSettings.personalItems.filter(i => i.userId === CURRENT_USER.assignee);
-                
-                document.querySelector('#personalKPITable tbody').innerHTML = userItems.map(i => `
-                    <tr>
-                        <td>${i.targetItem}</td>
-                        <td>${i.goalValue}</td>
-                        <td>${i.deadline || '-'}</td>
-                        <td>${i.currentStatus || '-'}</td>
-                        <td>
-                            <div class="btn-group">
-                                <button class="btn btn-secondary btn-sm" onclick="app.editKPIItem('${i.id}')">編集</button>
-                                <button class="btn btn-danger btn-sm" onclick="app.deleteKPIItem('${i.id}')">削除</button>
-                            </div>
-                        </td>
-                    </tr>`).join('');
-            }
+				const totalTarget = this.data.kpiSettings.totalTarget || 0;
+				const personalTarget = this.data.kpiSettings.personalTargets[CURRENT_USER.assignee] || 0;
+				
+				document.getElementById('kpiTotalTarget').value = totalTarget.toLocaleString();
+				document.getElementById('kpiPersonalTarget').value = personalTarget.toLocaleString();
+				
+				const userItems = this.data.kpiSettings.personalItems.filter(i => i.userId === CURRENT_USER.assignee);
+				
+				document.querySelector('#personalKPITable tbody').innerHTML = userItems.map(i => `
+					<tr>
+						<td>${i.targetItem}</td>
+						<td>${i.goalValue}</td>
+						<td>${i.deadline || '-'}</td>
+						<td>${i.currentStatus || '-'}</td>
+						<td>
+							<div class="btn-group">
+								<button class="btn btn-secondary btn-sm" onclick="app.editKPIItem('${i.id}')">編集</button>
+								<button class="btn btn-danger btn-sm" onclick="app.deleteKPIItem('${i.id}')">削除</button>
+							</div>
+						</td>
+					</tr>`).join('');
+				
+				// ★ 管理者専用ビューの表示
+				const adminView = document.getElementById('adminKpiView');
+				if (CURRENT_USER.role === 'admin') {
+					adminView.style.display = 'block';
+					
+					// スタッフ選択フィルタのオプション生成
+					const filterSelect = document.getElementById('adminKpiStaffFilter');
+					filterSelect.innerHTML = '<option value="all">全員</option>' + STAFFS.map(s => `<option value="${s}">${s}</option>`).join('');
+					
+					this.renderAdminKpiView();
+				} else {
+					adminView.style.display = 'none';
+				}
+			}
 
             saveKPITargets() {
                 const total = this.parseCurrency(document.getElementById('kpiTotalTarget').value);
@@ -2739,6 +3169,8 @@
             saveActivity(e) {
 				e.preventDefault();
 				const id = document.getElementById('activityId').value;
+				const newStage = document.getElementById('activityStage').value;
+				
 				const data = {
 					date: document.getElementById('activityDate').value,
 					assignee: document.getElementById('activityAssignee').value,
@@ -2747,37 +3179,37 @@
 					partner: document.getElementById('activityPartner').value,
 					product: document.getElementById('activityProduct').value,
 					content: document.getElementById('activityContent').value,
-					stage: document.getElementById('activityStage').value,
+					stage: newStage,
 					probability: document.getElementById('activityProbability').value,
-					amount: Number(document.getElementById('activityAmount').value) || 0,
-					expected_date: document.getElementById('activityExpectedDate').value,
-					projectId: document.getElementById('activityProjectId')?.value || null  // ★案件連携
+					amount: document.getElementById('activityAmount').value,
+					expected_date: document.getElementById('activityExpectedDate').value
 				};
 
 				if (id) {
-					const idx = this.data.activities.findIndex(x => x.id === id);
+					const idx = this.data.activities.findIndex(x => x.id == id);
 					if (idx !== -1) {
-						this.data.activities[idx] = { ...this.data.activities[idx], ...data };
+						const oldStage = this.data.activities[idx].stage;
 						
-						// ★既存案件の自動更新
-						if (data.projectId) {
-							this.updateProjectFromActivity(data.projectId, data);
+						// ★ ステージが変更された場合、stage_updated_atを更新
+						if (oldStage !== newStage) {
+							data.stage_updated_at = new Date().toISOString();
+						} else {
+							// ステージ未変更の場合は既存の値を維持
+							data.stage_updated_at = this.data.activities[idx].stage_updated_at;
 						}
+						
+						this.data.activities[idx] = { ...this.data.activities[idx], ...data };
 					}
 				} else {
+					// 新規作成時は現在日時をセット
+					data.stage_updated_at = new Date().toISOString();
+					data.created_at = new Date().toISOString();
 					this.data.activities.push({ id: Date.now().toString(), ...data });
 				}
 
 				this.saveData();
 				this.closeModal('activityModal');
 				this.renderActivities();
-				
-				// ★ Phase 1: 案件モーダルが開いている場合は履歴を更新
-				const openProjectId = document.getElementById('projectId')?.value;
-				if (openProjectId && document.getElementById('projectModal').classList.contains('active')) {
-					this.renderProjectHistory(openProjectId);
-				}
-				
 				this.showToast('活動記録を保存しました', 'success');
 			}
 
@@ -2861,12 +3293,19 @@
 			}
 
 			renderProjects() {
+			    // ★ Phase 2: リスク検知アラートの表示
+				this.renderRiskAlerts();
+				
+				// ★ Phase 3A: カンバンビューの場合はカンバンを描画
+				if (this.projectViewMode === 'kanban') {
+					this.renderKanbanBoard();
+					return;
+				}	
                 // ★ Phase 3A: カンバンビューの場合はカンバンを描画
                 if (this.projectViewMode === 'kanban') {
                     this.renderKanbanBoard();
                     return;
                 }
-                
                 // テーブル表示の処理
                 const filter = document.getElementById('projectsFilter').value;
                 const statusFilter = document.getElementById('projectsStatusFilter').value;
@@ -2995,6 +3434,58 @@
                     `;
                 }).join('');
             }
+			
+			filterProjectsByProbability(probability) {
+				// 案件管理ページに遷移
+				this.showPage('projects');
+					
+				// フィルターを個人/全体のまま維持
+				const currentFilter = document.getElementById('projectsFilter').value;
+				let list = this.data.projects || [];
+					
+				if (currentFilter === 'personal' && CURRENT_USER.role !== 'admin') {
+					list = list.filter(p => p.assignee === CURRENT_USER.assignee);
+				}
+					
+				// 確度でフィルタリング（受注済は除外）
+				list = list.filter(p => p.probability === probability && p.status !== '受注済');
+					
+				// テーブルビューに切替
+				document.getElementById('projectViewToggle').value = 'table';
+				const kanbanBoard = document.querySelector('.kanban-board');
+				const tableView = document.querySelector('#projectsTable').closest('.card');
+				if (kanbanBoard) kanbanBoard.style.display = 'none';
+				if (tableView) tableView.style.display = 'block';
+					
+				// テーブルを描画
+				document.querySelector('#projectsTable tbody').innerHTML = list.map(p => {
+					const days = this.calculateStagnantDays(p);
+					let rowClass = '';
+					if (p.status === '進行中' && days >= 60) rowClass = 'project-alert-danger filter-applied';
+					else if (p.status === '進行中' && days >= 30) rowClass = 'project-alert-warning filter-applied';
+					else rowClass = 'filter-applied';
+						
+					return `<tr class="${rowClass}">
+						<td><span class="project-number-badge">${p.projectNumber || '-'}</span></td>
+						<td><a href="#" onclick="app.viewProjectDetails('${p.id}'); return false;" class="customer-link">${p.projectName}</a></td>
+						<td>${p.customer || '-'}</td>
+						<td>${p.stage || '-'}</td>
+						<td><span class="prob-${p.probability}">${p.probability || '-'}</span></td>
+						<td>¥${Number(p.amount || 0).toLocaleString()}</td>
+						<td>${p.expectedDate || '-'}</td>
+						<td>${p.assignee || '-'}</td>
+						<td class="${days >= 60 ? 'stagnant-danger' : days >= 30 ? 'stagnant-warning' : ''}">${days}日</td>
+						<td>
+							<div class="btn-group">
+								<button class="btn btn-secondary btn-sm" onclick="app.editProject('${p.id}')">編集</button>
+								<button class="btn btn-danger btn-sm" onclick="app.deleteProject('${p.id}')">削除</button>
+							</div>
+						</td>
+					</tr>`;
+				}).join('');
+					
+				this.showToast(`確度${probability}の案件を${list.length}件表示しました`, 'success');
+			}
 
 			sortProjects(field) {
 				if (this.projectsSortField === field) {
@@ -3817,6 +4308,183 @@
                     return null;
                 }
             }
+			/**
+			 * Phase 2: 案件のリスクレベルを判定
+			 */
+			calculateProjectRisk(project) {
+				if (project.status !== '進行中') return null;
+				
+				let riskScore = 0;
+				const riskFactors = [];
+				
+				// 1. 滞留日数チェック
+				const stagnantDays = this.calculateStagnantDays(project);
+				if (stagnantDays >= 60) {
+					riskScore += 40;
+					riskFactors.push({ 
+						icon: 'fa-clock', 
+						text: `滞留${stagnantDays}日`, 
+						severity: 'high' 
+					});
+				} else if (stagnantDays >= 30) {
+					riskScore += 20;
+					riskFactors.push({ 
+						icon: 'fa-clock', 
+						text: `滞留${stagnantDays}日`, 
+						severity: 'medium' 
+					});
+				}
+				
+				// 2. 商談頻度チェック（直近30日間の活動回数）
+				const thirtyDaysAgo = new Date();
+				thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+				const recentActivities = this.data.activities.filter(a => 
+					a.projectId === project.id && 
+					new Date(a.date) >= thirtyDaysAgo
+				).length;
+				
+				if (recentActivities === 0) {
+					riskScore += 30;
+					riskFactors.push({ 
+						icon: 'fa-comment-slash', 
+						text: '30日間活動なし', 
+						severity: 'high' 
+					});
+				} else if (recentActivities === 1) {
+					riskScore += 15;
+					riskFactors.push({ 
+						icon: 'fa-comment-dots', 
+						text: '商談頻度低', 
+						severity: 'medium' 
+					});
+				}
+				
+				// 3. 確度チェック
+				if (project.probability === 'D') {
+					riskScore += 20;
+					riskFactors.push({ 
+						icon: 'fa-chart-line', 
+						text: '確度D（低）', 
+						severity: 'medium' 
+					});
+				}
+				
+				// 4. 受注予定日超過チェック
+				if (project.expectedOrderDate) {
+					const expectedDate = new Date(project.expectedOrderDate);
+					const today = new Date();
+					if (expectedDate < today) {
+						const overdueDays = Math.ceil((today - expectedDate) / (1000 * 60 * 60 * 24));
+						riskScore += 25;
+						riskFactors.push({ 
+							icon: 'fa-calendar-times', 
+							text: `予定日${overdueDays}日超過`, 
+							severity: 'high' 
+						});
+					}
+				}
+				
+				// リスクレベル判定
+				let riskLevel = 'low';
+				if (riskScore >= 50) {
+					riskLevel = 'high';
+				} else if (riskScore >= 30) {
+					riskLevel = 'medium';
+				}
+				
+				return {
+					score: riskScore,
+					level: riskLevel,
+					factors: riskFactors
+				};
+			}
+
+			/**
+			 * Phase 2: リスク案件アラートの表示
+			 */
+			renderRiskAlerts() {
+				const filter = document.getElementById('projectsFilter')?.value || 'all';
+				let list = this.data.projects || [];
+				
+				if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
+					list = list.filter(p => p.assignee === CURRENT_USER.assignee);
+				}
+				
+				// リスク判定
+				const riskProjects = [];
+				list.forEach(p => {
+					const risk = this.calculateProjectRisk(p);
+					if (risk && risk.level !== 'low') {
+						riskProjects.push({ project: p, risk: risk });
+					}
+				});
+				
+				// リスクスコア順にソート
+				riskProjects.sort((a, b) => b.risk.score - a.risk.score);
+				
+				const alertContainer = document.getElementById('projectRiskAlerts');
+				if (!alertContainer) return;
+				
+				if (riskProjects.length === 0) {
+					alertContainer.innerHTML = '';
+					return;
+				}
+				
+				let html = `
+					<div class="risk-alert-section">
+						<div class="risk-alert-card">
+							<div class="risk-alert-header">
+								<div class="risk-alert-title">
+									<i class="fas fa-exclamation-triangle"></i>
+									リスク検知アラート
+								</div>
+								<span class="risk-badge">${riskProjects.length}件</span>
+							</div>
+				`;
+				
+				riskProjects.slice(0, 5).forEach(({ project, risk }) => {
+					const riskClass = risk.level === 'high' ? 'high-risk' : '';
+					
+					html += `
+						<div class="risk-item ${riskClass}">
+							<div class="risk-content">
+								<div class="risk-project-name">
+									${project.projectNumber}: ${project.projectName}
+								</div>
+								<div class="risk-details">
+									<span class="risk-factor">
+										<i class="fas fa-user"></i> ${project.assignee}
+									</span>
+									<span class="risk-factor">
+										<i class="fas fa-building"></i> ${project.customer}
+									</span>
+									<span class="risk-factor">
+										<i class="fas fa-layer-group"></i> ${project.stage}
+									</span>
+									${risk.factors.map(f => `
+										<span class="risk-factor" style="color: ${f.severity === 'high' ? '#dc3545' : '#ffc107'}; font-weight: bold;">
+											<i class="fas ${f.icon}"></i> ${f.text}
+										</span>
+									`).join('')}
+								</div>
+							</div>
+							<div class="risk-action">
+								<button class="btn btn-sm btn-danger" onclick="app.editProject('${project.id}')" title="対策を検討">
+									<i class="fas fa-shield-alt"></i> 対策
+								</button>
+							</div>
+						</div>
+					`;
+				});
+				
+				html += `
+						</div>
+					</div>
+				`;
+				
+				alertContainer.innerHTML = html;
+			}
+
 			// ========================================
             // Phase 3A: 案件カンバンボード機能
             // ========================================
@@ -3870,8 +4538,18 @@
                     list = list.filter(p => p.status === statusFilter);
                 }
                 if (stageFilter !== 'all') {
-                    list = list.filter(p => p.stage === stageFilter);
-                }
+					list = list.filter(p => p.stage === stageFilter);
+				}
+
+				// ★ Phase 3: 検索フィルタ追加
+				if (this.searchKeyword) {
+					list = list.filter(p => 
+						p.projectName.toLowerCase().includes(this.searchKeyword) ||
+						p.projectNumber.toLowerCase().includes(this.searchKeyword) ||
+						p.customer.toLowerCase().includes(this.searchKeyword) ||
+						(p.product && p.product.toLowerCase().includes(this.searchKeyword))
+					);
+				}
                 
                 return list;
             }
@@ -4002,65 +4680,78 @@
                 });
             }
 
-            /**
-             * 案件をステージ移動
-             */
-            moveProjectToStage(projectId, newStage) {
-                try {
-                    const project = this.data.projects.find(p => p.id === projectId);
-                    if (!project) {
-                        this.showToast('案件が見つかりません', 'error');
-                        return;
-                    }
-                    
-                    const oldStage = project.stage;
-                    if (oldStage === newStage) return;
-                    
-                    // 確認ダイアログ
-                    if (!confirm(`「${project.projectName}」を「${oldStage}」から「${newStage}」に移動しますか？`)) {
-                        this.renderKanbanBoard();
-                        return;
-                    }
-                    
-                    // ステージ更新
-                    project.stage = newStage;
-                    project.lastActivityDate = new Date().toISOString().split('T')[0];
-                    
-                    // 受注時の自動処理
-                    if (newStage === '受注') {
-                        project.status = '完了';
-                        if (project.probability !== '受注済') {
-                            project.probability = '受注済';
-                        }
-                    } else if (oldStage === '受注' && newStage !== '受注') {
-                        // 受注から戻した場合
-                        project.status = '進行中';
-                        if (project.probability === '受注済') {
-                            project.probability = 'A';
-                        }
-                    }
-                    
-                    // ステージ変更履歴を記録
-                    this.recordStageChange(projectId, oldStage, newStage, CURRENT_USER.assignee);
-                    
-                    // データ保存
-                    this.saveData();
-                    
-                    // カンバンボード再描画
-                    this.renderKanbanBoard();
-                    
-                    this.showToast(`「${project.projectName}」を「${newStage}」に移動しました`, 'success');
-                    
-                } catch (error) {
-                    console.error('ステージ移動エラー:', error);
-                    this.showToast('ステージ移動中にエラーが発生しました', 'error');
-                    this.renderKanbanBoard();
-                }
-            }
+			/**
+			 * 案件をステージ移動
+			 */
+			moveProjectToStage(projectId, newStage) {
+				try {
+					const project = this.data.projects.find(p => p.id === projectId);
+					if (!project) {
+						this.showToast('案件が見つかりません', 'error');
+						return;
+					}
+					
+					const oldStage = project.stage;
+					if (oldStage === newStage) return;
+					
+					// 確認ダイアログ
+					if (!confirm(`「${project.projectName}」を「${oldStage}」から「${newStage}」に移動しますか？`)) {
+						this.renderKanbanBoard();
+						return;
+					}
+					
+					// ステージ更新
+					project.stage = newStage;
+					project.lastActivityDate = new Date().toISOString().split('T')[0];
+					
+					// 受注時の自動処理
+					if (newStage === '受注') {
+						project.status = '完了';
+						if (project.probability !== '受注済') {
+							project.probability = '受注済';
+						}
+					} else if (oldStage === '受注' && newStage !== '受注') {
+						// 受注から戻した場合
+						project.status = '進行中';
+						if (project.probability === '受注済') {
+							project.probability = 'A';
+						}
+					}
+					
+					// ステージ変更履歴を記録
+					this.recordStageChange(projectId, oldStage, newStage, CURRENT_USER.assignee);
+					
+					// データ保存
+					this.saveData();
+					
+					// カンバンボード再描画
+					this.renderKanbanBoard();
+					
+					this.showToast(`「${project.projectName}」を「${newStage}」に移動しました`, 'success');
+					
+				} catch (error) {
+					console.error('ステージ移動エラー:', error);
+					this.showToast('ステージ移動中にエラーが発生しました', 'error');
+					this.renderKanbanBoard();
+				}
+			} // ← ★ この閉じカッコが重要！
+
+			/**
+			 * Phase 3: グローバル検索ハンドラ
+			 */
+			handleGlobalSearch(keyword) {
+				this.searchKeyword = keyword.toLowerCase().trim();
+				
+				// 現在アクティブなページを再レンダリング
+				const activePage = document.querySelector('.page-section.active')?.id;
+				
+				if (activePage === 'customersPage') this.renderCustomers();
+				if (activePage === 'projectsPage') this.renderProjects();
+				if (activePage === 'activitiesPage') this.renderActivities();
+				if (activePage === 'schedulePage') this.renderSchedule();
+			}
 		}
-
-        let app;
-
+		let app;
         // DOM読み込み後にアプリ起動
         window.addEventListener('DOMContentLoaded', async () => {
 			app = new SalesApp();
@@ -4209,3 +4900,4 @@
     </script>
 </body>
 </html>
+
