@@ -1879,19 +1879,25 @@
 		}
 		
 		let supabaseClient = null;
-		// LocalStorage優先のためデフォルトSupabase設定
-		const SUPABASE_URL =
-			localStorage.getItem('supabaseUrl') || 'https://vflehlpohwuwploozobi.supabase.co';
 
-		const SUPABASE_KEY =
-			localStorage.getItem('supabaseKey') || 'sb_publishable_469r2OoTzw-xioLdkOHotQ_7b8RzjuY';
+		// LocalStorageから設定を取得（デフォルト値なしで安全に）
+		const SUPABASE_URL = localStorage.getItem('supabaseUrl') || '';
+		const SUPABASE_KEY = localStorage.getItem('supabaseKey') || '';
 
-		// Initialize Supabase if config exists
-        if (SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
-            try {
-                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            } catch (e) { console.warn('Supabase init failed', e); }
-        }
+		// 初期化ガード: 正しい形式の場合のみSupabaseを初期化
+		if (SUPABASE_URL && SUPABASE_KEY && 
+			SUPABASE_URL.startsWith('https://') && 
+			SUPABASE_KEY.startsWith('eyJ')) {
+			try {
+				supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+				console.log('✅ Supabase initialized successfully');
+			} catch (e) { 
+				console.warn('⚠️ Supabase init failed:', e); 
+				supabaseClient = null; // 失敗時は確実にnullに戻す
+			}
+		} else {
+			console.log('ℹ️ Supabase not configured - using localStorage only');
+		}
 
         let CURRENT_USER = { id: '', username: '', assignee: '', displayName: '', role: 'staff' };
 
@@ -2273,17 +2279,18 @@
 			}
 
             renderCharts(acts, target) {
-                ['chartActivity', 'chartProduct', 'chartTimeline'].forEach(id => {
-                    const canvas = document.getElementById(id);
-                    const parent = canvas.parentElement;
-                    const newCanvas = document.createElement('canvas');
-                    newCanvas.id = id;
-                    parent.innerHTML = '';
-                    parent.appendChild(newCanvas);
-                });
+				// Canvas要素のリセット
+				['chartActivity', 'chartProduct', 'chartTimeline'].forEach(id => {
+					const canvas = document.getElementById(id);
+					const parent = canvas.parentElement;
+					const newCanvas = document.createElement('canvas');
+					newCanvas.id = id;
+					parent.innerHTML = '';
+					parent.appendChild(newCanvas);
+				});
 				
-                // Activity Bar - 期間フィルター対応
-				const activityPeriod = this.activityPeriod || 'all'; // 'all', 'week', 'month'
+				// Activity Bar Chart
+				const activityPeriod = this.activityPeriod || 'all';
 				let filteredActs = acts;
 
 				if (activityPeriod === 'week') {
@@ -2296,129 +2303,119 @@
 					filteredActs = acts.filter(a => new Date(a.date) >= monthStart);
 				}
 
-				const counts = {}; STAFFS.forEach(s => counts[s] = 0);
+				const counts = {};
+				STAFFS.forEach(s => counts[s] = 0);
 				filteredActs.forEach(a => { if (counts[a.assignee] !== undefined) counts[a.assignee]++; });
 
-				const periodLabel = activityPeriod === 'all' ? '累計活動件数' : activityPeriod === 'week' ? '今週の活動件数' : '今月の活動件数';
+				const periodLabel = activityPeriod === 'all' ? '累計活動件数' : 
+									activityPeriod === 'week' ? '今週の活動件数' : '今月の活動件数';
 
 				new Chart(document.getElementById('chartActivity'), {
 					type: 'bar',
-					data: { labels: STAFFS, datasets: [{ label: periodLabel, data: STAFFS.map(s => counts[s]), backgroundColor: '#2c5aa0' }] },
-					options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+					data: { 
+						labels: STAFFS, 
+						datasets: [{ 
+							label: periodLabel, 
+							data: STAFFS.map(s => counts[s]), 
+							backgroundColor: '#2c5aa0' 
+						}] 
+					},
+					options: { 
+						maintainAspectRatio: false, 
+						scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } 
+					}
 				});
 
-                // Product Doughnut - 受注済のみ
+				// Product Doughnut Chart
 				const prods = {}; 
 				acts.filter(a => a.stage === '受注').forEach(a => { 
 					if(a.product) prods[a.product] = (prods[a.product] || 0) + (Number(a.amount) || 0); 
 				});
-                const colorPalette = [
-                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-                    '#FF9F40', '#E7E9ED', '#76D7C4', '#F7DC6F', '#C0392B',
-                    '#8E44AD', '#3498DB', '#2ECC71', '#F39C12', '#D35400'
-                ];
-                new Chart(document.getElementById('chartProduct'), {
-                    type: 'doughnut',
-                    data: { labels: Object.keys(prods), datasets: [{ data: Object.values(prods), backgroundColor: colorPalette }] },
-                    options: { maintainAspectRatio: false }
-                });
+				
+				const colorPalette = [
+					'#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+					'#FF9F40', '#E7E9ED', '#76D7C4', '#F7DC6F', '#C0392B'
+				];
+				
+				new Chart(document.getElementById('chartProduct'), {
+					type: 'doughnut',
+					data: { 
+						labels: Object.keys(prods), 
+						datasets: [{ 
+							data: Object.values(prods), 
+							backgroundColor: colorPalette 
+						}] 
+					},
+					options: { maintainAspectRatio: false }
+				});
 
-                // Funnels
-                const stages = ['アプローチ', 'ヒアリング', '提案', '見積提出', 'クロージング', '受注'];
-                const stageCounts = {}; stages.forEach(s => stageCounts[s] = { count: 0, amount: 0 });
-                acts.forEach(a => { if (stageCounts[a.stage]) { stageCounts[a.stage].count++; stageCounts[a.stage].amount += (Number(a.amount) || 0); } });
-                const maxStage = Math.max(...Object.values(stageCounts).map(v => v.count), 1);
-                document.getElementById('funnelStage').innerHTML = stages.map(s => `
-                    <div class="funnel-item" style="width: ${Math.max((stageCounts[s].count / maxStage) * 100, 10)}%; min-width: 120px; background-color: #2c5aa0;">
-                        <span class="funnel-label">${s}</span><span class="funnel-value">${stageCounts[s].count}件 / ¥${(stageCounts[s].amount / 10000).toFixed(0)}万</span>
-                    </div>`).join('');
+				// Stage Funnel
+				const stages = ['アプローチ', 'ヒアリング', '提案', '見積提出', 'クロージング', '受注'];
+				const stageCounts = {};
+				stages.forEach(s => stageCounts[s] = { count: 0, amount: 0 });
+				acts.forEach(a => { 
+					if (stageCounts[a.stage]) { 
+						stageCounts[a.stage].count++; 
+						stageCounts[a.stage].amount += (Number(a.amount) || 0); 
+					} 
+				});
+				
+				const maxStage = Math.max(...Object.values(stageCounts).map(v => v.count), 1);
+				document.getElementById('funnelStage').innerHTML = stages.map(s => `
+					<div class="funnel-item funnel-clickable" 
+						 style="width: ${Math.max((stageCounts[s].count / maxStage) * 100, 10)}%; min-width: 120px; background-color: #2c5aa0;"
+						 onclick="app.drillDownToProjectsByStage('${s}')"
+						 title="クリックで「${s}」の案件一覧を表示">
+						<span class="funnel-label">${s}</span>
+						<span class="funnel-value">${stageCounts[s].count}件 / ¥${(stageCounts[s].amount / 10000).toFixed(0)}万</span>
+					</div>`).join('');
 
-                // Probability Funnel - クリック機能追加
+				// Probability Funnel
 				const actsForProb = acts.filter(a => a.stage !== '受注');
 				const probs = ['A', 'B', 'C', 'D'];
-				const probCounts = {}; probs.forEach(p => probCounts[p] = 0);
+				const probCounts = {};
+				probs.forEach(p => probCounts[p] = 0);
 				actsForProb.forEach(a => { if (probCounts[a.probability] !== undefined) probCounts[a.probability]++; });
 				const maxProb = Math.max(...Object.values(probCounts), 1);
+				
 				document.getElementById('funnelProbability').innerHTML = probs.map(p => `
-					<div class="funnel-item funnel-clickable" style="width: ${Math.max((probCounts[p] / maxProb) * 100, 10)}%; min-width: 50px; background-color: #28a745; cursor: pointer;" 
+					<div class="funnel-item funnel-clickable" 
+						 style="width: ${Math.max((probCounts[p] / maxProb) * 100, 10)}%; min-width: 50px; background-color: #28a745; cursor: pointer;" 
 						 onclick="app.filterProjectsByProbability('${p}')" 
 						 title="クリックで確度${p}の案件一覧を表示">
-						<span class="funnel-label">${p}</span><span class="funnel-value">${probCounts[p]}件</span>
+						<span class="funnel-label">${p}</span>
+						<span class="funnel-value">${probCounts[p]}件</span>
 					</div>`).join('');
-					
 
-				
-				// ステージ変更日からの経過日数を計算
-				calculateStaleActivities() {
-					const now = new Date();
-					return this.data.activities.filter(a => {
-						if (a.stage === '受注') return false; // 受注済は除外
-						
-						// stage_updated_at または created_at を基準日とする
-						const baseDate = a.stage_updated_at ? new Date(a.stage_updated_at) : 
-										 a.created_at ? new Date(a.created_at) : 
-										 new Date(a.date); // フォールバック
-						
-						const diffTime = now - baseDate;
-						const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-						
-						return diffDays >= 30; // 30日以上滞留
-					});
-				}
-	
-				// Timeline - 営業年度ごとに分離表示
+				// Timeline Chart - 営業年度対応
 				const months = ['6月','7月','8月','9月','10月','11月','12月','1月','2月','3月','4月','5月'];
-
-				// 現在の営業年度を算出（6月開始）
 				const now = new Date();
-				const currentMonth = now.getMonth(); // 0-11
+				const currentMonth = now.getMonth();
 				const currentYear = now.getFullYear();
 				const fiscalYear = currentMonth >= 5 ? currentYear : currentYear - 1;
 
-				// 現年度・翌年度のデータ配列
 				const currentYearOrdered = new Array(12).fill(0);
 				const currentYearExpected = new Array(12).fill(0);
-				const nextYearOrdered = new Array(12).fill(0);
-				const nextYearExpected = new Array(12).fill(0);
 
 				acts.forEach(a => {
 					if (a.expected_date) {
 						const d = new Date(a.expected_date);
 						const year = d.getFullYear();
-						const m = d.getMonth(); // 0-11
-						
-						// 営業年度を判定（6月以降なら当該年度、5月以前なら前年度扱い）
+						const m = d.getMonth();
 						const actFiscalYear = m >= 5 ? year : year - 1;
-						
-						// 月インデックス: 6月(5)→0, 5月(4)→11
 						const idx = (m - 5 + 12) % 12;
 						const amount = Number(a.amount) || 0;
 						
 						if (actFiscalYear === fiscalYear) {
-							// 現年度
 							if (a.stage === '受注') {
 								currentYearOrdered[idx] += amount;
 							} else {
 								currentYearExpected[idx] += amount;
 							}
-						} else if (actFiscalYear === fiscalYear + 1) {
-							// 翌年度
-							if (a.stage === '受注') {
-								nextYearOrdered[idx] += amount;
-							} else {
-								nextYearExpected[idx] += amount;
-							}
 						}
 					}
 				});
 
-				// 累積（現年度・翌年度それぞれ）
-				let cumCurrent = 0;
-				const cumulativeCurrent = currentYearOrdered.map(v => cumCurrent += v);
-				let cumNext = 0;
-				const cumulativeNext = nextYearOrdered.map(v => cumNext += v);
-
-				// 集計値表示
 				const currentOrdered = acts.filter(a => a.stage === '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
 				const totalExpected = acts.filter(a => a.stage !== '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
 				const shortage = Math.max(target - currentOrdered, 0);
@@ -2428,46 +2425,20 @@
 				document.getElementById('timelineExpected').textContent = totalExpected.toLocaleString();
 				document.getElementById('timelineShortage').textContent = shortage.toLocaleString();
 
-				// Chart.js データセット（年度別に4本の系列）
 				new Chart(document.getElementById('chartTimeline'), {
 					type: 'bar',
 					data: {
 						labels: months,
 						datasets: [
 							{
-								label: `${fiscalYear}年度 累積受注済`,
-								data: cumulativeCurrent,
-								borderColor: '#FF6384',
-								backgroundColor: 'rgba(255, 99, 132, 0.2)',
-								type: 'line',
-								fill: false,
-								order: 1
+								label: `${fiscalYear}年度 受注済`,
+								data: currentYearOrdered,
+								backgroundColor: 'rgba(75, 192, 192, 0.6)'
 							},
 							{
-								label: `${fiscalYear}年度 月次`,
-								data: currentYearOrdered.map((v, i) => v + currentYearExpected[i]),
-								backgroundColor: 'rgba(54, 162, 235, 0.6)',
-								type: 'bar',
-								stack: 'current',
-								order: 3
-							},
-							{
-								label: `${fiscalYear + 1}年度 累積受注済`,
-								data: cumulativeNext,
-								borderColor: '#36A2EB',
-								backgroundColor: 'rgba(54, 162, 235, 0.2)',
-								type: 'line',
-								fill: false,
-								order: 2,
-								borderDash: [3, 3]
-							},
-							{
-								label: `${fiscalYear + 1}年度 月次`,
-								data: nextYearOrdered.map((v, i) => v + nextYearExpected[i]),
-								backgroundColor: 'rgba(255, 206, 86, 0.6)',
-								type: 'bar',
-								stack: 'next',
-								order: 3
+								label: `${fiscalYear}年度 受注想定`,
+								data: currentYearExpected,
+								backgroundColor: 'rgba(255, 206, 86, 0.6)'
 							},
 							{
 								label: 'KPI目標',
@@ -2475,24 +2446,32 @@
 								borderColor: '#4BC0C0',
 								borderDash: [5, 5],
 								pointRadius: 0,
-								type: 'line',
-								order: 0
+								type: 'line'
 							}
 						]
 					},
 					options: {
 						maintainAspectRatio: false,
-						interaction: { mode: 'index', intersect: false },
-						plugins: {
-							tooltip: {
-								callbacks: {
-									footer: function(context) {
-										return `\n【${fiscalYear}年度】\n受注済: ¥${currentOrdered.toLocaleString()}\n【全体】\n想定: ¥${totalExpected.toLocaleString()}\n不足: ¥${shortage.toLocaleString()}`;
-									}
-								}
-							}
-						}
+						interaction: { mode: 'index', intersect: false }
 					}
+				});
+			}
+			
+			// ステージ変更日からの経過日数を計算
+			calculateStaleActivities() {
+				const now = new Date();
+				return this.data.activities.filter(a => {
+					if (a.stage === '受注') return false; // 受注済は除外
+						
+					// stage_updated_at または created_at を基準日とする
+					const baseDate = a.stage_updated_at ? new Date(a.stage_updated_at) : 
+										a.created_at ? new Date(a.created_at) : 
+										new Date(a.date); // フォールバック
+						
+					const diffTime = now - baseDate;
+					const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+						
+					return diffDays >= 30; // 30日以上滞留
 				});
 			}
 
@@ -2656,81 +2635,27 @@
             }
 
             // --- Activity Log ---
-            renderActivities() {
+			renderActivities() {
 				const filter = document.getElementById('activitiesFilter').value;
 				let list = this.data.activities;
+
+				// 1. 個人/全体フィルタ
 				if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
 					list = list.filter(a => a.assignee === CURRENT_USER.assignee);
 				}
-				
-				if (this.activitiesSortField === 'date') {
-					list.sort((a, b) => this.activitiesSortOrder === 'asc' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
-					document.getElementById('sortIconActivityDate').className = this.activitiesSortOrder === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
-				}
 
-				const now = new Date();
-				document.querySelector('#activitiesTable tbody').innerHTML = list.map(a => {
-					// ★ ステージ変更日からの経過日数を計算
-					const baseDate = a.stage_updated_at ? new Date(a.stage_updated_at) : 
-									 a.created_at ? new Date(a.created_at) : 
-									 new Date(a.date);
-					const diffTime = now - baseDate;
-					const staleDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-					
-					// 滞留アイコン生成
-					let staleIcon = '';
-					let rowBg = '';
-					if (a.stage !== '受注' && staleDays >= 30) {
-						staleIcon = `<i class="fas fa-exclamation-triangle" style="color: ${staleDays >= 60 ? '#dc3545' : '#ffc107'};" title="${staleDays}日間滞留中"></i> `;
-						rowBg = staleDays >= 60 ? 'background-color: #ffe6e6;' : 'background-color: #fff8e1;';
-					}
-					
-					return `
-					<tr style="${rowBg}">
-						<td>${a.date}</td>
-						<td>${a.assignee}</td>
-						<td>${a.customer}</td>
-						<td>${a.purpose}</td>
-						<td>${a.partner || '-'}</td>
-						<td title="${(a.content || '').replace(/"/g, '&quot;')}" onclick="alert('${(a.content || '').replace(/'/g, "\\'")}');" style="cursor:pointer; max-width:150px; overflow:hidden; text-overflow:ellipsis;">${staleIcon}${a.content || '-'}</td>
-						<td>${a.stage || '-'}</td>
-						<td>${a.probability || '-'}</td>
-						<td>¥${Number(a.amount).toLocaleString()}</td>
-						<td>
-							<div class="btn-group">
-								<button class="btn btn-secondary btn-sm" onclick="app.editActivity('${a.id}')">編集</button>
-								<button class="btn btn-danger btn-sm" onclick="app.deleteActivity('${a.id}')">削除</button>
-							</div>
-						</td>
-					</tr>`;
-				}).join('');
-				
-				// 滞留案件の警告トースト
-				const staleCount = this.calculateStaleActivities().length;
-				if (staleCount > 0) {
-					setTimeout(() => {
-						this.showToast(`⚠️ ${staleCount}件の案件が30日以上滞留しています`, 'error');
-					}, 500);
-				}
-				
-				// Sorted customer dropdown
-				const custSelect = document.getElementById('activityCustomer');
-				const sortedCustomers = [...this.data.customers].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-				custSelect.innerHTML = '<option value="">選択</option>' + sortedCustomers.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
-			}
-				
-				// ★ Phase 3: 検索フィルタ追加
+				// 2. ★ 検索フィルタ（正しい位置：描画の前に実行）
 				if (this.searchKeyword) {
 					list = list.filter(a => 
-						a.customer.toLowerCase().includes(this.searchKeyword) ||
+						(a.customer && a.customer.toLowerCase().includes(this.searchKeyword)) ||
 						(a.content && a.content.toLowerCase().includes(this.searchKeyword)) ||
 						(a.partner && a.partner.toLowerCase().includes(this.searchKeyword)) ||
 						(a.product && a.product.toLowerCase().includes(this.searchKeyword)) ||
 						(a.assignee && a.assignee.toLowerCase().includes(this.searchKeyword))
 					);
-				}		
-				
-				// 拡張ソート処理
+				}
+
+				// 3. ソート処理
 				if (this.activitiesSortField) {
 					list.sort((a, b) => {
 						let valA, valB;
@@ -2783,9 +2708,25 @@
 					}
 				}
 
-				// テーブル行の生成（機種名を追加）
+				// 4. テーブル描画
+				const now = new Date();
 				document.querySelector('#activitiesTable tbody').innerHTML = list.map(a => {
-					// Phase 2: 関連案件情報を取得
+					// 滞留日数計算
+					const baseDate = a.stage_updated_at ? new Date(a.stage_updated_at) : 
+									 a.created_at ? new Date(a.created_at) : 
+									 new Date(a.date);
+					const diffTime = now - baseDate;
+					const staleDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+					
+					// 滞留アイコン生成
+					let staleIcon = '';
+					let rowBg = '';
+					if (a.stage !== '受注' && staleDays >= 30) {
+						staleIcon = `<i class="fas fa-exclamation-triangle" style="color: ${staleDays >= 60 ? '#dc3545' : '#ffc107'};" title="${staleDays}日間滞留中"></i> `;
+						rowBg = staleDays >= 60 ? 'background-color: #ffe6e6;' : 'background-color: #fff8e1;';
+					}
+
+					// 関連案件情報を取得
 					const project = this.getActivityProjectInfo(a);
 					const projectCell = project ? 
 						`<a href="#" class="activity-project-link" onclick="app.openProjectFromActivity('${project.id}'); return false;" title="案件詳細: ${project.projectName}">
@@ -2795,7 +2736,7 @@
 						'<span class="activity-no-project">-</span>';
 					
 					return `
-						<tr>
+						<tr style="${rowBg}">
 							<td>${a.date}</td>
 							<td>${a.assignee}</td>
 							<td>${a.customer}</td>
@@ -2803,7 +2744,7 @@
 							<td>${a.purpose}</td>
 							<td>${a.partner || '-'}</td>
 							<td>${a.product || '-'}</td>
-							<td title="${a.content}" onclick="alert('${(a.content || '').replace(/'/g, "\\'")}');" style="cursor:pointer; max-width:150px; overflow:hidden; text-overflow:ellipsis;">${a.content || '-'}</td>
+							<td title="${(a.content || '').replace(/"/g, '&quot;')}" onclick="alert('${(a.content || '').replace(/'/g, "\\'")}');" style="cursor:pointer; max-width:150px; overflow:hidden; text-overflow:ellipsis;">${staleIcon}${a.content || '-'}</td>
 							<td>${a.stage || '-'}</td>
 							<td>${a.expected_date || '-'}</td>
 							<td>${a.probability || '-'}</td>
@@ -2817,12 +2758,20 @@
 						</tr>
 					`;
 				}).join('');
-	
-				// 顧客選択肢の更新
+				
+				// 5. 滞留案件の警告トースト
+				const staleCount = this.calculateStaleActivities().length;
+				if (staleCount > 0) {
+					setTimeout(() => {
+						this.showToast(`⚠️ ${staleCount}件の案件が30日以上滞留しています`, 'error');
+					}, 500);
+				}
+				
+				// 6. 顧客選択肢の更新
 				const custSelect = document.getElementById('activityCustomer');
 				const sortedCustomers = [...this.data.customers].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
 				custSelect.innerHTML = '<option value="">選択</option>' + sortedCustomers.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
-			}
+			} 
 			
             sortActivities(field) {
                 if (this.activitiesSortField === field) {
