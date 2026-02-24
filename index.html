@@ -1277,13 +1277,35 @@
                         <div class="funnel-wrapper"><div id="funnelProbability" class="funnel-container"></div></div>
                     </div>
                     <div class="card" style="grid-column: 1 / -1;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-							<h3 style="margin: 0; border: none;">受注予定タイムライン (6月-5月)</h3>
-							<div style="font-size: 0.85rem; color: #666;">
-								<span style="color: #4BC0C0; font-weight: bold;">目標: ¥<span id="timelineTarget">0</span></span> | 
-								<span style="color: #28a745; font-weight: bold;">受注済: ¥<span id="timelineOrdered">0</span></span> | 
-								<span style="color: #ffc107; font-weight: bold;">想定: ¥<span id="timelineExpected">0</span></span> | 
-								<span style="color: #dc3545; font-weight: bold;">不足: ¥<span id="timelineShortage">0</span></span>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+							<!-- 左側: タイトル + 年度選択ドロップダウン -->
+							<div style="display: flex; align-items: center; gap: 1rem;">
+								<h3 style="margin: 0; border: none; white-space: nowrap;">受注予定タイムライン</h3>
+								<select id="timelineYearSelect" 
+										style="font-size: 0.9rem; padding: 0.4rem 0.8rem; border-radius: 4px; border: 1px solid #ccc; background: white; cursor: pointer;"
+										onchange="app.selectedFiscalYear = parseInt(this.value); app.renderDashboard();">
+									<!-- JavaScript側で動的に年度オプションを生成 -->
+								</select>
+							</div>
+							
+							<!-- 右側: 統計情報（レスポンシブ対応） -->
+							<div style="font-size: 0.85rem; color: #666; display: flex; gap: 1rem; flex-wrap: wrap;">
+								<span style="white-space: nowrap;">
+									<span style="color: #4BC0C0; font-weight: bold;">目標:</span> 
+									¥<span id="timelineTarget" style="font-weight: bold;">0</span>
+								</span>
+								<span style="white-space: nowrap;">
+									<span style="color: #28a745; font-weight: bold;">受注済:</span> 
+									¥<span id="timelineOrdered" style="font-weight: bold;">0</span>
+								</span>
+								<span style="white-space: nowrap;">
+									<span style="color: #ffc107; font-weight: bold;">想定:</span> 
+									¥<span id="timelineExpected" style="font-weight: bold;">0</span>
+								</span>
+								<span style="white-space: nowrap;">
+									<span style="color: #dc3545; font-weight: bold;">不足:</span> 
+									¥<span id="timelineShortage" style="font-weight: bold;">0</span>
+								</span>
 							</div>
 						</div>
                         <div class="chart-wrapper" style="height: 350px;"><canvas id="chartTimeline"></canvas></div>
@@ -1907,30 +1929,41 @@
 				this.renderDashboard();
 			}
 
-            constructor() {
-                this.data = {
-                    customers: [],
-                    schedules: [],
-                    activities: [],
-                    kpiSettings: { totalTarget: 0, personalTargets: {}, personalItems: [] }
-                };
-                this.currentDate = new Date();
-                this.currentEditingCustomerId = null;
-				this.searchKeyword = ''; // ★ Phase 3: 検索ワード初期化
-                
-                // Sort state
-                this.customersSortField = null; this.customersSortOrder = 'asc';
-                this.activitiesSortField = null; this.activitiesSortOrder = 'asc';
-                this.scheduleSortField = null; this.scheduleSortOrder = 'asc';
+			constructor() {
+				// 1. データ構造の初期化
+				this.data = {
+					customers: [],
+					schedules: [],
+					activities: [],
+					projects: [], // 案件データ用配列
+					kpiSettings: { totalTarget: 0, personalTargets: {}, personalItems: [] }
+				};
 				
-				// ★ Phase 3A: カンバンボード状態管理
-				this.projectViewMode = 'table'; // 'table' or 'kanban'
-				this.draggedProjectId = null;
+				// 2. 基本状態管理
+				this.currentDate = new Date();
+				this.currentEditingCustomerId = null;
+				this.searchKeyword = '';
 				
-				this.currentProjectFiles = []; // ファイル管理用の一時配列
-                
-                this.init();
-            }
+				// 3. ソート状態の初期化
+				this.customersSortField = null;
+				this.customersSortOrder = 'asc';
+				this.activitiesSortField = null;
+				this.activitiesSortOrder = 'asc';
+				this.scheduleSortField = null;
+				this.scheduleSortOrder = 'asc';
+				this.projectsSortField = null;
+				this.projectsSortOrder = 'asc';
+				
+				// 4. 機能別状態管理
+				this.projectViewMode = 'table'; // カンバンボード表示モード
+				this.draggedProjectId = null; // ドラッグ中の案件ID
+				this.currentProjectFiles = []; // ファイル管理用配列
+				this.selectedFiscalYear = null; // タイムライン年度選択
+				this.activityPeriod = 'all'; // 活動記録期間フィルタ
+				
+				// 5. 初期化処理（最後に1回だけ実行）
+				this.init();
+			}
 
             init() {
                 this.loadData();
@@ -2387,72 +2420,225 @@
 						<span class="funnel-value">${probCounts[p]}件</span>
 					</div>`).join('');
 
-				// Timeline Chart - 営業年度対応
-				const months = ['6月','7月','8月','9月','10月','11月','12月','1月','2月','3月','4月','5月'];
-				const now = new Date();
-				const currentMonth = now.getMonth();
-				const currentYear = now.getFullYear();
-				const fiscalYear = currentMonth >= 5 ? currentYear : currentYear - 1;
+				// ========================================
+				// Timeline Chart - 年度別切り替え表示
+				// ========================================
 
-				const currentYearOrdered = new Array(12).fill(0);
-				const currentYearExpected = new Array(12).fill(0);
+				const months = ['6月','7月','8月','9月','10月','11月','12月','1月','2月','3月','4月','5月'];
+
+				// 現在の営業年度を算出（6月開始）
+				const now = new Date();
+				const currentMonth = now.getMonth(); // 0-11
+				const currentYear = now.getFullYear();
+				const currentFiscalYear = currentMonth >= 5 ? currentYear : currentYear - 1;
+
+				// 1. 全活動データを年度別に分類・集計
+				const yearlyData = {};
 
 				acts.forEach(a => {
 					if (a.expected_date) {
 						const d = new Date(a.expected_date);
 						const year = d.getFullYear();
-						const m = d.getMonth();
-						const actFiscalYear = m >= 5 ? year : year - 1;
-						const idx = (m - 5 + 12) % 12;
-						const amount = Number(a.amount) || 0;
+						const m = d.getMonth(); // 0-11
 						
-						if (actFiscalYear === fiscalYear) {
-							if (a.stage === '受注') {
-								currentYearOrdered[idx] += amount;
-							} else {
-								currentYearExpected[idx] += amount;
-							}
+						// 営業年度判定: 6月以降は当年、5月以前は前年度
+						const fiscalYear = m >= 5 ? year : year - 1;
+						
+						// 年度別データ初期化
+						if (!yearlyData[fiscalYear]) {
+							yearlyData[fiscalYear] = {
+								ordered: new Array(12).fill(0),    // 受注済
+								expected: new Array(12).fill(0)    // 受注想定
+							};
+						}
+
+						// 月インデックス変換: 6月(5)→0, 7月(6)→1, ... 5月(4)→11
+						const monthIndex = (m - 5 + 12) % 12;
+						const amount = Number(a.amount) || 0;
+
+						if (a.stage === '受注') {
+							yearlyData[fiscalYear].ordered[monthIndex] += amount;
+						} else {
+							yearlyData[fiscalYear].expected[monthIndex] += amount;
 						}
 					}
 				});
 
-				const currentOrdered = acts.filter(a => a.stage === '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
-				const totalExpected = acts.filter(a => a.stage !== '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
-				const shortage = Math.max(target - currentOrdered, 0);
+				// 2. 年度選択ドロップダウンの更新
+				const yearSelect = document.getElementById('timelineYearSelect');
+				if (yearSelect) {
+					// 利用可能な年度を取得（昇順ソート）
+					const availableYears = Object.keys(yearlyData).map(y => parseInt(y)).sort();
+					
+					// データがない場合は現在年度を追加
+					if (availableYears.length === 0) {
+						availableYears.push(currentFiscalYear);
+						yearlyData[currentFiscalYear] = {
+							ordered: new Array(12).fill(0),
+							expected: new Array(12).fill(0)
+						};
+					}
 
+					// 初回または選択年度が無効な場合は現在年度を選択
+					if (!this.selectedFiscalYear || !availableYears.includes(this.selectedFiscalYear)) {
+						this.selectedFiscalYear = currentFiscalYear;
+					}
+
+					// ドロップダウンの選択肢を更新
+					yearSelect.innerHTML = availableYears.map(year => 
+						`<option value="${year}" ${year === this.selectedFiscalYear ? 'selected' : ''}>
+							${year}年度 (${year}年6月-${year + 1}年5月)
+						</option>`
+					).join('');
+					
+					// 選択変更イベント（念のため再設定）
+					yearSelect.onchange = () => {
+						this.selectedFiscalYear = parseInt(yearSelect.value);
+						this.renderDashboard();
+					};
+				}
+
+				// 3. 選択された年度のデータを取得
+				const selectedYear = this.selectedFiscalYear || currentFiscalYear;
+				const selectedData = yearlyData[selectedYear] || {
+					ordered: new Array(12).fill(0),
+					expected: new Array(12).fill(0)
+				};
+
+				// 4. 累積受注済データの計算（折れ線グラフ用）
+				let cumulativeSum = 0;
+				const cumulativeOrdered = selectedData.ordered.map(monthlyAmount => {
+					cumulativeSum += monthlyAmount;
+					return cumulativeSum;
+				});
+
+				// 5. 集計値の計算と表示更新
+				const yearTotalOrdered = selectedData.ordered.reduce((sum, amount) => sum + amount, 0);
+				const yearTotalExpected = selectedData.expected.reduce((sum, amount) => sum + amount, 0);
+				const yearShortage = Math.max(target - yearTotalOrdered, 0);
+
+				// 統計表示の更新
 				document.getElementById('timelineTarget').textContent = target.toLocaleString();
-				document.getElementById('timelineOrdered').textContent = currentOrdered.toLocaleString();
-				document.getElementById('timelineExpected').textContent = totalExpected.toLocaleString();
-				document.getElementById('timelineShortage').textContent = shortage.toLocaleString();
+				document.getElementById('timelineOrdered').textContent = yearTotalOrdered.toLocaleString();
+				document.getElementById('timelineExpected').textContent = yearTotalExpected.toLocaleString();
+				document.getElementById('timelineShortage').textContent = yearShortage.toLocaleString();
 
+				// 6. Chart.js でグラフ描画
 				new Chart(document.getElementById('chartTimeline'), {
 					type: 'bar',
 					data: {
 						labels: months,
 						datasets: [
+							// 累積受注済（赤い折れ線）
 							{
-								label: `${fiscalYear}年度 受注済`,
-								data: currentYearOrdered,
-								backgroundColor: 'rgba(75, 192, 192, 0.6)'
+								label: `${selectedYear}年度 累積受注済`,
+								data: cumulativeOrdered,
+								borderColor: '#FF6384',
+								backgroundColor: 'rgba(255, 99, 132, 0.1)',
+								type: 'line',
+								fill: true,
+								tension: 0.1,
+								borderWidth: 3,
+								pointRadius: 5,
+								pointBackgroundColor: '#FF6384',
+								pointBorderColor: '#ffffff',
+								pointBorderWidth: 2,
+								order: 1
 							},
+							// 月次受注済（青い棒グラフ）
 							{
-								label: `${fiscalYear}年度 受注想定`,
-								data: currentYearExpected,
-								backgroundColor: 'rgba(255, 206, 86, 0.6)'
+								label: `${selectedYear}年度 月次受注済`,
+								data: selectedData.ordered,
+								backgroundColor: 'rgba(54, 162, 235, 0.8)',
+								borderColor: 'rgba(54, 162, 235, 1)',
+								borderWidth: 1,
+								stack: 'monthly',
+								order: 3
 							},
+							// 月次受注想定（黄色い棒グラフ）
+							{
+								label: `${selectedYear}年度 月次受注想定`,
+								data: selectedData.expected,
+								backgroundColor: 'rgba(255, 206, 86, 0.8)',
+								borderColor: 'rgba(255, 206, 86, 1)',
+								borderWidth: 1,
+								stack: 'monthly',
+								order: 3
+							},
+							// KPI目標ライン（緑の点線）
 							{
 								label: 'KPI目標',
 								data: Array(12).fill(target),
 								borderColor: '#4BC0C0',
-								borderDash: [5, 5],
+								borderDash: [8, 4],
+								borderWidth: 2,
 								pointRadius: 0,
-								type: 'line'
+								type: 'line',
+								fill: false,
+								order: 0
 							}
 						]
 					},
 					options: {
 						maintainAspectRatio: false,
-						interaction: { mode: 'index', intersect: false }
+						interaction: { 
+							mode: 'index', 
+							intersect: false 
+						},
+						plugins: {
+							legend: {
+								display: true,
+								position: 'top',
+								labels: {
+									usePointStyle: true,
+									padding: 15
+								}
+							},
+							tooltip: {
+								callbacks: {
+									label: function(context) {
+										let label = context.dataset.label || '';
+										if (label) label += ': ';
+										if (context.parsed.y !== null) {
+											label += '¥' + context.parsed.y.toLocaleString();
+										}
+										return label;
+									},
+									footer: function() {
+										return `\n【${selectedYear}年度 合計】\n受注済: ¥${yearTotalOrdered.toLocaleString()}\n受注想定: ¥${yearTotalExpected.toLocaleString()}\n目標との差: ¥${yearShortage.toLocaleString()}`;
+									}
+								}
+							}
+						},
+						scales: {
+							x: {
+								grid: {
+									display: false
+								},
+								title: {
+									display: true,
+									text: `${selectedYear}年度 営業月`
+								}
+							},
+							y: {
+								beginAtZero: true,
+								ticks: {
+									callback: function(value) {
+										if (value >= 100000000) {
+											return '¥' + (value / 100000000).toFixed(1) + '億';
+										} else if (value >= 10000000) {
+											return '¥' + (value / 10000000).toFixed(0) + '千万';
+										} else if (value >= 10000) {
+											return '¥' + (value / 10000).toFixed(0) + '万';
+										}
+										return '¥' + value.toLocaleString();
+									}
+								},
+								grid: {
+									color: 'rgba(0, 0, 0, 0.05)'
+								}
+							}
+						}
 					}
 				});
 			}
