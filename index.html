@@ -1315,6 +1315,15 @@
                         <h3>確度別分布</h3>
                         <div class="funnel-wrapper"><div id="funnelProbability" class="funnel-container"></div></div>
                     </div>
+					<div class="card" id="lostAnalysisCard" style="display: none;">
+						<h3><i class="fas fa-exclamation-triangle"></i> 失注理由分析</h3>
+						<div id="lostAnalysisContent" style="min-height: 150px;"></div>
+					</div>
+
+					<div class="card" id="engagementCard" style="display: none;">
+						<h3><i class="fas fa-handshake"></i> 顧客接触状況（30日）</h3>
+						<div id="engagementContent" style="min-height: 150px;"></div>
+					</div>
                     <div class="card" style="grid-column: 1 / -1;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
 							<!-- 左側: タイトル + 年度選択ドロップダウン -->
@@ -1503,6 +1512,13 @@
 							<option value="クロージング">クロージング</option>
 							<option value="受注">受注</option>
 						</select>
+						<select id="projectsPriorityFilter" onchange="app.renderProjects()" class="filter-select" 
+								style="border: 2px solid #ff6b35; font-weight: bold;">
+							<option value="all">🎯 重要度フィルタ</option>
+							<option value="urgent">🔥 緊急（7日以内）</option>
+							<option value="high-value">💰 高額（1000万以上）</option>
+							<option value="stagnant">⚠️ 要注意（30日滞留）</option>
+						</select>
 						<button class="btn btn-primary" onclick="app.openProjectModal()"><i class="fas fa-plus"></i> 新規案件</button>
 					</div>
 				</div>
@@ -1598,10 +1614,10 @@
 									<th>機種名</th>
 									<th>担当</th>
 									<th onclick="app.sortProjects('stage')">ステージ <i class="fas fa-sort" id="sortIconProjectStage"></i></th>
-									<th>確度</th>
+									<th onclick="app.sortProjects('probability')">確度 <i class="fas fa-sort" id="sortIconProjectProbability"></i></th>
 									<th onclick="app.sortProjects('estimatedAmount')">想定金額 <i class="fas fa-sort" id="sortIconProjectAmount"></i></th>
-									<th>受注予定日</th>
-									<th>滞留日数</th>
+									<th onclick="app.sortProjects('expectedOrderDate')">受注予定日 <i class="fas fa-sort" id="sortIconProjectExpectedDate"></i></th>
+									<th onclick="app.sortProjects('stagnantDays')">滞留日数 <i class="fas fa-sort" id="sortIconProjectStagnantDays"></i></th>
 									<th>ステータス</th>
 									<th>ドキュメント</th>
 									<th>操作</th>
@@ -2236,10 +2252,17 @@
 					forecastElement.textContent = '¥' + totalForecast.toLocaleString();
 				}
 
-                this.renderCharts(acts, target);
+                this.renderCharts(acts, target);			
+
+				// 分析カードの描画
+				this.renderLostProjectAnalysis();
+				this.renderCustomerEngagement();
 				
 				 // ★ Phase 2: ファネルクリック機能の初期化
 				this.setupFunnelClickEvents();
+				
+				// 週次リマインダーチェック
+				this.checkWeeklyReminders();
 				
 				// 個人表示時のKPI状況表示
 				if (isPersonal) {
@@ -2502,22 +2525,38 @@
 						<span class="funnel-value">${stageCounts[s].count}件 / ¥${(stageCounts[s].amount / 10000).toFixed(0)}万</span>
 					</div>`).join('');
 
-				// Probability Funnel - クリック機能付き
+				// Probability Funnel - クリック機能付き（金額表示対応）
 				const actsForProb = acts.filter(a => a.stage !== '受注');
 				const probs = ['A', 'B', 'C', 'D'];
-				const probCounts = {};
-				probs.forEach(p => probCounts[p] = 0);
-				actsForProb.forEach(a => { if (probCounts[a.probability] !== undefined) probCounts[a.probability]++; });
-				const maxProb = Math.max(...Object.values(probCounts), 1);
-				
-				document.getElementById('funnelProbability').innerHTML = probs.map(p => `
-					<div class="funnel-item funnel-clickable" 
-						 style="width: ${Math.max((probCounts[p] / maxProb) * 100, 10)}%; min-width: 50px; background-color: #28a745; cursor: pointer;" 
-						 onclick="app.filterProjectsByProbability('${p}')" 
-						 title="クリックで確度${p}の案件一覧を表示">
-						<span class="funnel-label">${p}</span>
-						<span class="funnel-value">${probCounts[p]}件</span>
-					</div>`).join('');
+
+				// 件数と金額を同時に集計
+				const probStats = {};
+				probs.forEach(p => probStats[p] = { count: 0, amount: 0 });
+
+				actsForProb.forEach(a => { 
+					if (probStats[a.probability]) {
+						probStats[a.probability].count++;
+						probStats[a.probability].amount += (Number(a.amount) || 0);
+					}
+				});
+
+				// バー幅は件数ベースで計算
+				const maxProb = Math.max(...Object.values(probStats).map(s => s.count), 1);
+
+				document.getElementById('funnelProbability').innerHTML = probs.map(p => {
+					const stats = probStats[p];
+					const width = Math.max((stats.count / maxProb) * 100, 10);
+					const amountInMan = (stats.amount / 10000).toFixed(0); // 万円単位
+					
+					return `
+						<div class="funnel-item funnel-clickable" 
+							 style="width: ${width}%; min-width: 120px; background-color: #28a745; cursor: pointer;" 
+							 onclick="app.filterProjectsByProbability('${p}')" 
+							 title="クリックで確度${p}の案件一覧を表示">
+							<span class="funnel-label">${p}</span>
+							<span class="funnel-value">${stats.count}件 / ¥${amountInMan}万</span>
+						</div>`;
+				}).join('');
 
 				// ========================================
 				// Timeline Chart - 年度別切り替え表示（完全版）
@@ -2794,7 +2833,279 @@
 					return diffDays >= 30; // 30日以上滞留
 				});
 			}
+			
+			/**
+			 * 週次リマインダーチェック（改良版）
+			 */
+			checkWeeklyReminders() {
+				const today = new Date();
+				const dayOfWeek = today.getDay(); // 0=日曜, 1=月曜
+				const todayStr = today.toISOString().split('T')[0];
+				
+				// 前回チェック日を確認（重複通知防止）
+				const lastCheck = localStorage.getItem('lastReminderCheck');
+				if (lastCheck === todayStr) return;
+				
+				// 月曜日 または 初回ログイン時に実行
+				if (dayOfWeek === 1 || !lastCheck) {
+					const today = new Date();
+					
+					// 滞留案件（7日以上）
+					const staleProjects = this.data.projects.filter(p => 
+						p.status === '進行中' && this.calculateStagnantDays(p) >= 7
+					);
+					
+					// 緊急案件（受注予定7日以内）
+					const urgentProjects = this.data.projects.filter(p => {
+						if (!p.expectedOrderDate || p.status !== '進行中') return false;
+						const daysLeft = Math.ceil((new Date(p.expectedOrderDate) - today) / (1000 * 60 * 60 * 24));
+						return daysLeft > 0 && daysLeft <= 7;
+					});
+					
+					// 活動不足案件（14日間活動なし）
+					const inactiveProjects = this.data.projects.filter(p => {
+						if (p.status !== '進行中') return false;
+						const recentActivities = this.data.activities.filter(a => {
+							if (a.projectId !== p.id) return false;
+							const daysSince = (today - new Date(a.date)) / (1000 * 60 * 60 * 24);
+							return daysSince <= 14;
+						});
+						return recentActivities.length === 0;
+					});
+					
+					// 通知表示
+					if (staleProjects.length > 0 || urgentProjects.length > 0 || inactiveProjects.length > 0) {
+						const messages = [];
+						if (staleProjects.length > 0) messages.push(`滞留${staleProjects.length}件`);
+						if (urgentProjects.length > 0) messages.push(`緊急${urgentProjects.length}件`);
+						if (inactiveProjects.length > 0) messages.push(`活動不足${inactiveProjects.length}件`);
+						
+						setTimeout(() => {
+							this.showToast(`📋 週次チェック: ${messages.join(' / ')} の対応が必要です`, 'error');
+						}, 1000);
+					}
+					
+					localStorage.setItem('lastReminderCheck', todayStr);
+				}
+			}
+			
+			/**
+			 * 失注分析の表示
+			 */
+			renderLostProjectAnalysis() {
+				const filter = document.getElementById('dashboardFilter')?.value;
+				let lostProjects = this.data.projects.filter(p => 
+					p.status === '失注' && p.lostReason?.category
+				);
+				
+				// 個人フィルター適用
+				if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
+					lostProjects = lostProjects.filter(p => p.assignee === CURRENT_USER.assignee);
+				}
+				
+				const card = document.getElementById('lostAnalysisCard');
+				const content = document.getElementById('lostAnalysisContent');
+				
+				if (!card || !content) return;
+				
+				if (lostProjects.length === 0) {
+					card.style.display = 'none';
+					return;
+				}
+				
+				card.style.display = 'block';
+				
+				// 失注理由の集計
+				const reasonStats = {};
+				lostProjects.forEach(p => {
+					const reason = p.lostReason.category;
+					if (!reasonStats[reason]) {
+						reasonStats[reason] = { count: 0, amount: 0 };
+					}
+					reasonStats[reason].count++;
+					reasonStats[reason].amount += Number(p.estimatedAmount) || 0;
+				});
+				
+				// 件数順でソート
+				const sortedReasons = Object.entries(reasonStats)
+					.sort(([,a], [,b]) => b.count - a.count);
+				
+				const totalAmount = lostProjects.reduce((sum, p) => sum + (Number(p.estimatedAmount) || 0), 0);
+				
+				content.innerHTML = `
+					<div style="margin-bottom: 1rem; padding: 0.75rem; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+						<strong>失注総額: ¥${(totalAmount / 10000).toFixed(0)}万円</strong> （${lostProjects.length}件）
+					</div>
+					${sortedReasons.map(([reason, stats]) => `
+						<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; margin-bottom: 0.5rem; background: #f8f9fa; border-radius: 4px;">
+							<span style="font-weight: 500;">${reason}</span>
+							<div style="text-align: right;">
+								<div style="font-weight: bold; color: #dc3545;">${stats.count}件</div>
+								<div style="font-size: 0.8rem; color: #666;">¥${(stats.amount / 10000).toFixed(0)}万</div>
+							</div>
+						</div>
+					`).join('')}
+				`;
+			}
+			
+			/**
+			 * 受注予測スコアの算出
+			 */
+			calculateWinProbability(project) {
+				if (project.status !== '進行中') return 0;
+				if (project.stage === '受注') return 100;
+				
+				let score = 50; // ベーススコア
+				
+				// 1. ステージによる基礎点
+				const stagePoints = {
+					'アプローチ': 0,
+					'ヒアリング': 15,
+					'提案': 30,
+					'見積提出': 45,
+					'クロージング': 65
+				};
+				score += stagePoints[project.stage] || 0;
+				
+				// 2. 活動頻度による加点（30日間）
+				const thirtyDaysAgo = new Date();
+				thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+				const recentActivities = this.data.activities.filter(a => 
+					a.projectId === project.id && 
+					new Date(a.date) >= thirtyDaysAgo
+				).length;
+				score += Math.min(recentActivities * 8, 25); // 最大25点追加
+				
+				// 3. 滞留による減点
+				const stagnantDays = this.calculateStagnantDays(project);
+				if (stagnantDays > 60) score -= 30;
+				else if (stagnantDays > 30) score -= 15;
+				else if (stagnantDays > 14) score -= 5;
+				
+				// 4. 確度による係数調整
+				const probMultiplier = {
+					'A': 1.3,
+					'B': 1.0,
+					'C': 0.7,
+					'D': 0.4
+				};
+				score *= probMultiplier[project.probability] || 1.0;
+				
+				// 5. 受注予定日による調整
+				if (project.expectedOrderDate) {
+					const today = new Date();
+					const expectedDate = new Date(project.expectedOrderDate);
+					const daysUntil = Math.ceil((expectedDate - today) / (1000 * 60 * 60 * 24));
+					
+					if (daysUntil < 0) {
+						// 予定日超過は大幅減点
+						score -= Math.min(Math.abs(daysUntil) * 2, 40);
+					} else if (daysUntil <= 30) {
+						// 30日以内は加点
+						score += 10;
+					}
+				}
+				
+				return Math.max(0, Math.min(100, Math.round(score)));
+			}
 
+			/**
+			 * 顧客エンゲージメント分析
+			 */
+			renderCustomerEngagement() {
+				const thirtyDaysAgo = new Date();
+				thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+				
+				const filter = document.getElementById('dashboardFilter')?.value;
+				let activities = this.data.activities.filter(a => new Date(a.date) >= thirtyDaysAgo);
+				
+				// 個人フィルター適用
+				if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
+					activities = activities.filter(a => a.assignee === CURRENT_USER.assignee);
+				}
+				
+				const card = document.getElementById('engagementCard');
+				const content = document.getElementById('engagementContent');
+				
+				if (!card || !content) return;
+				
+				if (activities.length === 0) {
+					card.style.display = 'none';
+					return;
+				}
+				
+				card.style.display = 'block';
+				
+				// 顧客別接触回数集計
+				const customerStats = {};
+				activities.forEach(a => {
+					if (!customerStats[a.customer]) {
+						customerStats[a.customer] = { contacts: 0, lastDate: a.date };
+					}
+					customerStats[a.customer].contacts++;
+					if (a.date > customerStats[a.customer].lastDate) {
+						customerStats[a.customer].lastDate = a.date;
+					}
+				});
+				
+				// 接触頻度順でソート
+				const sorted = Object.entries(customerStats)
+					.sort(([,a], [,b]) => b.contacts - a.contacts);
+				
+				const topActive = sorted.slice(0, 5);
+				const lowActive = sorted.filter(([,stats]) => stats.contacts <= 2).slice(0, 3);
+				
+				content.innerHTML = `
+					<div style="margin-bottom: 1rem;">
+						<h4 style="color: #28a745; font-size: 0.9rem; margin-bottom: 0.5rem;">
+							📈 接触頻度 TOP5
+						</h4>
+						${topActive.map(([customer, stats]) => {
+							const daysSince = Math.ceil((new Date() - new Date(stats.lastDate)) / (1000 * 60 * 60 * 24));
+							return `
+								<div style="display: flex; justify-content: space-between; padding: 0.4rem; background: #d4edda; border-radius: 3px; margin-bottom: 0.3rem;">
+									<span style="font-size: 0.85rem;">${customer}</span>
+									<span style="font-size: 0.8rem; font-weight: bold;">${stats.contacts}回 (${daysSince}日前)</span>
+								</div>
+							`;
+						}).join('')}
+					</div>
+					
+					${lowActive.length > 0 ? `
+						<div>
+							<h4 style="color: #dc3545; font-size: 0.9rem; margin-bottom: 0.5rem;">
+								⚠️ フォロー不足
+							</h4>
+							${lowActive.map(([customer, stats]) => {
+								const daysSince = Math.ceil((new Date() - new Date(stats.lastDate)) / (1000 * 60 * 60 * 24));
+								return `
+									<div style="display: flex; justify-content: space-between; padding: 0.4rem; background: #f8d7da; border-radius: 3px; margin-bottom: 0.3rem; cursor: pointer;"
+										 onclick="app.createFollowUpActivity('${customer}')"
+										 title="クリックでフォローアップ活動を作成">
+										<span style="font-size: 0.85rem;">${customer}</span>
+										<span style="font-size: 0.8rem; color: #dc3545;">${stats.contacts}回のみ (${daysSince}日前)</span>
+									</div>
+								`;
+							}).join('')}
+						</div>
+					` : ''}
+				`;
+			}
+
+			/**
+			 * フォローアップ活動作成
+			 */
+			createFollowUpActivity(customerName) {
+				this.openActivityModal();
+				
+				setTimeout(() => {
+					document.getElementById('activityCustomer').value = customerName;
+					document.getElementById('activityPurpose').value = 'J'; // 情報収集
+					document.getElementById('activityContent').value = `${customerName}様への定期フォローアップ`;
+					document.getElementById('activityContent').focus();
+				}, 200);
+			}
+			
             // --- Customer Management ---
             renderCustomers() {
                 const filter = document.getElementById('customersFilter').value;
@@ -3768,24 +4079,100 @@
                 if (stageFilter && stageFilter !== 'all') {
                     list = list.filter(p => p.stage === stageFilter);
                 }
+				const priorityFilter = document.getElementById('projectsPriorityFilter')?.value;
+				if (priorityFilter && priorityFilter !== 'all') {
+					const today = new Date();
+					
+					list = list.filter(p => {
+						const amount = Number(p.estimatedAmount) || 0;
+						const stagnantDays = this.calculateStagnantDays(p);
+						
+						if (priorityFilter === 'urgent') {
+							if (!p.expectedOrderDate || p.status !== '進行中') return false;
+							const daysLeft = Math.ceil((new Date(p.expectedOrderDate) - today) / (1000 * 60 * 60 * 24));
+							return daysLeft > 0 && daysLeft <= 7;
+						}
+						
+						if (priorityFilter === 'high-value') {
+							return amount >= 10000000; // 1000万円以上
+						}
+						
+						if (priorityFilter === 'stagnant') {
+							return p.status === '進行中' && stagnantDays >= 30;
+						}
+						
+						return true;
+					});
+				}
                 
-                // ソート処理
-                if (this.projectsSortField) {
-                    list.sort((a, b) => {
-                        let valA, valB;
-                        
-                        if (this.projectsSortField === 'estimatedAmount') {
-                            valA = Number(a.estimatedAmount) || 0;
-                            valB = Number(b.estimatedAmount) || 0;
-                            return this.projectsSortOrder === 'asc' ? valA - valB : valB - valA;
-                        } else {
-                            valA = (a[this.projectsSortField] || '').toString();
-                            valB = (b[this.projectsSortField] || '').toString();
-                            const result = valA.localeCompare(valB, 'ja');
-                            return this.projectsSortOrder === 'asc' ? result : -result;
-                        }
-                    });
-                }
+				// ソート処理
+				if (this.projectsSortField) {
+					list.sort((a, b) => {
+						let valA, valB;
+						const order = this.projectsSortOrder === 'asc' ? 1 : -1;
+
+						// 数値系ソート
+						if (this.projectsSortField === 'estimatedAmount') {
+							valA = Number(a.estimatedAmount) || 0;
+							valB = Number(b.estimatedAmount) || 0;
+							return (valA - valB) * order;
+						}
+						
+						// 滞留日数ソート（計算値）
+						if (this.projectsSortField === 'stagnantDays') {
+							valA = this.calculateStagnantDays(a);
+							valB = this.calculateStagnantDays(b);
+							return (valA - valB) * order;
+						}
+						
+						// 確度ソート（A > B > C > D > 受注済 の優先順位）
+						if (this.projectsSortField === 'probability') {
+							const probOrder = { '受注済': 1, 'A': 2, 'B': 3, 'C': 4, 'D': 5 };
+							valA = probOrder[a.probability] || 6;
+							valB = probOrder[b.probability] || 6;
+							return (valA - valB) * order;
+						}
+						
+						// 日付ソート
+						if (this.projectsSortField === 'expectedOrderDate') {
+							valA = a.expectedOrderDate || '9999-12-31';
+							valB = b.expectedOrderDate || '9999-12-31';
+							return valA.localeCompare(valB) * order;
+						}
+						
+						// 文字列ソート
+						valA = (a[this.projectsSortField] || '').toString();
+						valB = (b[this.projectsSortField] || '').toString();
+						return valA.localeCompare(valB, 'ja') * order;
+					});
+
+					// ソートアイコンの更新
+					const iconMap = {
+						'projectNumber': 'sortIconProjectNumber',
+						'projectName': 'sortIconProjectName', 
+						'customer': 'sortIconProjectCustomer',
+						'stage': 'sortIconProjectStage',
+						'probability': 'sortIconProjectProbability',
+						'estimatedAmount': 'sortIconProjectAmount',
+						'expectedOrderDate': 'sortIconProjectExpectedDate',
+						'stagnantDays': 'sortIconProjectStagnantDays'
+					};
+					
+					// 全アイコンをリセット
+					Object.values(iconMap).forEach(iconId => {
+						const icon = document.getElementById(iconId);
+						if (icon) icon.className = 'fas fa-sort';
+					});
+					
+					// アクティブなソートアイコンを設定
+					const activeIconId = iconMap[this.projectsSortField];
+					if (activeIconId) {
+						const activeIcon = document.getElementById(activeIconId);
+						if (activeIcon) {
+							activeIcon.className = this.projectsSortOrder === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+						}
+					}
+				}
                 
 				// 滞留案件の抽出と分析
 				const stagnantProjects = list.filter(p => {
@@ -5221,7 +5608,19 @@
                             <i class="fas fa-building"></i> ${project.customer}
                         </div>
                         <div class="kanban-card-amount">¥${Number(project.estimatedAmount || 0).toLocaleString()}</div>
-                        <div class="kanban-card-footer">
+                        ${project.stage !== '受注' ? `
+							<div style="margin: 0.5rem 0; padding: 0.3rem 0.5rem; background: rgba(0,0,0,0.05); border-radius: 4px; font-size: 0.75rem; text-align: center;">
+								${(() => {
+									const winProb = this.calculateWinProbability(project);
+									const color = winProb >= 70 ? '#28a745' : winProb >= 40 ? '#ffc107' : '#dc3545';
+									const icon = winProb >= 70 ? 'fa-arrow-up' : winProb >= 40 ? 'fa-minus' : 'fa-arrow-down';
+									return `<span style="color: ${color}; font-weight: bold;">
+										<i class="fas ${icon}"></i> 予測: ${winProb}%
+									</span>`;
+								})()}
+							</div>
+						` : ''}
+						<div class="kanban-card-footer">
                             <span class="kanban-card-assignee">
                                 <i class="fas fa-user"></i> ${project.assignee}
                             </span>
