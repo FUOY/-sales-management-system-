@@ -1154,6 +1154,18 @@
 			font-style: italic;
 			background: #f8f9fa;
 		}
+		
+		/* KPI設定ページのレイアウト改善 */
+		#kpiPage label {
+			white-space: nowrap !important;
+			writing-mode: horizontal-tb !important;
+			display: inline-block !important;
+		}
+
+		#kpiYearSelect {
+			min-width: 200px;
+			flex-shrink: 0;
+		}
 	</style>
 </head>
 <body>
@@ -1603,8 +1615,7 @@
 			
 			<!-- KPI Settings Section -->
             <section id="kpiPage" class="page-section">
-                <h2 class="page-title">KPI設定</h2>
-				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap;">
 					<h2 class="page-title" style="margin: 0;">KPI設定</h2>
 					<div style="display: flex; align-items: center; gap: 1rem;">
 						<label style="font-size: 0.9rem; color: #666;">営業年度:</label>
@@ -2182,7 +2193,33 @@
 					`確定: ¥${orderedAmount.toLocaleString()} / 予測: ¥${weightedPipeline.toLocaleString()}`;
 
 				// 5. KPI Achievement（確定・予測・着地見込を分離表示）
-				const target = isPersonal ? (this.data.kpiSettings.personalTargets[CURRENT_USER.assignee] || 0) : this.data.kpiSettings.totalTarget;
+				let target = 0;
+
+				// 現在の営業年度を算出（変数名重複回避）
+				const kpiDate = new Date();
+				const currentFiscalYear = kpiDate.getMonth() >= 5 ? kpiDate.getFullYear() : kpiDate.getFullYear() - 1;
+
+				// KPI設定から年度別目標を取得
+				const kpiSettings = this.data.kpiSettings || {};
+				const yearlyData = kpiSettings.yearlyData || {};
+				const currentYearData = yearlyData[kpiSettings.currentYear || currentFiscalYear] || {};
+
+				if (isPersonal) {
+					target = (currentYearData.personalTargets && currentYearData.personalTargets[CURRENT_USER.assignee]) || 0;
+				} else {
+					target = currentYearData.totalTarget || 0;
+				}
+
+				// フォールバック処理（年度別データがない場合）
+				if (target === 0) {
+					if (isPersonal) {
+						target = kpiSettings.personalTargets?.[CURRENT_USER.assignee] || 100000000;
+					} else {
+						target = kpiSettings.totalTarget || 300000000;
+					}
+				}
+
+				// 達成率計算と表示更新
 				const orderedRate = target > 0 ? Math.round((orderedAmount / target) * 100) : 0;
 
 				document.getElementById('dashboardKpiLabel').textContent = isPersonal ? '個人達成率（確定ベース）' : '全体達成率（確定ベース）';
@@ -2734,20 +2771,26 @@
 				});
 			}
 			
-			// ステージ変更日からの経過日数を計算
+			/**
+			 * 滞留活動の計算（案件未連携のみ対象）
+			 */
 			calculateStaleActivities() {
 				const now = new Date();
 				return this.data.activities.filter(a => {
-					if (a.stage === '受注') return false; // 受注済は除外
-						
-					// stage_updated_at または created_at を基準日とする
+					// 1. 案件連携済みの活動は除外（案件管理側で管理）
+					if (a.projectId) return false;
+					
+					// 2. 受注済みは除外
+					if (a.stage === '受注') return false;
+					
+					// 3. stage_updated_at または created_at を基準日とする
 					const baseDate = a.stage_updated_at ? new Date(a.stage_updated_at) : 
-										a.created_at ? new Date(a.created_at) : 
-										new Date(a.date); // フォールバック
-						
+									 a.created_at ? new Date(a.created_at) : 
+									 new Date(a.date);
+					
 					const diffTime = now - baseDate;
 					const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-						
+					
 					return diffDays >= 30; // 30日以上滞留
 				});
 			}
@@ -3039,11 +3082,11 @@
 					`;
 				}).join('');
 				
-				// 5. 滞留案件の警告トースト
+				// 5. 滞留活動（案件未連携）の警告トースト
 				const staleCount = this.calculateStaleActivities().length;
 				if (staleCount > 0) {
 					setTimeout(() => {
-						this.showToast(`⚠️ ${staleCount}件の案件が30日以上滞留しています`, 'error');
+						this.showToast(`⚠️ 活動記録：${staleCount}件の未案件化活動が30日以上滞留中`, 'error');
 					}, 500);
 				}
 				
@@ -3536,7 +3579,8 @@
 					stage: newStage,
 					probability: document.getElementById('activityProbability').value,
 					amount: document.getElementById('activityAmount').value,
-					expected_date: document.getElementById('activityExpectedDate').value
+					expected_date: document.getElementById('activityExpectedDate').value,
+					projectId: document.getElementById('activityProjectId').value || null
 				};
 
 				if (id) {
@@ -3564,7 +3608,52 @@
 				this.saveData();
 				this.closeModal('activityModal');
 				this.renderActivities();
+
+				// ★ 案件モーダルが開いている場合は商談履歴を即座に更新
+				const projectModal = document.getElementById('projectModal');
+				if (projectModal && projectModal.classList.contains('active') && data.projectId) {
+					// 案件情報の自動更新
+					this.updateProjectFromActivity(data.projectId, data);
+					
+					// 商談履歴タイムラインの再描画
+					this.renderProjectHistory(data.projectId);
+				}
+
 				this.showToast('活動記録を保存しました', 'success');
+			}
+			
+			/**
+			 * 活動記録から案件情報を自動更新
+			 */
+			updateProjectFromActivity(projectId, activityData) {
+				try {
+					const project = this.data.projects.find(p => p.id === projectId);
+					if (!project) return;
+					
+					const oldStage = project.stage;
+					
+					// 案件情報を最新の活動記録で自動更新
+					project.stage = activityData.stage;
+					project.probability = activityData.probability;
+					project.estimatedAmount = Number(activityData.amount) || project.estimatedAmount;
+					project.expectedOrderDate = activityData.expected_date || project.expectedOrderDate;
+					project.lastActivityDate = activityData.date;
+					
+					// ステージ変更履歴を記録
+					if (oldStage !== activityData.stage) {
+						this.recordStageChange(projectId, oldStage, activityData.stage, activityData.assignee);
+					}
+					
+					// ステータスの自動更新
+					if (activityData.stage === '受注') {
+						project.status = '完了';
+					}
+					
+					this.saveData();
+					
+				} catch (error) {
+					console.error('案件自動更新エラー:', error);
+				}
 			}
 
             deleteActivity(id) {
@@ -3698,48 +3787,89 @@
                     });
                 }
                 
-                // 滞留アラートの生成
-                const stagnantProjects = list.filter(p => {
-                    const days = this.calculateStagnantDays(p);
-                    return p.status === '進行中' && days >= 30;
-                }).sort((a, b) => this.calculateStagnantDays(b) - this.calculateStagnantDays(a));
-                
-                let alertsHtml = '';
-                if (stagnantProjects.length > 0) {
-                    alertsHtml = '<div class="card"><h3 style="margin-top: 0; color: #dc3545;"><i class="fas fa-exclamation-triangle"></i> 滞留案件アラート</h3>';
-                    stagnantProjects.slice(0, 5).forEach(p => {
-                        const days = this.calculateStagnantDays(p);
-                        const alertClass = days >= 60 ? 'project-alert-danger' : 'project-alert-warning';
-                        const alertIcon = days >= 60 ? 'fas fa-exclamation-circle' : 'fas fa-exclamation-triangle';
-                        
-                        alertsHtml += `
-                            <div class="stagnant-alert-item ${alertClass}">
-                                <div class="stagnant-alert-icon">
-                                    <i class="${alertIcon}"></i>
-                                </div>
-                                <div class="stagnant-alert-content">
-                                    <div class="stagnant-alert-title" title="${p.projectName} (${p.projectNumber})">
-                                        ${p.projectNumber}: ${p.projectName}
-                                    </div>
-                                    <div class="stagnant-alert-details">
-                                        <span><i class="fas fa-user"></i> ${p.assignee}</span>
-                                        <span><i class="fas fa-layer-group"></i> ${p.stage}</span>
-                                        <span style="color: ${days >= 60 ? '#dc3545' : '#f57c00'}; font-weight: bold;">
-                                            <i class="fas fa-clock"></i> 滞留${days}日
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="stagnant-alert-action">
-                                    <button class="btn btn-sm btn-primary" onclick="app.editProject('${p.id}')" title="案件詳細を確認">
-                                        <i class="fas fa-search"></i> 確認
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    alertsHtml += '</div>';
-                }
-                document.getElementById('projectAlerts').innerHTML = alertsHtml;
+				// 滞留案件の抽出と分析
+				const stagnantProjects = list.filter(p => {
+					const days = this.calculateStagnantDays(p);
+					return p.status === '進行中' && days >= 30;
+				}).sort((a, b) => this.calculateStagnantDays(b) - this.calculateStagnantDays(a));
+
+				// 案件管理ページ専用の滞留アラート表示
+				let alertsHtml = '';
+
+				if (stagnantProjects.length > 0) {
+					// 目立つアラートバナーの生成
+					alertsHtml = `
+						<div style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; padding: 1.2rem; border-radius: 8px; margin-bottom: 1.5rem; box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);">
+							<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+								<div style="display: flex; align-items: center; gap: 0.75rem;">
+									<i class="fas fa-exclamation-triangle" style="font-size: 1.5rem; animation: pulse 2s infinite;"></i>
+									<div>
+										<div style="font-weight: bold; font-size: 1.1rem;">
+											${stagnantProjects.length}件の案件が30日以上滞留しています
+										</div>
+										<div style="font-size: 0.9rem; opacity: 0.9;">
+											最長滞留: ${this.calculateStagnantDays(stagnantProjects[0])}日間
+										</div>
+									</div>
+								</div>
+								<button class="btn btn-sm" 
+										style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);" 
+										onclick="document.getElementById('stagnantDetailsList').style.display = document.getElementById('stagnantDetailsList').style.display === 'none' ? 'block' : 'none'">
+									<i class="fas fa-list"></i> 詳細表示
+								</button>
+							</div>
+						</div>
+						
+						<!-- 詳細リスト（初期は非表示） -->
+						<div id="stagnantDetailsList" class="card" style="display: none; border-left: 5px solid #dc3545; margin-bottom: 1.5rem;">
+							<h3 style="margin-top: 0; color: #dc3545;">
+								<i class="fas fa-clock"></i> 滞留案件詳細（上位5件）
+							</h3>
+					`;
+					
+					// 詳細案件リストの生成
+					stagnantProjects.slice(0, 5).forEach(p => {
+						const days = this.calculateStagnantDays(p);
+						const alertClass = days >= 60 ? 'project-alert-danger' : 'project-alert-warning';
+						const alertIcon = days >= 60 ? 'fas fa-exclamation-circle' : 'fas fa-exclamation-triangle';
+						
+						alertsHtml += `
+							<div class="stagnant-alert-item ${alertClass}">
+								<div class="stagnant-alert-icon">
+									<i class="${alertIcon}" style="color: ${days >= 60 ? '#dc3545' : '#ffc107'};"></i>
+								</div>
+								<div class="stagnant-alert-content">
+									<div class="stagnant-alert-title" title="${p.projectName} (${p.projectNumber})">
+										${p.projectNumber}: ${p.projectName}
+									</div>
+									<div class="stagnant-alert-details">
+										<span><i class="fas fa-user"></i> ${p.assignee}</span>
+										<span><i class="fas fa-building"></i> ${p.customer}</span>
+										<span><i class="fas fa-layer-group"></i> ${p.stage}</span>
+										<span style="color: ${days >= 60 ? '#dc3545' : '#f57c00'}; font-weight: bold;">
+											<i class="fas fa-clock"></i> 滞留${days}日
+										</span>
+									</div>
+								</div>
+								<div class="stagnant-alert-action">
+									<button class="btn btn-sm btn-primary" onclick="app.editProject('${p.id}')" title="案件詳細を確認">
+										<i class="fas fa-search"></i> 確認
+									</button>
+								</div>
+							</div>
+						`;
+					});
+					
+					alertsHtml += '</div>';
+					
+					// ★ トースト通知も追加
+					setTimeout(() => {
+						this.showToast(`⚠️ 案件管理：${stagnantProjects.length}件が30日以上滞留中`, 'error');
+					}, 600);
+				}
+
+				// アラートHTMLの挿入
+				document.getElementById('projectAlerts').innerHTML = alertsHtml;
                 
                 // テーブル行の生成
                 document.querySelector('#projectsTable tbody').innerHTML = list.map(p => {
