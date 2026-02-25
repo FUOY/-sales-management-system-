@@ -1127,6 +1127,33 @@
 				align-items: stretch;
 			}
 		}
+		/* 失注案件の視覚的強調 */
+		.project-lost {
+			background-color: #f8d7da !important;
+			border-left: 4px solid #dc3545 !important;
+		}
+
+		.lost-reason-badge {
+			background: #dc3545;
+			color: white;
+			padding: 2px 6px;
+			border-radius: 10px;
+			font-size: 0.7rem;
+			margin-left: 0.5rem;
+		}
+
+		/* 年度選択の視覚的改善 */
+		#kpiYearSelect {
+			border: 2px solid var(--primary);
+			font-weight: bold;
+		}
+
+		/* 案件連携済み活動の表示調整 */
+		.activity-linked {
+			opacity: 0.6;
+			font-style: italic;
+			background: #f8f9fa;
+		}
 	</style>
 </head>
 <body>
@@ -1577,6 +1604,18 @@
 			<!-- KPI Settings Section -->
             <section id="kpiPage" class="page-section">
                 <h2 class="page-title">KPI設定</h2>
+				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap;">
+					<h2 class="page-title" style="margin: 0;">KPI設定</h2>
+					<div style="display: flex; align-items: center; gap: 1rem;">
+						<label style="font-size: 0.9rem; color: #666;">営業年度:</label>
+						<select id="kpiYearSelect" class="filter-select" onchange="app.changeKpiYear()">
+							<!-- JavaScriptで動的生成 -->
+						</select>
+						<button class="btn btn-success" onclick="app.addNewKpiYear()">
+							<i class="fas fa-plus"></i> 新年度追加
+						</button>
+					</div>
+				</div>
                 <div class="card">
                     <!-- 修正8: タイトルとボタンを横並びに -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -1789,14 +1828,37 @@
 				<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1rem;">
 					<div class="form-group">
 						<label>ステージ *</label>
-						<select id="projectStage" required>
+						<select id="projectStage" required onchange="app.toggleLostReasonSection()">
 							<option value="アプローチ">アプローチ</option>
 							<option value="ヒアリング">ヒアリング</option>
 							<option value="提案">提案</option>
 							<option value="見積提出">見積提出</option>
 							<option value="クロージング">クロージング</option>
 							<option value="受注">受注</option>
+							<option value="失注">失注</option>
 						</select>
+					</div>
+
+					<!-- 失注理由入力エリア -->
+					<div id="lostReasonSection" style="display: none; background: #fff3cd; padding: 1rem; border-radius: 4px; border: 1px solid #ffc107; grid-column: 1 / -1;">
+						<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem;">
+							<div class="form-group">
+								<label style="color: #856404;"><i class="fas fa-exclamation-triangle"></i> 失注理由 *</label>
+								<select id="projectLostReason" required>
+									<option value="">選択してください</option>
+									<option value="競合が受注">競合が受注</option>
+									<option value="価格で見送り">価格で見送り</option>
+									<option value="当社の技術的な問題">当社の技術的な問題</option>
+									<option value="先方社内解決">先方社内解決</option>
+									<option value="タイミング">タイミング</option>
+									<option value="その他">その他</option>
+								</select>
+							</div>
+							<div class="form-group">
+								<label style="color: #856404;">失注理由詳細</label>
+								<textarea id="projectLostReasonDetail" rows="2" placeholder="具体的な理由、競合名、経緯等を記載"></textarea>
+							</div>
+						</div>
 					</div>
 					<div class="form-group">
 						<label>確度</label>
@@ -2311,7 +2373,7 @@
 				`;
 			}
 
-            renderCharts(acts, target) {
+			renderCharts(acts, target) {
 				// Canvas要素のリセット
 				['chartActivity', 'chartProduct', 'chartTimeline'].forEach(id => {
 					const canvas = document.getElementById(id);
@@ -2322,7 +2384,7 @@
 					parent.appendChild(newCanvas);
 				});
 				
-				// Activity Bar Chart
+				// Activity Bar Chart - 期間フィルター対応
 				const activityPeriod = this.activityPeriod || 'all';
 				let filteredActs = acts;
 
@@ -2359,7 +2421,7 @@
 					}
 				});
 
-				// Product Doughnut Chart
+				// Product Doughnut Chart - 受注済のみ
 				const prods = {}; 
 				acts.filter(a => a.stage === '受注').forEach(a => { 
 					if(a.product) prods[a.product] = (prods[a.product] || 0) + (Number(a.amount) || 0); 
@@ -2382,7 +2444,7 @@
 					options: { maintainAspectRatio: false }
 				});
 
-				// Stage Funnel
+				// Stage Funnel - クリック機能付き
 				const stages = ['アプローチ', 'ヒアリング', '提案', '見積提出', 'クロージング', '受注'];
 				const stageCounts = {};
 				stages.forEach(s => stageCounts[s] = { count: 0, amount: 0 });
@@ -2403,7 +2465,7 @@
 						<span class="funnel-value">${stageCounts[s].count}件 / ¥${(stageCounts[s].amount / 10000).toFixed(0)}万</span>
 					</div>`).join('');
 
-				// Probability Funnel
+				// Probability Funnel - クリック機能付き
 				const actsForProb = acts.filter(a => a.stage !== '受注');
 				const probs = ['A', 'B', 'C', 'D'];
 				const probCounts = {};
@@ -2421,9 +2483,9 @@
 					</div>`).join('');
 
 				// ========================================
-				// Timeline Chart - 年度別切り替え表示
+				// Timeline Chart - 年度別切り替え表示（完全版）
 				// ========================================
-
+				
 				const months = ['6月','7月','8月','9月','10月','11月','12月','1月','2月','3月','4月','5月'];
 
 				// 現在の営業年度を算出（6月開始）
@@ -2432,7 +2494,7 @@
 				const currentYear = now.getFullYear();
 				const currentFiscalYear = currentMonth >= 5 ? currentYear : currentYear - 1;
 
-				// 1. 全活動データを年度別に分類・集計
+				// 全活動データを年度別に分類・集計
 				const yearlyData = {};
 
 				acts.forEach(a => {
@@ -2464,10 +2526,10 @@
 					}
 				});
 
-				// 2. 年度選択ドロップダウンの更新
+				// 年度選択ドロップダウンの更新
 				const yearSelect = document.getElementById('timelineYearSelect');
 				if (yearSelect) {
-					// 利用可能な年度を取得（昇順ソート）
+					// 利用可能な年度を取得
 					const availableYears = Object.keys(yearlyData).map(y => parseInt(y)).sort();
 					
 					// データがない場合は現在年度を追加
@@ -2477,6 +2539,23 @@
 							ordered: new Array(12).fill(0),
 							expected: new Array(12).fill(0)
 						};
+					}
+
+					// KPI設定から年度も追加（年度別KPI機能との統合）
+					if (this.data.kpiSettings && this.data.kpiSettings.yearlyData) {
+						Object.keys(this.data.kpiSettings.yearlyData).forEach(y => {
+							const yearInt = parseInt(y);
+							if (!availableYears.includes(yearInt)) {
+								availableYears.push(yearInt);
+								if (!yearlyData[yearInt]) {
+									yearlyData[yearInt] = { 
+										ordered: new Array(12).fill(0), 
+										expected: new Array(12).fill(0) 
+									};
+								}
+							}
+						});
+						availableYears.sort();
 					}
 
 					// 初回または選択年度が無効な場合は現在年度を選択
@@ -2491,39 +2570,51 @@
 						</option>`
 					).join('');
 					
-					// 選択変更イベント（念のため再設定）
+					// 選択変更イベント
 					yearSelect.onchange = () => {
 						this.selectedFiscalYear = parseInt(yearSelect.value);
 						this.renderDashboard();
 					};
 				}
 
-				// 3. 選択された年度のデータを取得
+				// 選択された年度のデータを取得
 				const selectedYear = this.selectedFiscalYear || currentFiscalYear;
 				const selectedData = yearlyData[selectedYear] || {
 					ordered: new Array(12).fill(0),
 					expected: new Array(12).fill(0)
 				};
 
-				// 4. 累積受注済データの計算（折れ線グラフ用）
+				// 選択された年度のKPI目標を正しく取得
+				let selectedYearTarget = target; // デフォルトは引数のtarget
+				if (this.data.kpiSettings && this.data.kpiSettings.yearlyData && this.data.kpiSettings.yearlyData[selectedYear]) {
+					const yearKpi = this.data.kpiSettings.yearlyData[selectedYear];
+					const filter = document.getElementById('dashboardFilter').value;
+					if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
+						selectedYearTarget = yearKpi.personalTargets[CURRENT_USER.assignee] || 0;
+					} else {
+						selectedYearTarget = yearKpi.totalTarget || 0;
+					}
+				}
+
+				// 累積受注済データの計算（折れ線グラフ用）
 				let cumulativeSum = 0;
 				const cumulativeOrdered = selectedData.ordered.map(monthlyAmount => {
 					cumulativeSum += monthlyAmount;
 					return cumulativeSum;
 				});
 
-				// 5. 集計値の計算と表示更新
+				// 集計値の計算と表示更新
 				const yearTotalOrdered = selectedData.ordered.reduce((sum, amount) => sum + amount, 0);
 				const yearTotalExpected = selectedData.expected.reduce((sum, amount) => sum + amount, 0);
-				const yearShortage = Math.max(target - yearTotalOrdered, 0);
+				const yearShortage = Math.max(selectedYearTarget - yearTotalOrdered, 0);
 
 				// 統計表示の更新
-				document.getElementById('timelineTarget').textContent = target.toLocaleString();
+				document.getElementById('timelineTarget').textContent = selectedYearTarget.toLocaleString();
 				document.getElementById('timelineOrdered').textContent = yearTotalOrdered.toLocaleString();
 				document.getElementById('timelineExpected').textContent = yearTotalExpected.toLocaleString();
 				document.getElementById('timelineShortage').textContent = yearShortage.toLocaleString();
 
-				// 6. Chart.js でグラフ描画
+				// Chart.js でグラフ描画
 				new Chart(document.getElementById('chartTimeline'), {
 					type: 'bar',
 					data: {
@@ -2568,7 +2659,7 @@
 							// KPI目標ライン（緑の点線）
 							{
 								label: 'KPI目標',
-								data: Array(12).fill(target),
+								data: Array(12).fill(selectedYearTarget),
 								borderColor: '#4BC0C0',
 								borderDash: [8, 4],
 								borderWidth: 2,
@@ -2825,7 +2916,10 @@
 				const filter = document.getElementById('activitiesFilter').value;
 				let list = this.data.activities;
 
-				// 1. 個人/全体フィルタ
+				// 1. 案件化済み活動の除外
+				list = list.filter(a => !a.projectId);
+
+				// 2. 個人/全体フィルタ
 				if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
 					list = list.filter(a => a.assignee === CURRENT_USER.assignee);
 				}
@@ -2972,7 +3066,7 @@
             exportReport(type) {
                 const BOM = '\uFEFF';
                 const header = '日付,担当,得意先,目的,相手,商談内容,ステージ,確度,金額\n';
-                const list = this.data.activities;
+                const list = this.data.activities.filter(a => !a.projectId);
                 const rows = list.map(a => `${a.date},${a.assignee},${a.customer},${a.purpose},${a.partner || ''},"${(a.content || '').replace(/"/g, '""')}",${a.stage},${a.probability},${a.amount || 0}`).join('\n');
                 
                 const csv = BOM + header + rows;
@@ -2985,14 +3079,35 @@
             }
 
             // --- KPI Settings ---
-            renderKPI() {
-				const totalTarget = this.data.kpiSettings.totalTarget || 0;
-				const personalTarget = this.data.kpiSettings.personalTargets[CURRENT_USER.assignee] || 0;
+			renderKPI() {
+				const currentYear = this.data.kpiSettings.currentYear;
+				const yearlyData = this.data.kpiSettings.yearlyData || {};
+				
+				// 年度選択ドロップダウンの生成
+				const yearSelect = document.getElementById('kpiYearSelect');
+				if (yearSelect) {
+					const availableYears = Object.keys(yearlyData).map(y => parseInt(y)).sort().reverse();
+					yearSelect.innerHTML = availableYears.map(year => 
+						`<option value="${year}" ${year === currentYear ? 'selected' : ''}>
+							${year}年度 (${year}年6月-${year + 1}年5月)
+						</option>`
+					).join('');
+				}
+				
+				// 選択年度のデータを取得
+				const yearData = yearlyData[currentYear] || {
+					totalTarget: 0,
+					personalTargets: {},
+					personalItems: []
+				};
+				
+				const totalTarget = yearData.totalTarget || 0;
+				const personalTarget = yearData.personalTargets[CURRENT_USER.assignee] || 0;
 				
 				document.getElementById('kpiTotalTarget').value = totalTarget.toLocaleString();
 				document.getElementById('kpiPersonalTarget').value = personalTarget.toLocaleString();
 				
-				const userItems = this.data.kpiSettings.personalItems.filter(i => i.userId === CURRENT_USER.assignee);
+				const userItems = yearData.personalItems.filter(i => i.userId === CURRENT_USER.assignee);
 				
 				document.querySelector('#personalKPITable tbody').innerHTML = userItems.map(i => `
 					<tr>
@@ -3008,31 +3123,76 @@
 						</td>
 					</tr>`).join('');
 				
-				// ★ 管理者専用ビューの表示
+				// 管理者専用ビューの表示
 				const adminView = document.getElementById('adminKpiView');
 				if (CURRENT_USER.role === 'admin') {
 					adminView.style.display = 'block';
-					
-					// スタッフ選択フィルタのオプション生成
 					const filterSelect = document.getElementById('adminKpiStaffFilter');
 					filterSelect.innerHTML = '<option value="all">全員</option>' + STAFFS.map(s => `<option value="${s}">${s}</option>`).join('');
-					
 					this.renderAdminKpiView();
 				} else {
 					adminView.style.display = 'none';
 				}
 			}
+			
+			/**
+			 * KPI年度変更処理
+			 */
+			changeKpiYear() {
+				const yearSelect = document.getElementById('kpiYearSelect');
+				const selectedYear = parseInt(yearSelect.value);
+				
+				this.data.kpiSettings.currentYear = selectedYear;
+				this.renderKPI();
+			}
+
+			/**
+			 * 新年度追加処理
+			 */
+			addNewKpiYear() {
+				const newYear = prompt('新しい営業年度を入力してください（例：2025）');
+				if (!newYear || isNaN(newYear)) return;
+				
+				const fiscalYear = parseInt(newYear);
+				
+				if (this.data.kpiSettings.yearlyData[fiscalYear]) {
+					alert('この年度は既に存在します');
+					return;
+				}
+				
+				// 新年度の初期化
+				this.data.kpiSettings.yearlyData[fiscalYear] = {
+					totalTarget: 300000000,
+					personalTargets: {},
+					personalItems: []
+				};
+				
+				this.data.kpiSettings.currentYear = fiscalYear;
+				this.saveData();
+				this.renderKPI();
+				this.showToast(`${fiscalYear}年度のKPI設定を作成しました`, 'success');
+			}
 
             saveKPITargets() {
-                const total = this.parseCurrency(document.getElementById('kpiTotalTarget').value);
-                const personal = this.parseCurrency(document.getElementById('kpiPersonalTarget').value);
-                
-                this.data.kpiSettings.totalTarget = total;
-                this.data.kpiSettings.personalTargets[CURRENT_USER.assignee] = personal;
-                
-                this.saveData();
-                this.showToast('KPI目標を保存しました', 'success');
-            }
+				const total = this.parseCurrency(document.getElementById('kpiTotalTarget').value);
+				const personal = this.parseCurrency(document.getElementById('kpiPersonalTarget').value);
+				const currentYear = this.data.kpiSettings.currentYear;
+				
+				// 現在年度のデータを更新
+				if (!this.data.kpiSettings.yearlyData[currentYear]) {
+					this.data.kpiSettings.yearlyData[currentYear] = {
+						totalTarget: 0,
+						personalTargets: {},
+						personalItems: []
+					};
+				}
+				
+				this.data.kpiSettings.yearlyData[currentYear].totalTarget = total;
+				this.data.kpiSettings.yearlyData[currentYear].personalTargets[CURRENT_USER.assignee] = personal;
+				
+				this.saveData();
+				this.showToast(`${currentYear}年度のKPI目標を保存しました`, 'success');
+			}
 
             // Modal Management
             openCustomerModal() {
@@ -3570,6 +3730,56 @@
                 }).join('');
             }
 			
+			/**
+             * 失注理由セクションの表示制御
+             */
+            toggleLostReasonSection() {
+                const stage = document.getElementById('projectStage').value;
+                const section = document.getElementById('lostReasonSection');
+                const reasonSelect = document.getElementById('projectLostReason');
+                
+                if (stage === '失注') {
+                    section.style.display = 'block';
+                    if (reasonSelect) reasonSelect.required = true;
+                    
+                    // 失注時は自動的にステータスも失注に変更
+                    const statusSelect = document.getElementById('projectStatus');
+                    if (statusSelect) statusSelect.value = '失注';
+                } else {
+                    section.style.display = 'none';
+                    if (reasonSelect) {
+                        reasonSelect.required = false;
+                        reasonSelect.value = '';
+                    }
+                    const detailField = document.getElementById('projectLostReasonDetail');
+                    if (detailField) detailField.value = '';
+                }
+            }
+
+            /**
+             * 失注理由データを取得
+             */
+            getLostReasonData() {
+                const stage = document.getElementById('projectStage').value;
+                if (stage === '失注') {
+                    const category = document.getElementById('projectLostReason').value;
+                    const details = document.getElementById('projectLostReasonDetail').value;
+                    
+                    if (!category) {
+                        alert('失注理由を選択してください');
+                        throw new Error('失注理由が未選択');
+                    }
+                    
+                    return {
+                        category: category,
+                        details: details,
+                        recordedDate: new Date().toISOString().split('T')[0],
+                        recordedBy: CURRENT_USER.assignee
+                    };
+                }
+                return null;
+            }
+			
 			filterProjectsByProbability(probability) {
 				// 案件管理ページに遷移
 				this.showPage('projects');
@@ -3645,6 +3855,9 @@
 				document.getElementById('projectExpectedDate').value = '';
 				document.getElementById('projectStatus').value = '進行中';
 				document.getElementById('projectNotes').value = '';
+				document.getElementById('projectLostReason').value = '';
+				document.getElementById('projectLostReasonDetail').value = '';
+				this.toggleLostReasonSection();
 				document.getElementById('deleteProjectBtn').style.display = 'none';
 				
 				// 顧客選択肢の更新
@@ -3677,6 +3890,12 @@
 				document.getElementById('projectExpectedDate').value = p.expectedOrderDate || '';
 				document.getElementById('projectStatus').value = p.status;
 				document.getElementById('projectNotes').value = p.notes || '';
+				// 失注理由の設定
+				if (p.lostReason) {
+					document.getElementById('projectLostReason').value = p.lostReason.category || '';
+					document.getElementById('projectLostReasonDetail').value = p.lostReason.details || '';
+				}
+				this.toggleLostReasonSection();
 				document.getElementById('deleteProjectBtn').style.display = 'inline-block';
 				
 				// 顧客選択肢の更新
@@ -3713,6 +3932,9 @@
 					expectedOrderDate: document.getElementById('projectExpectedDate').value,
 					status: document.getElementById('projectStatus').value,
 					notes: document.getElementById('projectNotes').value,
+					
+					// 失注理由の保存
+					lostReason: this.getLostReasonData(),
 					lastActivityDate: new Date().toISOString().split('T')[0],
 					createdDate: id ? this.data.projects.find(p => p.id === id)?.createdDate : new Date().toISOString().split('T')[0],
 					documents: this.currentProjectFiles || []
