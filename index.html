@@ -3140,45 +3140,103 @@
 			 */
 			changeKpiYear() {
 				const yearSelect = document.getElementById('kpiYearSelect');
+				if (!yearSelect) return;
+				
 				const selectedYear = parseInt(yearSelect.value);
+				if (isNaN(selectedYear)) return;
+				
+				// データ構造の安全確認
+				if (!this.data.kpiSettings.yearlyData) {
+					this.data.kpiSettings.yearlyData = {};
+				}
+				
+				// 選択年度のデータが存在しない場合は初期化
+				if (!this.data.kpiSettings.yearlyData[selectedYear]) {
+					this.data.kpiSettings.yearlyData[selectedYear] = {
+						totalTarget: 300000000,
+						personalTargets: {},
+						personalItems: []
+					};
+				}
 				
 				this.data.kpiSettings.currentYear = selectedYear;
 				this.renderKPI();
 			}
 
 			/**
-			 * 新年度追加処理
+			 * 新年度追加処理（安全版）
 			 */
 			addNewKpiYear() {
-				const newYear = prompt('新しい営業年度を入力してください（例：2025）');
-				if (!newYear || isNaN(newYear)) return;
-				
-				const fiscalYear = parseInt(newYear);
-				
-				if (this.data.kpiSettings.yearlyData[fiscalYear]) {
-					alert('この年度は既に存在します');
-					return;
+				try {
+					const newYear = prompt('新しい営業年度を入力してください（例：2025）');
+					
+					// 入力チェック
+					if (!newYear) return;
+					if (isNaN(newYear)) {
+						alert('数値を入力してください');
+						return;
+					}
+					
+					const fiscalYear = parseInt(newYear);
+					
+					// 年度の妥当性チェック
+					if (fiscalYear < 2020 || fiscalYear > 2030) {
+						alert('2020年から2030年の間で入力してください');
+						return;
+					}
+					
+					// データ構造の安全確認
+					if (!this.data.kpiSettings) {
+						this.data.kpiSettings = { currentYear: fiscalYear, yearlyData: {} };
+					}
+					
+					if (!this.data.kpiSettings.yearlyData) {
+						this.data.kpiSettings.yearlyData = {};
+					}
+					
+					// 既存年度チェック
+					if (this.data.kpiSettings.yearlyData[fiscalYear]) {
+						alert(`${fiscalYear}年度は既に存在します`);
+						return;
+					}
+					
+					// 新年度の初期化
+					this.data.kpiSettings.yearlyData[fiscalYear] = {
+						totalTarget: 300000000,
+						personalTargets: {
+							'永森': 100000000, '箱崎': 100000000, '清水': 100000000,
+							'杉田': 100000000, '安里': 100000000, '鎌田': 100000000, '大山': 100000000
+						},
+						personalItems: []
+					};
+					
+					// 現在年度を新年度に設定
+					this.data.kpiSettings.currentYear = fiscalYear;
+					
+					// データ保存
+					this.saveData();
+					this.renderKPI();
+					
+					this.showToast(`${fiscalYear}年度のKPI設定を作成しました`, 'success');
+					
+				} catch (error) {
+					console.error('新年度追加エラー:', error);
+					alert('新年度の追加中にエラーが発生しました');
 				}
-				
-				// 新年度の初期化
-				this.data.kpiSettings.yearlyData[fiscalYear] = {
-					totalTarget: 300000000,
-					personalTargets: {},
-					personalItems: []
-				};
-				
-				this.data.kpiSettings.currentYear = fiscalYear;
-				this.saveData();
-				this.renderKPI();
-				this.showToast(`${fiscalYear}年度のKPI設定を作成しました`, 'success');
 			}
 
             saveKPITargets() {
 				const total = this.parseCurrency(document.getElementById('kpiTotalTarget').value);
 				const personal = this.parseCurrency(document.getElementById('kpiPersonalTarget').value);
+				
+				// データ構造の安全確認
+				if (!this.data.kpiSettings.yearlyData) {
+					this.data.kpiSettings.yearlyData = {};
+				}
+				
 				const currentYear = this.data.kpiSettings.currentYear;
 				
-				// 現在年度のデータを更新
+				// 現在年度のデータ初期化
 				if (!this.data.kpiSettings.yearlyData[currentYear]) {
 					this.data.kpiSettings.yearlyData[currentYear] = {
 						totalTarget: 0,
@@ -3187,6 +3245,7 @@
 					};
 				}
 				
+				// 目標値の保存
 				this.data.kpiSettings.yearlyData[currentYear].totalTarget = total;
 				this.data.kpiSettings.yearlyData[currentYear].personalTargets[CURRENT_USER.assignee] = personal;
 				
@@ -4317,26 +4376,75 @@
 
             loadData() {
 				const saved = JSON.parse(localStorage.getItem('salesData') || '{}');
+				
+				// 現在の営業年度を算出（6月開始）
+				const now = new Date();
+				const currentMonth = now.getMonth(); // 0-11
+				const currentFiscalYear = currentMonth >= 5 ? now.getFullYear() : now.getFullYear() - 1;
+				
+				// KPI設定の構造確認と自動移行
+				let kpiSettings = saved.kpiSettings || {};
+				
+				// 年度別構造への移行処理
+				if (!kpiSettings.yearlyData) {
+					console.log('🔄 KPI設定を年度別構造に移行中...');
+					
+					// 既存データを現在年度に移行
+					const legacyData = {
+						totalTarget: kpiSettings.totalTarget || 300000000,
+						personalTargets: kpiSettings.personalTargets || {
+							'永森': 100000000, '箱崎': 100000000, '清水': 100000000,
+							'杉田': 100000000, '安里': 100000000, '鎌田': 100000000, '大山': 100000000
+						},
+						personalItems: kpiSettings.personalItems || []
+					};
+					
+					// 新しい年度別構造を作成
+					kpiSettings = {
+						currentYear: currentFiscalYear,
+						yearlyData: {
+							[currentFiscalYear]: legacyData
+						}
+					};
+				}
+				
+				// 必須プロパティの確認と初期化
+				if (!kpiSettings.currentYear) {
+					kpiSettings.currentYear = currentFiscalYear;
+				}
+				
+				if (!kpiSettings.yearlyData) {
+					kpiSettings.yearlyData = {};
+				}
+				
+				// 現在年度のデータが存在しない場合の初期化
+				if (!kpiSettings.yearlyData[currentFiscalYear]) {
+					kpiSettings.yearlyData[currentFiscalYear] = {
+						totalTarget: 300000000,
+						personalTargets: {
+							'永森': 100000000, '箱崎': 100000000, '清水': 100000000,
+							'杉田': 100000000, '安里': 100000000, '鎌田': 100000000, '大山': 100000000
+						},
+						personalItems: []
+					};
+				}
+				
+				// データ構造の統合
 				this.data = {
 					customers: saved.customers || [],
 					schedules: saved.schedules || [],
 					activities: saved.activities || [],
-					projects: saved.projects || [],  // 新規追加
-					kpiSettings: saved.kpiSettings || {
-						totalTarget: 300000000,
-						personalTargets: {
-							'永森': 100000000,
-							'箱崎': 100000000,
-							'清水': 100000000,
-							'杉田': 100000000,
-							'安里': 100000000,
-							'鎌田': 100000000,
-							'大山': 100000000
-						},
-						personalItems: []
-					}
+					projects: saved.projects || [],
+					kpiSettings: kpiSettings
 				};
+				
+				console.log('✅ データ読み込み完了:', {
+					年度数: Object.keys(this.data.kpiSettings.yearlyData).length,
+					現在年度: this.data.kpiSettings.currentYear,
+					利用可能年度: Object.keys(this.data.kpiSettings.yearlyData).join(', ')
+				});
 			}
+
             // ========================================
             // Phase 1 & 2: 統合機能実装（修正版）
             // ========================================
