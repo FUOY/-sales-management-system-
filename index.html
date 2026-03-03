@@ -1453,6 +1453,7 @@
                         <button class="btn btn-primary" onclick="app.openActivityModal()"><i class="fas fa-plus"></i> 記録追加</button>
                     </div>
                 </div>
+				<div id="unlinkedActivityAlerts" style="margin-bottom: 1.5rem;"></div>
                 <div class="card table-container">
                     <table id="activitiesTable">
                         <thead>
@@ -2811,29 +2812,76 @@
 			}
 			
 			/**
-			 * 滞留活動の計算（案件未連携のみ対象）
+			 * 滞留活動の計算（未案件化活動を「顧客＋機種」単位でグループ化）
 			 */
 			calculateStaleActivities() {
 				const now = new Date();
-				return this.data.activities.filter(a => {
-					// 1. 案件連携済みの活動は除外（案件管理側で管理）
-					if (a.projectId) return false;
+				
+				// 1. 未案件化 & 非受注の活動のみを対象
+				const targetActivities = this.data.activities.filter(a => 
+					!a.projectId &&                     // 案件化されていない
+					a.stage !== '受注' &&              // 受注済みは除外
+					a.customer && a.product            // 顧客名・機種名が両方ある
+				);
+				
+				// 2. 顧客＋機種の組み合わせでグループ化
+				const groups = {};
+				targetActivities.forEach(activity => {
+					const key = `${activity.customer}__${activity.product}`;
 					
-					// 2. 受注済みは除外
-					if (a.stage === '受注') return false;
+					if (!groups[key]) {
+						groups[key] = {
+							customer: activity.customer,
+							product: activity.product,
+							lastDate: activity.date,
+							firstDate: activity.date,
+							activityCount: 0,
+							assignees: new Set(),
+							totalAmount: 0,
+							latestStage: activity.stage,
+							latestProbability: activity.probability
+						};
+					}
 					
-					// 3. stage_updated_at または created_at を基準日とする
-					const baseDate = a.stage_updated_at ? new Date(a.stage_updated_at) : 
-									 a.created_at ? new Date(a.created_at) : 
-									 new Date(a.date);
+					const group = groups[key];
+					group.activityCount++;
+					group.assignees.add(activity.assignee);
+					group.totalAmount += Number(activity.amount) || 0;
 					
-					const diffTime = now - baseDate;
-					const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+					// 最新の活動情報を更新
+					if (activity.date > group.lastDate) {
+						group.lastDate = activity.date;
+						group.latestStage = activity.stage;
+						group.latestProbability = activity.probability;
+					}
 					
-					return diffDays >= 30; // 30日以上滞留
+					// 最古の活動日を記録
+					if (activity.date < group.firstDate) {
+						group.firstDate = activity.date;
+					}
 				});
+				
+				// 3. 各グループの滞留日数を計算し、30日以上のものを抽出
+				const stagnantGroups = [];
+				Object.entries(groups).forEach(([key, group]) => {
+					const lastDate = new Date(group.lastDate);
+					const diffTime = now - lastDate;
+					const stagnantDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+					
+					if (stagnantDays >= 30) {
+						stagnantGroups.push({
+							...group,
+							stagnantDays: stagnantDays,
+							assigneeList: Array.from(group.assignees).join(', '),
+							groupKey: key
+						});
+					}
+				});
+				
+				// 滞留日数の長い順でソート
+				return stagnantGroups.sort((a, b) => b.stagnantDays - a.stagnantDays);
 			}
-			
+
 			/**
 			 * 週次リマインダーチェック（改良版）
 			 */
@@ -2887,6 +2935,165 @@
 					
 					localStorage.setItem('lastReminderCheck', todayStr);
 				}
+			}
+			
+			/**
+			 * 未案件化活動のアラート表示
+			 */
+			displayUnlinkedActivityAlerts() {
+				const stagnantGroups = this.calculateStaleActivities();
+				const alertContainer = document.getElementById('unlinkedActivityAlerts');
+				
+				if (!alertContainer) return;
+				
+				// アラートがない場合は非表示
+				if (stagnantGroups.length === 0) {
+					alertContainer.innerHTML = '';
+					return;
+				}
+				
+				const criticalCount = stagnantGroups.filter(g => g.stagnantDays >= 60).length;
+				const warningCount = stagnantGroups.length - criticalCount;
+				
+				let alertHtml = `
+					<div style="background: ${criticalCount > 0 ? 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)' : 'linear-gradient(135deg, #ff6b35 0%, #f7931e 100%)'}; color: white; padding: 1.2rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);">
+						<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+							<div style="display: flex; align-items: center; gap: 0.75rem;">
+								<i class="fas fa-exclamation-triangle" style="font-size: 1.5rem; animation: pulse 2s infinite;"></i>
+								<div>
+									<div style="font-weight: bold; font-size: 1.1rem;">
+										${stagnantGroups.length}件の未案件化商談が滞留中
+									</div>
+									<div style="font-size: 0.9rem; opacity: 0.9;">
+										${criticalCount > 0 ? `緊急${criticalCount}件` : ''}${warningCount > 0 ? ` 注意${warningCount}件` : ''} | 最長滞留: ${stagnantGroups[0].stagnantDays}日
+									</div>
+								</div>
+							</div>
+							<button class="btn btn-sm" 
+									style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);" 
+									onclick="document.getElementById('unlinkedDetailsList').style.display = document.getElementById('unlinkedDetailsList').style.display === 'none' ? 'block' : 'none'">
+								<i class="fas fa-list"></i> 詳細表示
+							</button>
+						</div>
+					</div>
+					
+					<!-- 詳細リスト（初期は非表示） -->
+					<div id="unlinkedDetailsList" class="card" style="display: none; border-left: 5px solid #ff6b35; margin-top: 1rem;">
+						<h3 style="margin-top: 0; color: #ff6b35;">
+							<i class="fas fa-layer-group"></i> 未案件化商談グループ詳細
+						</h3>
+				`;
+				
+				// グループ詳細リストの生成
+				stagnantGroups.slice(0, 10).forEach(group => {
+					const alertClass = group.stagnantDays >= 60 ? 'high-risk' : '';
+					const alertColor = group.stagnantDays >= 60 ? '#dc3545' : '#ffc107';
+					
+					alertHtml += `
+						<div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; margin-bottom: 0.5rem; background: ${group.stagnantDays >= 60 ? '#fff5f5' : '#fff8e1'}; border-left: 4px solid ${alertColor}; border-radius: 4px;">
+							<div style="flex: 1;">
+								<div style="font-weight: bold; margin-bottom: 0.5rem;">
+									${group.customer} - ${group.product}
+								</div>
+								<div style="font-size: 0.85rem; color: #666; display: flex; gap: 1rem; flex-wrap: wrap;">
+									<span><i class="fas fa-users"></i> ${group.assigneeList}</span>
+									<span><i class="fas fa-layer-group"></i> ${group.latestStage}</span>
+									<span><i class="fas fa-chart-line"></i> ${group.latestProbability || '-'}</span>
+									<span><i class="fas fa-yen-sign"></i> ¥${group.totalAmount.toLocaleString()}</span>
+									<span><i class="fas fa-calendar-alt"></i> ${group.firstDate} 〜 ${group.lastDate}</span>
+									<span style="color: ${alertColor}; font-weight: bold;">
+										<i class="fas fa-clock"></i> 滞留${group.stagnantDays}日
+									</span>
+									<span style="background: #e3f2fd; padding: 2px 6px; border-radius: 3px;">
+										<i class="fas fa-comment-dots"></i> ${group.activityCount}回の商談
+									</span>
+								</div>
+							</div>
+							<div style="display: flex; gap: 0.5rem;">
+								<button class="btn btn-sm btn-secondary" onclick="app.handleGlobalSearch('${group.customer}')" title="この顧客の活動を検索">
+									<i class="fas fa-search"></i> 確認
+								</button>
+							</div>
+						</div>
+					`;
+				});
+				
+				alertHtml += '</div>';
+				alertContainer.innerHTML = alertHtml;
+			}
+
+			/**
+			 * 未案件化グループから案件を自動作成
+			 */
+			createProjectFromUnlinkedGroup(groupKey) {
+				const stagnantGroups = this.calculateStaleActivities();
+				const group = stagnantGroups.find(g => g.groupKey === groupKey);
+				
+				if (!group) {
+					this.showToast('グループ情報が見つかりません', 'error');
+					return;
+				}
+				
+				// 確認ダイアログ
+				const confirmMsg = `以下の商談を案件化しますか？\n\n` +
+					`顧客: ${group.customer}\n` +
+					`機種: ${group.product}\n` +
+					`商談期間: ${group.firstDate} 〜 ${group.lastDate}\n` +
+					`活動回数: ${group.activityCount}回\n` +
+					`想定金額: ¥${group.totalAmount.toLocaleString()}\n` +
+					`担当者: ${group.assigneeList}`;
+				
+				if (!confirm(confirmMsg)) return;
+				
+				// 主担当者の決定（最も活動回数が多い担当者）
+				const assigneeCounts = {};
+				const relatedActivities = this.data.activities.filter(a => 
+					!a.projectId && 
+					a.customer === group.customer && 
+					a.product === group.product
+				);
+				
+				relatedActivities.forEach(a => {
+					assigneeCounts[a.assignee] = (assigneeCounts[a.assignee] || 0) + 1;
+				});
+				
+				const mainAssignee = Object.entries(assigneeCounts)
+					.sort(([,a], [,b]) => b - a)[0][0];
+				
+				// 案件作成
+				const projectNumber = this.generateProjectNumber();
+				const newProject = {
+					id: Date.now().toString(),
+					projectNumber: projectNumber,
+					projectName: `${group.customer} ${group.product}案件`,
+					customer: group.customer,
+					product: group.product,
+					assignee: mainAssignee,
+					stage: group.latestStage || 'ヒアリング',
+					probability: group.latestProbability || 'B',
+					estimatedAmount: group.totalAmount,
+					expectedOrderDate: '',
+					status: '進行中',
+					notes: `未案件化活動から自動作成\n活動期間: ${group.firstDate} 〜 ${group.lastDate}\n活動回数: ${group.activityCount}回`,
+					lastActivityDate: group.lastDate,
+					createdDate: new Date().toISOString().split('T')[0],
+					documents: []
+				};
+				
+				this.data.projects.push(newProject);
+				
+				// 関連する全活動に案件IDを紐付け
+				relatedActivities.forEach(activity => {
+					const activityIndex = this.data.activities.findIndex(a => a.id === activity.id);
+					if (activityIndex !== -1) {
+						this.data.activities[activityIndex].projectId = newProject.id;
+					}
+				});
+				
+				this.saveData();
+				this.renderActivities();
+				
+				this.showToast(`案件 ${projectNumber} を作成し、${relatedActivities.length}件の活動を紐付けました`, 'success');
 			}
 			
 			/**
@@ -3272,6 +3479,9 @@
 
 				// 1. 案件化済み活動の除外
 				list = list.filter(a => !a.projectId);
+				
+				// 未案件化活動の滞留アラート表示
+				this.displayUnlinkedActivityAlerts();
 
 				// 2. 個人/全体フィルタ
 				if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
@@ -3393,12 +3603,33 @@
 					`;
 				}).join('');
 				
-				// 5. 滞留活動（案件未連携）の警告トースト
-				const staleCount = this.calculateStaleActivities().length;
-				if (staleCount > 0) {
+				// 5. 未案件化グループの滞留警告
+				const stagnantGroups = this.calculateStaleActivities();
+				if (stagnantGroups.length > 0) {
+					const criticalGroups = stagnantGroups.filter(g => g.stagnantDays >= 60);
+					const maxDays = stagnantGroups[0].stagnantDays;
+					
+					let message = `⚠️ 未案件化商談：${stagnantGroups.length}グループが30日以上滞留中（最長${maxDays}日）`;
+					if (criticalGroups.length > 0) {
+						message = `🚨 緊急：${criticalGroups.length}件の商談が60日以上滞留中！案件化を検討してください`;
+					}
+					
 					setTimeout(() => {
-						this.showToast(`⚠️ 活動記録：${staleCount}件の未案件化活動が30日以上滞留中`, 'error');
+						this.showToast(message, criticalGroups.length > 0 ? 'error' : 'error');
 					}, 500);
+					
+					// デバッグ用：コンソールに詳細表示
+					if (stagnantGroups.length > 0) {
+						console.table(stagnantGroups.map(g => ({
+							顧客: g.customer,
+							機種: g.product,
+							最終活動日: g.lastDate,
+							滞留日数: g.stagnantDays,
+							活動回数: g.activityCount,
+							担当者: g.assigneeList,
+							想定金額: `¥${g.totalAmount.toLocaleString()}`
+						})));
+					}
 				}
 				
 				// 6. 顧客選択肢の更新
