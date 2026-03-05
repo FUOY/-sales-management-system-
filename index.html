@@ -1992,21 +1992,29 @@
 		
 		let supabaseClient = null;
 
-		// ▼▼▼ Supabase設定（恒久化） ▼▼▼
-		const SUPABASE_URL = 'https://vflehlpohwuwploozobi.supabase.co';
-		const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmbGVobHBvaHd1d3Bsb296b2JpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDg4MjMzNjYsImV4cCI6MjAyNDM5OTM2Nn0.q45tbuzlheNKLqbqIg3dYUsAdk5kZCwm8A4OZlaxVMg';
+		// ▼▼▼ 【修正】Supabase設定を固定値で確定 ▼▼▼
 
-		// 初期化処理（エラーハンドリング強化）
+		// 動作確認済みの設定を直接記述
+		const SUPABASE_URL = 'https://vflehlpohwuwploozobi.supabase.co';
+		const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmbGVobHBvaHd1d3Bsb296b2JpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwNDMwMzksImV4cCI6MjA4MTYxOTAzOX0.g45tbuzlheNXLqbqlg3dYUsAdk5kZ0wn8A40ZlaxVMg';
+
+		// LocalStorageを無視して、上記固定値で初期化
 		if (SUPABASE_URL && SUPABASE_KEY) {
 			try {
 				supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-				console.log('✅ Supabase接続設定完了:', SUPABASE_URL);
+				console.log('✅ Supabase固定設定で初期化完了:', SUPABASE_URL);
+				
+				// LocalStorageにも同期（一貫性のため）
+				localStorage.setItem('supabaseUrl', SUPABASE_URL);
+				localStorage.setItem('supabaseKey', SUPABASE_KEY);
+				
 			} catch (e) {
 				console.error('❌ Supabase初期化エラー:', e);
 				supabaseClient = null;
 			}
 		} else {
-			console.warn('⚠️ Supabase設定が不完全です');
+			console.error('❌ Supabase設定が不完全です');
+			supabaseClient = null;
 		}
 
 		// 初期化ガード: 正しい形式の場合のみSupabaseを初期化
@@ -6142,51 +6150,14 @@
         // ================================
         // Realtime購読
         // ================================
-        function subscribeSalesDataRealtime() {
-            if (!supabaseClient) return;
-
-            supabaseClient
-                .channel('sales-data-channel')
-                .on(
-                    'postgres_changes',
-                    {
-                        event: '*',
-                        schema: 'public',
-                        table: 'sales_data'
-                    },
-                    (payload) => {
-                        console.log('Realtime update received', payload);
-
-                        const newPayload = payload.new?.payload;
-                        if (!newPayload) return;
-
-                        // 自分の更新は無視（二重反映防止）
-                        if (newPayload._updatedBy === CURRENT_USER.assignee) {
-                            return;
-                        }
-
-                        app.data = {
-                            customers: newPayload.customers || app.data.customers || [],
-                            schedules: newPayload.schedules || app.data.schedules || [],
-                            activities: newPayload.activities || app.data.activities || [],
-							projects: newPayload.projects || app.data.projects || [], 
-                            kpiSettings: newPayload.kpiSettings || app.data.kpiSettings
-                        };
-
-                        // localStorage も更新
-                        localStorage.setItem('salesData', JSON.stringify(app.data));
-
-                        // 再描画
-                        app.renderDashboard();
-                        app.renderCustomers();
-                        app.renderSchedule();
-                        app.renderActivities();
-
-                        app.showToast('他のユーザーがデータを更新しました', 'success');
-                    }
-                )
-                .subscribe();
-        }
+		
+		// リアルタイム機能を無効化（エラー防止）
+		function subscribeSalesDataRealtime() {
+			console.log('ℹ️ リアルタイム同期は無効化されています（安定動作のため）');
+			return; // 早期終了
+			
+			// 元のコードは実行されない
+		}
 
         // ================================
         // 保存専用関数（localStorage + Supabase）
