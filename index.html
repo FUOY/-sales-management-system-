@@ -1992,9 +1992,22 @@
 		
 		let supabaseClient = null;
 
-		// LocalStorageから設定を取得（デフォルト値なしで安全に）
-		const SUPABASE_URL = localStorage.getItem('supabaseUrl') || '';
-		const SUPABASE_KEY = localStorage.getItem('supabaseKey') || '';
+		// ▼▼▼ Supabase設定（恒久化） ▼▼▼
+		const SUPABASE_URL = 'https://vflehlpohwuwploozobi.supabase.co';
+		const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmbGVobHBvaHd1d3Bsb296b2JpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDg4MjMzNjYsImV4cCI6MjAyNDM5OTM2Nn0.q45tbuzlheNKLqbqIg3dYUsAdk5kZCwm8A4OZlaxVMg';
+
+		// 初期化処理（エラーハンドリング強化）
+		if (SUPABASE_URL && SUPABASE_KEY) {
+			try {
+				supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+				console.log('✅ Supabase接続設定完了:', SUPABASE_URL);
+			} catch (e) {
+				console.error('❌ Supabase初期化エラー:', e);
+				supabaseClient = null;
+			}
+		} else {
+			console.warn('⚠️ Supabase設定が不完全です');
+		}
 
 		// 初期化ガード: 正しい形式の場合のみSupabaseを初期化
 		if (SUPABASE_URL && SUPABASE_KEY && 
@@ -5122,75 +5135,167 @@
 				saveSalesData(this.data);
 			}
 
-            loadData() {
-				const saved = JSON.parse(localStorage.getItem('salesData') || '{}');
-				
-				// 現在の営業年度を算出（6月開始）
-				const now = new Date();
-				const currentMonth = now.getMonth(); // 0-11
-				const currentFiscalYear = currentMonth >= 5 ? now.getFullYear() : now.getFullYear() - 1;
-				
-				// KPI設定の構造確認と自動移行
-				let kpiSettings = saved.kpiSettings || {};
-				
-				// 年度別構造への移行処理
-				if (!kpiSettings.yearlyData) {
-					console.log('🔄 KPI設定を年度別構造に移行中...');
+			async loadData() {
+				try {
+					console.log('📊 データ読み込み開始...');
 					
-					// 既存データを現在年度に移行
-					const legacyData = {
-						totalTarget: kpiSettings.totalTarget || 300000000,
-						personalTargets: kpiSettings.personalTargets || {
-							'永森': 100000000, '箱崎': 100000000, '清水': 100000000,
-							'杉田': 100000000, '安里': 100000000, '鎌田': 100000000, '大山': 100000000
-						},
-						personalItems: kpiSettings.personalItems || []
+					// 1. LocalStorageから即座に読み込み（オフライン対応）
+					const localData = JSON.parse(localStorage.getItem('salesData') || '{}');
+					
+					// 現在の営業年度を算出
+					const now = new Date();
+					const currentMonth = now.getMonth();
+					const currentFiscalYear = currentMonth >= 5 ? now.getFullYear() : now.getFullYear() - 1;
+					
+					// KPI設定の構造確認と自動移行
+					let kpiSettings = localData.kpiSettings || {};
+					
+					if (!kpiSettings.yearlyData) {
+						console.log('🔄 KPI設定を年度別構造に移行中...');
+						const legacyData = {
+							totalTarget: kpiSettings.totalTarget || 300000000,
+							personalTargets: kpiSettings.personalTargets || {
+								'永森': 100000000, '箱崎': 100000000, '清水': 100000000,
+								'杉田': 100000000, '安里': 100000000, '鎌田': 100000000, '大山': 100000000
+							},
+							personalItems: kpiSettings.personalItems || []
+						};
+						
+						kpiSettings = {
+							currentYear: currentFiscalYear,
+							yearlyData: { [currentFiscalYear]: legacyData }
+						};
+					}
+					
+					// 必須プロパティの確保
+					if (!kpiSettings.currentYear) kpiSettings.currentYear = currentFiscalYear;
+					if (!kpiSettings.yearlyData) kpiSettings.yearlyData = {};
+					if (!kpiSettings.yearlyData[currentFiscalYear]) {
+						kpiSettings.yearlyData[currentFiscalYear] = {
+							totalTarget: 300000000,
+							personalTargets: {
+								'永森': 100000000, '箱崎': 100000000, '清水': 100000000,
+								'杉田': 100000000, '安里': 100000000, '鎌田': 100000000, '大山': 100000000
+							},
+							personalItems: []
+						};
+					}
+					
+					// データ構造の統合
+					this.data = {
+						customers: localData.customers || [],
+						schedules: localData.schedules || [],
+						activities: localData.activities || [],
+						projects: localData.projects || [],
+						kpiSettings: kpiSettings
 					};
 					
-					// 新しい年度別構造を作成
-					kpiSettings = {
-						currentYear: currentFiscalYear,
-						yearlyData: {
-							[currentFiscalYear]: legacyData
+					console.log('✅ LocalStorageデータ読み込み完了:', {
+						顧客数: this.data.customers.length,
+						活動数: this.data.activities.length,
+						案件数: this.data.projects.length,
+						年度数: Object.keys(this.data.kpiSettings.yearlyData).length
+					});
+					
+					// 2. Supabase接続確認と非同期同期
+					if (supabaseClient) {
+						console.log('🔗 Supabaseとの同期を開始...');
+						setTimeout(() => this.syncFromSupabase(), 1000);
+					} else {
+						console.warn('⚠️ Supabase未設定 - LocalStorageモードで動作');
+						this.showToast('オフラインモードで動作中（データの同期はされません）', 'error');
+					}
+					
+				} catch (error) {
+					console.error('❌ データ読み込みエラー:', error);
+					
+					// エラー時は最小限のデータで初期化
+					this.data = {
+						customers: [],
+						schedules: [],
+						activities: [],
+						projects: [],
+						kpiSettings: {
+							currentYear: new Date().getFullYear(),
+							yearlyData: {}
 						}
 					};
+					
+					this.showToast('データ読み込みエラー。ページをリロードしてください。', 'error');
 				}
-				
-				// 必須プロパティの確認と初期化
-				if (!kpiSettings.currentYear) {
-					kpiSettings.currentYear = currentFiscalYear;
-				}
-				
-				if (!kpiSettings.yearlyData) {
-					kpiSettings.yearlyData = {};
-				}
-				
-				// 現在年度のデータが存在しない場合の初期化
-				if (!kpiSettings.yearlyData[currentFiscalYear]) {
-					kpiSettings.yearlyData[currentFiscalYear] = {
-						totalTarget: 300000000,
-						personalTargets: {
-							'永森': 100000000, '箱崎': 100000000, '清水': 100000000,
-							'杉田': 100000000, '安里': 100000000, '鎌田': 100000000, '大山': 100000000
-						},
-						personalItems: []
+			}
+
+			/**
+			 * Supabaseからの非同期データ同期（エラー処理強化版）
+			 */
+			async syncFromSupabase() {
+				try {
+					const { data, error } = await supabaseClient
+						.from('sales_data')
+						.select('payload')
+						.eq('id', 'shared')
+						.single();
+					
+					if (error) {
+						console.warn('⚠️ Supabase同期失敗（LocalStorageで継続）:', error.message);
+						this.showToast('サーバーとの同期に失敗しましたが、ローカルデータで動作します', 'error');
+						return;
+					}
+					
+					if (!data?.payload) {
+						console.warn('⚠️ Supabaseにデータが見つかりません');
+						return;
+					}
+					
+					const payload = data.payload;
+					const core = payload.data || payload;
+					
+					// 自分の更新は無視（無限ループ防止）
+					if (payload._updatedBy === CURRENT_USER.assignee) {
+						console.log('ℹ️ 自分の更新のため同期スキップ');
+						return;
+					}
+					
+					// Supabaseデータで更新
+					const supabaseData = {
+						customers: core.customers || [],
+						schedules: core.schedules || [],
+						activities: core.activities || [],
+						projects: core.projects || [],
+						kpiSettings: core.kpiSettings || this.data.kpiSettings
 					};
+					
+					// データ変更の検出
+					const hasChanges = 
+						supabaseData.customers.length !== this.data.customers.length ||
+						supabaseData.activities.length !== this.data.activities.length ||
+						supabaseData.projects.length !== this.data.projects.length;
+					
+					if (hasChanges) {
+						this.data = supabaseData;
+						localStorage.setItem('salesData', JSON.stringify(this.data));
+						
+						// 現在のページを再描画
+						const activePage = document.querySelector('.page-section.active')?.id;
+						if (activePage === 'dashboardPage') this.renderDashboard();
+						if (activePage === 'customersPage') this.renderCustomers();
+						if (activePage === 'projectsPage') this.renderProjects();
+						if (activePage === 'activitiesPage') this.renderActivities();
+						if (activePage === 'schedulePage') this.renderSchedule();
+						
+						this.showToast('他のユーザーの更新を反映しました', 'success');
+					}
+					
+					console.log('✅ Supabase同期完了:', {
+						顧客数: supabaseData.customers.length,
+						活動数: supabaseData.activities.length,
+						案件数: supabaseData.projects.length
+					});
+					
+				} catch (error) {
+					console.error('❌ Supabase同期エラー:', error);
+					this.showToast('サーバー同期でエラーが発生しました', 'error');
 				}
-				
-				// データ構造の統合
-				this.data = {
-					customers: saved.customers || [],
-					schedules: saved.schedules || [],
-					activities: saved.activities || [],
-					projects: saved.projects || [],
-					kpiSettings: kpiSettings
-				};
-				
-				console.log('✅ データ読み込み完了:', {
-					年度数: Object.keys(this.data.kpiSettings.yearlyData).length,
-					現在年度: this.data.kpiSettings.currentYear,
-					利用可能年度: Object.keys(this.data.kpiSettings.yearlyData).join(', ')
-				});
 			}
 
             // ========================================
