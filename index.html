@@ -2592,14 +2592,16 @@
 				const currentYear = now.getFullYear();
 				const currentFiscalYear = currentMonth >= 5 ? currentYear : currentYear - 1;
 
-				// ▼▼▼ 【修正版】高精度タイムライン集計ロジック ▼▼▼
+				// ▼▼▼ 【最終修正版】予定月ベース・ステータス色分けタイムライン集計 ▼▼▼
 
-				// 全活動データを年度別に分類・集計
+				// 年度別データの初期化
 				const yearlyData = {};
 
-				/**
-				 * 営業年度と月インデックスを算出するヘルパー関数
-				 */
+				// フィルタ状態の取得
+				const filter = document.getElementById('dashboardFilter')?.value || 'all';
+				const isPersonalMode = filter === 'personal' && CURRENT_USER.role !== 'admin';
+
+				// ヘルパー関数：営業年度と月インデックスの算出
 				function getFiscalYearAndMonthIndex(dateObj) {
 					const year = dateObj.getFullYear();
 					const month = dateObj.getMonth(); // 0-11
@@ -2608,81 +2610,113 @@
 					return { fiscalYear, monthIndex };
 				}
 
-				/**
-				 * 受注確定判定（複数条件を総合評価）
-				 */
-				function isOrderConfirmed(activity) {
-					// 1. 活動レベルの判定
-					if (activity.stage === '受注' || activity.probability === '受注済') {
-						return true;
-					}
-					
-					// 2. 関連案件の状態確認
-					if (activity.projectId) {
-						const relatedProject = app.data.projects.find(p => p.id === activity.projectId);
-						if (relatedProject) {
-							return relatedProject.stage === '受注' || 
-								   relatedProject.probability === '受注済' || 
-								   relatedProject.status === '完了';
-						}
-					}
-					
-					// 3. 顧客名+機種名での案件検索（未連携活動対応）
-					if (!activity.projectId && activity.customer && activity.product) {
-						const matchingProject = app.data.projects.find(p => 
-							p.customer === activity.customer && 
-							p.product === activity.product &&
-							(p.stage === '受注' || p.probability === '受注済' || p.status === '完了')
-						);
-						if (matchingProject) {
-							return true;
-						}
-					}
-					
-					return false;
-				}
+				// 【ステップ1】案件データの集計（重複排除）
+				const processedProjects = new Set();
+				const targetProjects = isPersonalMode 
+					? this.data.projects.filter(p => p.assignee === CURRENT_USER.assignee)
+					: this.data.projects;
 
-				// メイン集計処理
-				acts.forEach(activity => {
-					const amount = Number(activity.amount) || 0;
-					if (!amount) return; // 金額がない活動はスキップ
+				console.log('📊 集計対象案件数:', targetProjects.length);
+
+				targetProjects.forEach(project => {
+					const amount = Number(project.estimatedAmount) || 0;
+					if (!amount) return;
 					
-					const isConfirmed = isOrderConfirmed(activity);
-					let targetDate;
+					// 受注確定判定
+					const isConfirmed = 
+						project.stage === '受注' || 
+						project.probability === '受注済' || 
+						project.status === '完了';
 					
-					// 受注確定済みの場合：実際の活動日を使用
-					if (isConfirmed) {
-						if (!activity.date) return; // 活動日がない場合はスキップ
-						targetDate = new Date(activity.date);
-					} else {
-						// 未確定の場合：受注予定日を使用
-						if (!activity.expected_date) return; // 予定日がない場合はスキップ
-						targetDate = new Date(activity.expected_date);
+					// ★重要：月の判定は常に「受注予定日」を使用
+					let targetDateStr = project.expectedOrderDate;
+					
+					// 受注予定日がない場合のフォールバック
+					if (!targetDateStr) {
+						targetDateStr = project.lastActivityDate || project.createdDate;
 					}
 					
-					// 日付の妥当性チェック
-					if (isNaN(targetDate.getTime())) {
-						console.warn('Invalid date found:', activity);
+					if (!targetDateStr) {
+						console.warn('⚠️ 日付なし案件:', project.projectName);
 						return;
 					}
 					
-					const { fiscalYear, monthIndex } = getFiscalYearAndMonthIndex(targetDate);
+					const dateObj = new Date(targetDateStr);
+					if (isNaN(dateObj.getTime())) {
+						console.warn('⚠️ 無効な日付:', targetDateStr, project.projectName);
+						return;
+					}
 					
-					// 年度別データの初期化
+					const { fiscalYear, monthIndex } = getFiscalYearAndMonthIndex(dateObj);
+					
+					// 年度データの初期化
 					if (!yearlyData[fiscalYear]) {
 						yearlyData[fiscalYear] = {
-							ordered: new Array(12).fill(0),      // 受注確定
-							expected: new Array(12).fill(0)      // 受注想定
+							ordered: new Array(12).fill(0),
+							expected: new Array(12).fill(0)
 						};
 					}
 					
 					// 適切なカテゴリに集計
 					if (isConfirmed) {
 						yearlyData[fiscalYear].ordered[monthIndex] += amount;
+						console.log(`✅ 受注済集計: ${project.projectName} - ${targetDateStr} - ¥${amount.toLocaleString()}`);
+					} else {
+						yearlyData[fiscalYear].expected[monthIndex] += amount;
+						console.log(`📋 想定集計: ${project.projectName} - ${targetDateStr} - ¥${amount.toLocaleString()}`);
+					}
+					
+					// 処理済みとしてマーク
+					processedProjects.add(project.id);
+				});
+
+				// 【ステップ2】未案件化活動の補完集計
+				const targetActivities = isPersonalMode
+					? acts.filter(a => a.assignee === CURRENT_USER.assignee)
+					: acts;
+
+				targetActivities.forEach(activity => {
+					// 案件に紐付いている活動はスキップ（重複防止）
+					if (activity.projectId && processedProjects.has(activity.projectId)) {
+						return;
+					}
+					
+					const amount = Number(activity.amount) || 0;
+					if (!amount) return;
+					
+					// 受注確定判定
+					const isConfirmed = 
+						activity.stage === '受注' || 
+						activity.probability === '受注済';
+					
+					// 月の判定は受注予定日を使用
+					const targetDateStr = activity.expected_date;
+					
+					if (!targetDateStr) return;
+					
+					const dateObj = new Date(targetDateStr);
+					if (isNaN(dateObj.getTime())) return;
+					
+					const { fiscalYear, monthIndex } = getFiscalYearAndMonthIndex(dateObj);
+					
+					// 年度データの初期化
+					if (!yearlyData[fiscalYear]) {
+						yearlyData[fiscalYear] = {
+							ordered: new Array(12).fill(0),
+							expected: new Array(12).fill(0)
+						};
+					}
+					
+					// 適切なカテゴリに集計
+					if (isConfirmed) {
+						yearlyData[fiscalYear].ordered[monthIndex] += amount;
+						console.log(`✅ 未案件化受注集計: ${activity.customer} - ${targetDateStr} - ¥${amount.toLocaleString()}`);
 					} else {
 						yearlyData[fiscalYear].expected[monthIndex] += amount;
 					}
 				});
+
+				console.log('📊 予定月ベースタイムライン集計完了:', yearlyData);
 
 				// ▲▲▲ 修正ここまで ▲▲▲
 
