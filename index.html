@@ -2592,37 +2592,99 @@
 				const currentYear = now.getFullYear();
 				const currentFiscalYear = currentMonth >= 5 ? currentYear : currentYear - 1;
 
+				// ▼▼▼ 【修正版】高精度タイムライン集計ロジック ▼▼▼
+
 				// 全活動データを年度別に分類・集計
 				const yearlyData = {};
 
-				acts.forEach(a => {
-					if (a.expected_date) {
-						const d = new Date(a.expected_date);
-						const year = d.getFullYear();
-						const m = d.getMonth(); // 0-11
-						
-						// 営業年度判定: 6月以降は当年、5月以前は前年度
-						const fiscalYear = m >= 5 ? year : year - 1;
-						
-						// 年度別データ初期化
-						if (!yearlyData[fiscalYear]) {
-							yearlyData[fiscalYear] = {
-								ordered: new Array(12).fill(0),    // 受注済
-								expected: new Array(12).fill(0)    // 受注想定
-							};
-						}
+				/**
+				 * 営業年度と月インデックスを算出するヘルパー関数
+				 */
+				function getFiscalYearAndMonthIndex(dateObj) {
+					const year = dateObj.getFullYear();
+					const month = dateObj.getMonth(); // 0-11
+					const fiscalYear = month >= 5 ? year : year - 1;        // 6月開始
+					const monthIndex = (month - 5 + 12) % 12;               // 6月→0, 7月→1, ..., 5月→11
+					return { fiscalYear, monthIndex };
+				}
 
-						// 月インデックス変換: 6月(5)→0, 7月(6)→1, ... 5月(4)→11
-						const monthIndex = (m - 5 + 12) % 12;
-						const amount = Number(a.amount) || 0;
-
-						if (a.stage === '受注') {
-							yearlyData[fiscalYear].ordered[monthIndex] += amount;
-						} else {
-							yearlyData[fiscalYear].expected[monthIndex] += amount;
+				/**
+				 * 受注確定判定（複数条件を総合評価）
+				 */
+				function isOrderConfirmed(activity) {
+					// 1. 活動レベルの判定
+					if (activity.stage === '受注' || activity.probability === '受注済') {
+						return true;
+					}
+					
+					// 2. 関連案件の状態確認
+					if (activity.projectId) {
+						const relatedProject = app.data.projects.find(p => p.id === activity.projectId);
+						if (relatedProject) {
+							return relatedProject.stage === '受注' || 
+								   relatedProject.probability === '受注済' || 
+								   relatedProject.status === '完了';
 						}
 					}
+					
+					// 3. 顧客名+機種名での案件検索（未連携活動対応）
+					if (!activity.projectId && activity.customer && activity.product) {
+						const matchingProject = app.data.projects.find(p => 
+							p.customer === activity.customer && 
+							p.product === activity.product &&
+							(p.stage === '受注' || p.probability === '受注済' || p.status === '完了')
+						);
+						if (matchingProject) {
+							return true;
+						}
+					}
+					
+					return false;
+				}
+
+				// メイン集計処理
+				acts.forEach(activity => {
+					const amount = Number(activity.amount) || 0;
+					if (!amount) return; // 金額がない活動はスキップ
+					
+					const isConfirmed = isOrderConfirmed(activity);
+					let targetDate;
+					
+					// 受注確定済みの場合：実際の活動日を使用
+					if (isConfirmed) {
+						if (!activity.date) return; // 活動日がない場合はスキップ
+						targetDate = new Date(activity.date);
+					} else {
+						// 未確定の場合：受注予定日を使用
+						if (!activity.expected_date) return; // 予定日がない場合はスキップ
+						targetDate = new Date(activity.expected_date);
+					}
+					
+					// 日付の妥当性チェック
+					if (isNaN(targetDate.getTime())) {
+						console.warn('Invalid date found:', activity);
+						return;
+					}
+					
+					const { fiscalYear, monthIndex } = getFiscalYearAndMonthIndex(targetDate);
+					
+					// 年度別データの初期化
+					if (!yearlyData[fiscalYear]) {
+						yearlyData[fiscalYear] = {
+							ordered: new Array(12).fill(0),      // 受注確定
+							expected: new Array(12).fill(0)      // 受注想定
+						};
+					}
+					
+					// 適切なカテゴリに集計
+					if (isConfirmed) {
+						yearlyData[fiscalYear].ordered[monthIndex] += amount;
+					} else {
+						yearlyData[fiscalYear].expected[monthIndex] += amount;
+					}
 				});
+
+				// ▲▲▲ 修正ここまで ▲▲▲
 
 				// 年度選択ドロップダウンの更新
 				const yearSelect = document.getElementById('timelineYearSelect');
@@ -2718,47 +2780,47 @@
 					data: {
 						labels: months,
 						datasets: [
-							// 累積受注済（赤い折れ線）
+							// 累積受注済（濃い青の折れ線）
 							{
-								label: `${selectedYear}年度 累積受注済`,
+								label: `${selectedYear}年度 累積受注済 📈`,
 								data: cumulativeOrdered,
-								borderColor: '#FF6384',
-								backgroundColor: 'rgba(255, 99, 132, 0.1)',
+								borderColor: '#1565C0',
+								backgroundColor: 'rgba(21, 101, 192, 0.1)',
 								type: 'line',
 								fill: true,
 								tension: 0.1,
 								borderWidth: 3,
-								pointRadius: 5,
-								pointBackgroundColor: '#FF6384',
+								pointRadius: 6,
+								pointBackgroundColor: '#1565C0',
 								pointBorderColor: '#ffffff',
 								pointBorderWidth: 2,
 								order: 1
 							},
 							// 月次受注済（青い棒グラフ）
 							{
-								label: `${selectedYear}年度 月次受注済`,
+								label: `${selectedYear}年度 月次受注済 ✅`,
 								data: selectedData.ordered,
-								backgroundColor: 'rgba(54, 162, 235, 0.8)',
-								borderColor: 'rgba(54, 162, 235, 1)',
-								borderWidth: 1,
+								backgroundColor: 'rgba(33, 150, 243, 0.85)',
+								borderColor: 'rgba(33, 150, 243, 1)',
+								borderWidth: 2,
 								stack: 'monthly',
 								order: 3
 							},
-							// 月次受注想定（黄色い棒グラフ）
+							// 月次受注想定（オレンジの棒グラフ）
 							{
-								label: `${selectedYear}年度 月次受注想定`,
+								label: `${selectedYear}年度 月次受注想定 ⏳`,
 								data: selectedData.expected,
-								backgroundColor: 'rgba(255, 206, 86, 0.8)',
-								borderColor: 'rgba(255, 206, 86, 1)',
-								borderWidth: 1,
+								backgroundColor: 'rgba(255, 152, 0, 0.85)',
+								borderColor: 'rgba(255, 152, 0, 1)',
+								borderWidth: 2,
 								stack: 'monthly',
 								order: 3
 							},
 							// KPI目標ライン（緑の点線）
 							{
-								label: 'KPI目標',
+								label: 'KPI目標 🎯',
 								data: Array(12).fill(selectedYearTarget),
-								borderColor: '#4BC0C0',
+								borderColor: '#4CAF50',
 								borderDash: [8, 4],
 								borderWidth: 2,
 								pointRadius: 0,
