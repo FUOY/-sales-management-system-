@@ -1600,6 +1600,14 @@
 				</div>
 
 				<div id="projectTableView" class="card">
+					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+						<h3 style="margin: 0; color: var(--primary);">
+							<i class="fas fa-tasks"></i> 進行中案件（滞留管理対象）
+						</h3>
+						<div style="font-size: 0.9rem; color: #666;" id="activeProjectsSummary">
+							<!-- JavaScript で件数を表示 -->
+						</div>
+					</div>
 					<div style="margin-bottom: 1rem; font-size: 0.9rem;">
 						<span style="display:inline-block; width:15px; height:15px; background:#fff3cd; border:1px solid #ffc107; vertical-align:middle;"></span> 30日以上滞留
 						<span style="display:inline-block; width:15px; height:15px; background:#f8d7da; border:1px solid #dc3545; vertical-align:middle; margin-left:10px;"></span> 60日以上滞留
@@ -1621,6 +1629,37 @@
 									<th onclick="app.sortProjects('stagnantDays')">滞留日数 <i class="fas fa-sort" id="sortIconProjectStagnantDays"></i></th>
 									<th>ステータス</th>
 									<th>ドキュメント</th>
+									<th>操作</th>
+								</tr>
+							</thead>
+							<tbody></tbody>
+						</table>
+					</div>
+				</div>
+				<!-- ★★★ 受注済案件用テーブル（ここから追加） ★★★ -->
+				<div id="completedProjectsView" class="card" style="margin-top: 2rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+						<h3 style="margin: 0; color: #28a745;">
+							<i class="fas fa-check-circle"></i> 受注済・完了案件（アーカイブ）
+						</h3>
+						<div style="font-size: 0.9rem; color: #666;">
+							<i class="fas fa-info-circle"></i> 進捗管理対象外
+						</div>
+					</div>
+					
+					<div class="table-container">
+						<table id="completedProjectsTable">
+							<thead>
+								<tr style="background: #e8f5e8;">
+									<th>案件番号</th>
+									<th>案件名</th>
+									<th>得意先</th>
+									<th>機種名</th>
+									<th>担当</th>
+									<th>最終ステージ</th>
+									<th>受注金額</th>
+									<th>完了日</th>
+									<th>ステータス</th>
 									<th>操作</th>
 								</tr>
 							</thead>
@@ -3782,13 +3821,45 @@
 
             // --- KPI Settings ---
 			renderKPI() {
-				const currentYear = this.data.kpiSettings.currentYear;
-				const yearlyData = this.data.kpiSettings.yearlyData || {};
+				console.log('🔧 renderKPI() 開始');
+				
+				// データ構造の安全確認
+				if (!this.data.kpiSettings) {
+					this.data.kpiSettings = {
+						currentYear: new Date().getFullYear(),
+						yearlyData: {}
+					};
+				}
+				
+				const kpiSettings = this.data.kpiSettings;
+				const currentYear = kpiSettings.currentYear;
+				const yearlyData = kpiSettings.yearlyData || {};
+				
+				// 現在年度データの確保
+				if (!yearlyData[currentYear]) {
+					yearlyData[currentYear] = {
+						totalTarget: 300000000,
+						personalTargets: {},
+						personalItems: []
+					};
+					kpiSettings.yearlyData = yearlyData;
+				}
+				
+				const yearData = yearlyData[currentYear];
 				
 				// 年度選択ドロップダウンの生成
 				const yearSelect = document.getElementById('kpiYearSelect');
 				if (yearSelect) {
-					const availableYears = Object.keys(yearlyData).map(y => parseInt(y)).sort().reverse();
+					const availableYears = Object.keys(yearlyData)
+						.map(y => parseInt(y))
+						.sort()
+						.reverse();
+					
+					// 現在年度が含まれていない場合は追加
+					if (!availableYears.includes(currentYear)) {
+						availableYears.unshift(currentYear);
+					}
+					
 					yearSelect.innerHTML = availableYears.map(year => 
 						`<option value="${year}" ${year === currentYear ? 'selected' : ''}>
 							${year}年度 (${year}年6月-${year + 1}年5月)
@@ -3796,45 +3867,69 @@
 					).join('');
 				}
 				
-				// 選択年度のデータを取得
-				const yearData = yearlyData[currentYear] || {
-					totalTarget: 0,
-					personalTargets: {},
-					personalItems: []
-				};
-				
+				// 売上目標の表示
 				const totalTarget = yearData.totalTarget || 0;
-				const personalTarget = yearData.personalTargets[CURRENT_USER.assignee] || 0;
+				const personalTarget = (yearData.personalTargets || {})[CURRENT_USER.assignee] || 0;
 				
 				document.getElementById('kpiTotalTarget').value = totalTarget.toLocaleString();
 				document.getElementById('kpiPersonalTarget').value = personalTarget.toLocaleString();
 				
+				// ★個人別KPI項目の表示（年度別データから取得）
+				if (!Array.isArray(yearData.personalItems)) {
+					yearData.personalItems = [];
+				}
+				
 				const userItems = yearData.personalItems.filter(i => i.userId === CURRENT_USER.assignee);
 				
-				document.querySelector('#personalKPITable tbody').innerHTML = userItems.map(i => `
-					<tr>
-						<td>${i.targetItem}</td>
-						<td>${i.goalValue}</td>
-						<td>${i.deadline || '-'}</td>
-						<td>${i.currentStatus || '-'}</td>
-						<td>
-							<div class="btn-group">
-								<button class="btn btn-secondary btn-sm" onclick="app.editKPIItem('${i.id}')">編集</button>
-								<button class="btn btn-danger btn-sm" onclick="app.deleteKPIItem('${i.id}')">削除</button>
-							</div>
-						</td>
-					</tr>`).join('');
+				console.log('📝 表示するKPI項目数:', userItems.length);
+				
+				const tbody = document.querySelector('#personalKPITable tbody');
+				if (tbody) {
+					if (userItems.length === 0) {
+						tbody.innerHTML = `
+							<tr>
+								<td colspan="5" style="text-align: center; padding: 2rem; color: #999; font-style: italic;">
+									<i class="fas fa-inbox" style="font-size: 2rem; display: block; margin-bottom: 1rem;"></i>
+									まだKPI項目が登録されていません<br>
+									<small>「項目追加」ボタンから目標を設定してください</small>
+								</td>
+							</tr>
+						`;
+					} else {
+						tbody.innerHTML = userItems.map(i => `
+							<tr>
+								<td>${i.targetItem}</td>
+								<td>${i.goalValue}</td>
+								<td>${i.deadline || '-'}</td>
+								<td>${i.currentStatus || '-'}</td>
+								<td>
+									<div class="btn-group">
+										<button class="btn btn-secondary btn-sm" onclick="app.editKPIItem('${i.id}')">編集</button>
+										<button class="btn btn-danger btn-sm" onclick="app.deleteKPIItem('${i.id}')">削除</button>
+									</div>
+								</td>
+							</tr>
+						`).join('');
+					}
+				}
 				
 				// 管理者専用ビューの表示
 				const adminView = document.getElementById('adminKpiView');
-				if (CURRENT_USER.role === 'admin') {
-					adminView.style.display = 'block';
-					const filterSelect = document.getElementById('adminKpiStaffFilter');
-					filterSelect.innerHTML = '<option value="all">全員</option>' + STAFFS.map(s => `<option value="${s}">${s}</option>`).join('');
-					this.renderAdminKpiView();
-				} else {
-					adminView.style.display = 'none';
+				if (adminView) {
+					if (CURRENT_USER.role === 'admin') {
+						adminView.style.display = 'block';
+						const filterSelect = document.getElementById('adminKpiStaffFilter');
+						if (filterSelect) {
+							filterSelect.innerHTML = '<option value="all">全員</option>' + 
+								STAFFS.map(s => `<option value="${s}">${s}</option>`).join('');
+						}
+						this.renderAdminKpiView();
+					} else {
+						adminView.style.display = 'none';
+					}
 				}
+				
+				console.log('✅ renderKPI() 完了');
 			}
 			
 			/**
@@ -4343,37 +4438,98 @@
                 this.openModal('kpiItemModal');
             }
 
-            saveKPIItem(e) {
-                e.preventDefault();
-                const id = document.getElementById('kpiItemId').value;
-                const data = {
-                    targetItem: document.getElementById('kpiTargetItem').value,
-                    goalValue: document.getElementById('kpiGoalValue').value,
-                    deadline: document.getElementById('kpiDeadline').value,
-                    currentStatus: document.getElementById('kpiCurrentStatus').value,
-                    userId: CURRENT_USER.assignee
-                };
+			saveKPIItem(e) {
+				e.preventDefault();
+				
+				console.log('💾 KPI項目保存開始');
+				
+				const id = document.getElementById('kpiItemId').value;
+				const data = {
+					targetItem: document.getElementById('kpiTargetItem').value,
+					goalValue: document.getElementById('kpiGoalValue').value,
+					deadline: document.getElementById('kpiDeadline').value,
+					currentStatus: document.getElementById('kpiCurrentStatus').value,
+					userId: CURRENT_USER.assignee
+				};
+				
+				// データ構造の安全確認
+				const kpiSettings = this.data.kpiSettings;
+				const currentYear = kpiSettings.currentYear;
+				
+				if (!kpiSettings.yearlyData) {
+					kpiSettings.yearlyData = {};
+				}
+				
+				if (!kpiSettings.yearlyData[currentYear]) {
+					kpiSettings.yearlyData[currentYear] = {
+						totalTarget: 0,
+						personalTargets: {},
+						personalItems: []
+					};
+				}
+				
+				const yearData = kpiSettings.yearlyData[currentYear];
+				
+				if (!Array.isArray(yearData.personalItems)) {
+					yearData.personalItems = [];
+				}
+				
+				// 編集 or 新規追加
+				if (id) {
+					const idx = yearData.personalItems.findIndex(x => x.id == id);
+					if (idx !== -1) {
+						yearData.personalItems[idx] = { 
+							...yearData.personalItems[idx], 
+							...data 
+						};
+						console.log('✏️ KPI項目を更新:', data.targetItem);
+					}
+				} else {
+					const newItem = { 
+						id: Date.now().toString() + Math.random().toString(36).substring(2, 9), 
+						...data 
+					};
+					yearData.personalItems.push(newItem);
+					console.log('➕ KPI項目を追加:', data.targetItem);
+				}
+				
+				this.saveData();
+				this.closeModal('kpiItemModal');
+				this.renderKPI();
+				this.showToast('KPI項目を保存しました', 'success');
+			}
 
-                if (id) {
-                    const idx = this.data.kpiSettings.personalItems.findIndex(x => x.id == id);
-                    if (idx !== -1) this.data.kpiSettings.personalItems[idx] = { ...this.data.kpiSettings.personalItems[idx], ...data };
-                } else {
-                    this.data.kpiSettings.personalItems.push({ id: Date.now().toString(), ...data });
-                }
-
-                this.saveData();
-                this.closeModal('kpiItemModal');
-                this.renderKPI();
-                this.showToast('KPI項目を保存しました', 'success');
-            }
-
-            deleteKPIItem(id) {
-                if (!confirm('このKPI項目を削除しますか?')) return;
-                this.data.kpiSettings.personalItems = this.data.kpiSettings.personalItems.filter(i => i.id != id);
-                this.saveData();
-                this.renderKPI();
-                this.showToast('KPI項目を削除しました', 'success');
-            }
+			deleteKPIItem(id) {
+				if (!confirm('このKPI項目を削除しますか?')) return;
+				
+				console.log('🗑️ KPI項目削除:', id);
+				
+				const kpiSettings = this.data.kpiSettings;
+				const currentYear = kpiSettings.currentYear;
+				
+				if (!kpiSettings.yearlyData || 
+					!kpiSettings.yearlyData[currentYear] || 
+					!Array.isArray(kpiSettings.yearlyData[currentYear].personalItems)) {
+					console.warn('⚠️ 削除対象のデータが見つかりません');
+					return;
+				}
+				
+				const yearData = kpiSettings.yearlyData[currentYear];
+				const beforeCount = yearData.personalItems.length;
+				
+				yearData.personalItems = yearData.personalItems.filter(i => i.id != id);
+				
+				const afterCount = yearData.personalItems.length;
+				
+				if (beforeCount > afterCount) {
+					this.saveData();
+					this.renderKPI();
+					this.showToast('KPI項目を削除しました', 'success');
+					console.log('✅ 削除完了');
+				} else {
+					console.warn('⚠️ 削除対象が見つかりませんでした');
+				}
+			}
 
             // ========================================
 			// Project Management Functions
@@ -4386,94 +4542,112 @@
 				return `PRJ-${year}-${String(nextNum).padStart(3, '0')}`;
 			}
 
+			/**
+			 * ステージ滞留日数の計算（ステージ変更日基準）
+			 */
 			calculateStagnantDays(project) {
-				if (!project.lastActivityDate) return 0;
-				const lastDate = new Date(project.lastActivityDate);
+				// 受注済・完了・失注案件は滞留カウントを停止
+				if (project.stage === '受注' || 
+					project.probability === '受注済' || 
+					project.status === '完了' || 
+					project.status === '失注') {
+					return 0;
+				}
+				
+				// ステージ変更日を基準とする
+				const baseDateStr = project.stageChangedDate || 
+								   project.lastActivityDate || 
+								   project.createdDate;
+				
+				if (!baseDateStr) return 0;
+				
+				const baseDate = new Date(baseDateStr);
 				const today = new Date();
-				const diffTime = Math.abs(today - lastDate);
-				return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+				
+				if (isNaN(baseDate.getTime())) {
+					console.warn('⚠️ 無効な日付:', baseDateStr, project.projectName);
+					return 0;
+				}
+				
+				const diffTime = today - baseDate;
+				const stagnantDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+				
+				return Math.max(0, stagnantDays);
 			}
 
 			renderProjects() {
-			    // ★ Phase 2: リスク検知アラートの表示
+				// ★ Phase 2: リスク検知アラートの表示
 				this.renderRiskAlerts();
 				
 				// ★ Phase 3A: カンバンビューの場合はカンバンを描画
 				if (this.projectViewMode === 'kanban') {
 					this.renderKanbanBoard();
 					return;
-				}	
-                // ★ Phase 3A: カンバンビューの場合はカンバンを描画
-                if (this.projectViewMode === 'kanban') {
-                    this.renderKanbanBoard();
-                    return;
-                }
-                // テーブル表示の処理
-                const filter = document.getElementById('projectsFilter').value;
-                const statusFilter = document.getElementById('projectsStatusFilter').value;
-                
-                let list = this.data.projects || [];
-                
-                // フィルタリング
-                if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
-                    list = list.filter(p => p.assignee === CURRENT_USER.assignee);
-                }
-                if (statusFilter !== 'all') {
-                    list = list.filter(p => p.status === statusFilter);
-                }
-                
-                // ★ Phase 2: ステージフィルター追加
-                const stageFilter = document.getElementById('projectsStageFilter')?.value;
-                if (stageFilter && stageFilter !== 'all') {
-                    list = list.filter(p => p.stage === stageFilter);
-                }
-				const priorityFilter = document.getElementById('projectsPriorityFilter')?.value;
-				if (priorityFilter && priorityFilter !== 'all') {
-					const today = new Date();
-					
-					list = list.filter(p => {
-						const amount = Number(p.estimatedAmount) || 0;
-						const stagnantDays = this.calculateStagnantDays(p);
-						
-						if (priorityFilter === 'urgent') {
-							if (!p.expectedOrderDate || p.status !== '進行中') return false;
-							const daysLeft = Math.ceil((new Date(p.expectedOrderDate) - today) / (1000 * 60 * 60 * 24));
-							return daysLeft > 0 && daysLeft <= 7;
-						}
-						
-						if (priorityFilter === 'high-value') {
-							return amount >= 10000000; // 1000万円以上
-						}
-						
-						if (priorityFilter === 'stagnant') {
-							return p.status === '進行中' && stagnantDays >= 30;
-						}
-						
-						return true;
-					});
 				}
-                
+				
+				// テーブル表示の処理
+				const filter = document.getElementById('projectsFilter').value;
+				const statusFilter = document.getElementById('projectsStatusFilter').value;
+				
+				let list = this.data.projects || [];
+				
+				// ★★★ 【重要修正】進行中案件のみを抽出（完了案件を除外） ★★★
+				list = list.filter(p => {
+					// 完了状態の判定
+					const isCompleted = p.stage === '受注' || 
+									   p.probability === '受注済' || 
+									   p.status === '完了' || 
+									   p.status === '失注';
+					
+					// 進行中案件のみを残す（完了案件は除外）
+					return !isCompleted;
+				});
+				// ★★★ 修正ここまで ★★★
+				
+				// 個人/全体フィルター
+				if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
+					list = list.filter(p => p.assignee === CURRENT_USER.assignee);
+				}
+				
+				// ステータスフィルター
+				if (statusFilter !== 'all') {
+					list = list.filter(p => p.status === statusFilter);
+				}
+				
+				// ★ Phase 2: ステージフィルター追加
+				const stageFilter = document.getElementById('projectsStageFilter')?.value;
+				if (stageFilter && stageFilter !== 'all') {
+					list = list.filter(p => p.stage === stageFilter);
+				}
+				
+				// ★ Phase 3: 検索フィルタ追加
+				if (this.searchKeyword) {
+					list = list.filter(p => 
+						p.projectName.toLowerCase().includes(this.searchKeyword) ||
+						p.projectNumber.toLowerCase().includes(this.searchKeyword) ||
+						p.customer.toLowerCase().includes(this.searchKeyword) ||
+						(p.product && p.product.toLowerCase().includes(this.searchKeyword))
+					);
+				}
+				
 				// ソート処理
 				if (this.projectsSortField) {
 					list.sort((a, b) => {
 						let valA, valB;
 						const order = this.projectsSortOrder === 'asc' ? 1 : -1;
 
-						// 数値系ソート
 						if (this.projectsSortField === 'estimatedAmount') {
 							valA = Number(a.estimatedAmount) || 0;
 							valB = Number(b.estimatedAmount) || 0;
 							return (valA - valB) * order;
 						}
 						
-						// 滞留日数ソート（計算値）
 						if (this.projectsSortField === 'stagnantDays') {
 							valA = this.calculateStagnantDays(a);
 							valB = this.calculateStagnantDays(b);
 							return (valA - valB) * order;
 						}
 						
-						// 確度ソート（A > B > C > D > 受注済 の優先順位）
 						if (this.projectsSortField === 'probability') {
 							const probOrder = { '受注済': 1, 'A': 2, 'B': 3, 'C': 4, 'D': 5 };
 							valA = probOrder[a.probability] || 6;
@@ -4481,14 +4655,12 @@
 							return (valA - valB) * order;
 						}
 						
-						// 日付ソート
 						if (this.projectsSortField === 'expectedOrderDate') {
 							valA = a.expectedOrderDate || '9999-12-31';
 							valB = b.expectedOrderDate || '9999-12-31';
 							return valA.localeCompare(valB) * order;
 						}
 						
-						// 文字列ソート
 						valA = (a[this.projectsSortField] || '').toString();
 						valB = (b[this.projectsSortField] || '').toString();
 						return valA.localeCompare(valB, 'ja') * order;
@@ -4506,13 +4678,11 @@
 						'stagnantDays': 'sortIconProjectStagnantDays'
 					};
 					
-					// 全アイコンをリセット
 					Object.values(iconMap).forEach(iconId => {
 						const icon = document.getElementById(iconId);
 						if (icon) icon.className = 'fas fa-sort';
 					});
 					
-					// アクティブなソートアイコンを設定
 					const activeIconId = iconMap[this.projectsSortField];
 					if (activeIconId) {
 						const activeIcon = document.getElementById(activeIconId);
@@ -4521,7 +4691,7 @@
 						}
 					}
 				}
-                
+				
 				// 滞留案件の抽出と分析
 				const stagnantProjects = list.filter(p => {
 					const days = this.calculateStagnantDays(p);
@@ -4532,7 +4702,6 @@
 				let alertsHtml = '';
 
 				if (stagnantProjects.length > 0) {
-					// 目立つアラートバナーの生成
 					alertsHtml = `
 						<div style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; padding: 1.2rem; border-radius: 8px; margin-bottom: 1.5rem; box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);">
 							<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
@@ -4562,7 +4731,6 @@
 							</h3>
 					`;
 					
-					// 詳細案件リストの生成
 					stagnantProjects.slice(0, 5).forEach(p => {
 						const days = this.calculateStagnantDays(p);
 						const alertClass = days >= 60 ? 'project-alert-danger' : 'project-alert-warning';
@@ -4597,63 +4765,168 @@
 					
 					alertsHtml += '</div>';
 					
-					// ★ トースト通知も追加
 					setTimeout(() => {
 						this.showToast(`⚠️ 案件管理：${stagnantProjects.length}件が30日以上滞留中`, 'error');
 					}, 600);
 				}
 
-				// アラートHTMLの挿入
 				document.getElementById('projectAlerts').innerHTML = alertsHtml;
-                
-                // テーブル行の生成
-                document.querySelector('#projectsTable tbody').innerHTML = list.map(p => {
-                    const stagnantDays = this.calculateStagnantDays(p);
-                    let stagnantClass = '';
-                    let stagnantText = `${stagnantDays}日`;
-                    
-                    if (p.status === '進行中') {
-                        if (stagnantDays >= 60) {
-                            stagnantClass = 'stagnant-danger';
-                        } else if (stagnantDays >= 30) {
-                            stagnantClass = 'stagnant-warning';
-                        }
-                    }
-                    
-                    const rowClass = p.status === '進行中' && stagnantDays >= 60 ? 'project-alert-danger' : 
-                                    p.status === '進行中' && stagnantDays >= 30 ? 'project-alert-warning' : '';
-                    
-                    const docCount = p.documents ? p.documents.length : 0;
-                    
-                    return `
-                        <tr class="${rowClass}">
-                            <td><strong>${p.projectNumber}</strong></td>
-                            <td>${p.projectName}</td>
-                            <td>${p.customer}</td>
-                            <td>${p.product || '-'}</td>
-                            <td>${p.assignee}</td>
-                            <td>${p.stage}</td>
-                            <td>${p.probability || '-'}</td>
-                            <td>¥${Number(p.estimatedAmount || 0).toLocaleString()}</td>
-                            <td>${p.expectedOrderDate || '-'}</td>
-                            <td class="stagnant-days ${stagnantClass}">${stagnantText}</td>
-                            <td><span style="padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; background: ${p.status === '進行中' ? '#28a745' : p.status === '完了' ? '#007bff' : '#6c757d'}; color: white;">${p.status}</span></td>
-                            <td>
-                                <button class="btn btn-sm btn-secondary" onclick="app.openDocumentModal('${p.id}')">
-                                    <i class="fas fa-folder"></i> ${docCount}
-                                </button>
-                            </td>
-                            <td>
-                                <div class="btn-group">
-                                    <button class="btn btn-secondary btn-sm" onclick="app.editProject('${p.id}')">編集</button>
-                                    <button class="btn btn-danger btn-sm" onclick="app.deleteProject('${p.id}')">削除</button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-            }
-			
+				
+				// テーブル行の生成
+				document.querySelector('#projectsTable tbody').innerHTML = list.map(p => {
+					const stagnantDays = this.calculateStagnantDays(p);
+					let stagnantClass = '';
+					let stagnantText = `${stagnantDays}日`;
+					
+					if (p.status === '進行中') {
+						if (stagnantDays >= 60) {
+							stagnantClass = 'stagnant-danger';
+						} else if (stagnantDays >= 30) {
+							stagnantClass = 'stagnant-warning';
+						}
+					}
+					
+					const rowClass = p.status === '進行中' && stagnantDays >= 60 ? 'project-alert-danger' : 
+									p.status === '進行中' && stagnantDays >= 30 ? 'project-alert-warning' : '';
+					
+					const docCount = p.documents ? p.documents.length : 0;
+					
+					return `
+						<tr class="${rowClass}">
+							<td><strong>${p.projectNumber}</strong></td>
+							<td>${p.projectName}</td>
+							<td>${p.customer}</td>
+							<td>${p.product || '-'}</td>
+							<td>${p.assignee}</td>
+							<td>${p.stage}</td>
+							<td>${p.probability || '-'}</td>
+							<td>¥${Number(p.estimatedAmount || 0).toLocaleString()}</td>
+							<td>${p.expectedOrderDate || '-'}</td>
+							<td class="stagnant-days ${stagnantClass}">${stagnantText}</td>
+							<td><span style="padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; background: ${p.status === '進行中' ? '#28a745' : p.status === '完了' ? '#007bff' : '#6c757d'}; color: white;">${p.status}</span></td>
+							<td>
+								<button class="btn btn-sm btn-secondary" onclick="app.openDocumentModal('${p.id}')">
+									<i class="fas fa-folder"></i> ${docCount}
+								</button>
+							</td>
+							<td>
+								<div class="btn-group">
+									<button class="btn btn-secondary btn-sm" onclick="app.editProject('${p.id}')">編集</button>
+									<button class="btn btn-danger btn-sm" onclick="app.deleteProject('${p.id}')">削除</button>
+								</div>
+							</td>
+						</tr>
+					`;
+				}).join('');
+				
+				// 進行中案件数の表示
+				const activeSummary = document.getElementById('activeProjectsSummary');
+				if (activeSummary) {
+					const stagnantCount = list.filter(p => {
+						const days = this.calculateStagnantDays(p);
+						return days >= 30;
+					}).length;
+					
+					activeSummary.innerHTML = `
+						進行中: <strong>${list.length}件</strong>
+						${stagnantCount > 0 ? `<span style="color: #dc3545; font-weight: bold; margin-left: 0.5rem;">
+							<i class="fas fa-exclamation-triangle"></i> 滞留: ${stagnantCount}件
+						</span>` : '<span style="color: #28a745; margin-left: 0.5rem;"><i class="fas fa-check"></i> 滞留なし</span>'}
+					`;
+				}
+				
+				// ★★★ 受注済案件の分離表示 ★★★
+				const completedProjects = (this.data.projects || []).filter(p => {
+					const isCompleted = p.stage === '受注' || 
+									   p.probability === '受注済' || 
+									   p.status === '完了' || 
+									   p.status === '失注';
+					
+					if (!isCompleted) return false;
+					
+					if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
+						return p.assignee === CURRENT_USER.assignee;
+					}
+					
+					if (this.searchKeyword) {
+						return p.projectName.toLowerCase().includes(this.searchKeyword) ||
+							   p.projectNumber.toLowerCase().includes(this.searchKeyword) ||
+							   p.customer.toLowerCase().includes(this.searchKeyword);
+					}
+					
+					return true;
+				});
+
+				// 完了日の降順でソート
+				completedProjects.sort((a, b) => {
+					const dateA = a.lastActivityDate || a.stageChangedDate || a.createdDate || '';
+					const dateB = b.lastActivityDate || b.stageChangedDate || b.createdDate || '';
+					return dateB.localeCompare(dateA);
+				});
+
+				// 受注済案件テーブルの描画
+				const completedTbody = document.querySelector('#completedProjectsTable tbody');
+				if (completedTbody) {
+					if (completedProjects.length === 0) {
+						completedTbody.innerHTML = `
+							<tr>
+								<td colspan="10" style="text-align: center; padding: 2rem; color: #999; font-style: italic;">
+									<i class="fas fa-inbox" style="font-size: 2rem; display: block; margin-bottom: 0.5rem;"></i>
+									受注済・完了案件はまだありません
+								</td>
+							</tr>
+						`;
+					} else {
+						completedTbody.innerHTML = completedProjects.map(p => {
+							const statusColor = p.status === '失注' ? '#dc3545' : '#28a745';
+							const statusIcon = p.status === '失注' ? 'fa-times-circle' : 'fa-check-circle';
+							const completedDate = p.lastActivityDate || p.stageChangedDate || p.createdDate || '-';
+							
+							return `
+								<tr style="background: rgba(40, 167, 69, 0.05);">
+									<td><strong style="color: #28a745;">${p.projectNumber}</strong></td>
+									<td>
+										<a href="#" onclick="app.editProject('${p.id}'); return false;" 
+										   style="color: #28a745; text-decoration: none; font-weight: 500;">
+											${p.projectName}
+										</a>
+									</td>
+									<td>${p.customer}</td>
+									<td>${p.product || '-'}</td>
+									<td>${p.assignee}</td>
+									<td>
+										<span style="padding: 3px 8px; background: #28a745; color: white; border-radius: 12px; font-size: 0.8rem;">
+											${p.stage}
+										</span>
+									</td>
+									<td style="font-weight: bold; color: #28a745;">
+										¥${Number(p.estimatedAmount || 0).toLocaleString()}
+									</td>
+									<td>${completedDate}</td>
+									<td>
+										<span style="color: ${statusColor}; font-weight: bold;">
+											<i class="fas ${statusIcon}"></i> ${p.status}
+										</span>
+									</td>
+									<td>
+										<button class="btn btn-sm btn-secondary" onclick="app.editProject('${p.id}')" 
+												title="詳細確認・編集">
+											<i class="fas fa-eye"></i> 詳細
+										</button>
+									</td>
+								</tr>
+							`;
+						}).join('');
+					}
+				}
+
+				// 受注済案件テーブルの表示制御
+				const completedView = document.getElementById('completedProjectsView');
+				if (completedView) {
+					completedView.style.display = completedProjects.length > 0 ? 'block' : 'none';
+				}
+			}
+
 			/**
              * 失注理由セクションの表示制御
              */
@@ -4752,6 +5025,20 @@
 						</td>
 					</tr>`;
 				}).join('');
+				const activeSummary = document.getElementById('activeProjectsSummary');
+				if (activeSummary) {
+					const stagnantCount = list.filter(p => {
+						const days = this.calculateStagnantDays(p);
+						return days >= 30;
+					}).length;
+					
+					activeSummary.innerHTML = `
+						進行中: <strong>${list.length}件</strong>
+						${stagnantCount > 0 ? `<span style="color: #dc3545; font-weight: bold; margin-left: 0.5rem;">
+							<i class="fas fa-exclamation-triangle"></i> 滞留: ${stagnantCount}件
+						</span>` : '<span style="color: #28a745; margin-left: 0.5rem;"><i class="fas fa-check"></i> 滞留なし</span>'}
+					`;
+				}
 					
 				this.showToast(`確度${probability}の案件を${list.length}件表示しました`, 'success');
 			}
@@ -4843,6 +5130,27 @@
 				const id = document.getElementById('projectId').value;
 				const projectNumber = document.getElementById('projectNumber').value;
 				
+				// 新しいステージの取得
+				const newStage = document.getElementById('projectStage').value;
+				
+				// 既存案件の場合、ステージ変更をチェック
+				const existingProject = id ? this.data.projects.find(p => p.id === id) : null;
+				const oldStage = existingProject ? existingProject.stage : null;
+				
+				// ステージ変更日の決定
+				let stageChangedDate;
+				if (!id) {
+					// 新規案件：今日の日付
+					stageChangedDate = new Date().toISOString().split('T')[0];
+				} else if (oldStage !== newStage) {
+					// ステージ変更：今日の日付で更新
+					stageChangedDate = new Date().toISOString().split('T')[0];
+					console.log(`🔄 ステージ変更検知: ${oldStage} → ${newStage}`);
+				} else {
+					// ステージ未変更：既存の日付を維持
+					stageChangedDate = existingProject.stageChangedDate;
+				}
+				
 				const data = {
 					id: id || Date.now().toString(),
 					projectNumber: projectNumber,
@@ -4850,7 +5158,8 @@
 					customer: document.getElementById('projectCustomer').value,
 					product: document.getElementById('projectProduct').value,
 					assignee: document.getElementById('projectAssignee').value,
-					stage: document.getElementById('projectStage').value,
+					stage: newStage,
+					stageChangedDate: stageChangedDate, // ★追加：ステージ変更日
 					probability: document.getElementById('projectProbability').value,
 					estimatedAmount: Number(document.getElementById('projectAmount').value) || 0,
 					expectedOrderDate: document.getElementById('projectExpectedDate').value,
@@ -4859,11 +5168,12 @@
 					
 					// 失注理由の保存
 					lostReason: this.getLostReasonData(),
-					lastActivityDate: new Date().toISOString().split('T')[0],
-					createdDate: id ? this.data.projects.find(p => p.id === id)?.createdDate : new Date().toISOString().split('T')[0],
+					lastActivityDate: new Date().toISOString().split('T')[0], // 最終更新日は常に更新
+					createdDate: id ? (existingProject?.createdDate || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
 					documents: this.currentProjectFiles || []
 				};
 				
+				// 以下は既存のコードをそのまま維持
 				if (id) {
 					const idx = this.data.projects.findIndex(x => x.id === id);
 					if (idx !== -1) this.data.projects[idx] = data;
