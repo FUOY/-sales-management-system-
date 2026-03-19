@@ -1766,7 +1766,30 @@
             <table id="customerStaffTable"><thead><tr><th>担当者名</th><th>部署・役職</th><th>連絡先</th><th>操作</th></tr></thead><tbody></tbody></table>
         </div>
     </div>
-
+	
+	<!-- ★★★ 顧客詳細情報モーダル（新規追加） ★★★ -->
+	<div id="customerDetailModal" class="modal">
+		<div class="modal-content" style="max-width: 900px;">
+			<div class="modal-header">
+				<h3 style="white-space: nowrap;">
+					<i class="fas fa-building"></i> 顧客詳細情報
+				</h3>
+				<button class="close-btn" onclick="app.closeModal('customerDetailModal')">×</button>
+			</div>
+			
+			<div id="customerDetailContent" style="max-height: 70vh; overflow-y: auto;">
+				<!-- JavaScriptで動的に生成 -->
+			</div>
+			
+			<div class="actions">
+				<button type="button" class="btn btn-secondary" onclick="app.closeModal('customerDetailModal')">閉じる</button>
+				<button type="button" class="btn btn-primary" onclick="app.editCustomerFromDetail()">
+					<i class="fas fa-edit"></i> 編集
+				</button>
+			</div>
+		</div>
+	</div>
+	
     <div id="scheduleModal" class="modal">
         <div class="modal-content">
             <div class="modal-header"><h3 style="white-space: nowrap;">予定情報</h3><button class="close-btn" onclick="app.closeModal('scheduleModal')">×</button></div>
@@ -2003,6 +2026,43 @@
     <script>
 		// Constants & Global State
         // 修正1: USER_ACCOUNTSの修正（eimori）
+		/**
+		 * 拡張顧客マスタのデータ構造
+		 * ExcelインポートとSmile連携のための項目定義
+		 */
+		const EXTENDED_CUSTOMER_SCHEMA = {
+			// 既存項目（参考）
+			id: '',                    // 顧客ID（必須・既存）
+			name: '',                  // 顧客名（必須・既存）
+			industry: '',              // 業種（既存）
+			assignee: '',              // 主担当者（既存）
+			rank: '',                  // ランク（既存）
+			status: '',                // ステータス（既存）
+			staffs: [],                // 担当者リスト（既存）
+			
+			// ★ 得意先リスト情報（新規追加）
+			companyCode: '',           // Smile顧客コード
+			postalCode: '',            // 郵便番号
+			address: '',               // 住所
+			phone: '',                 // 電話番号
+			fax: '',                   // FAX番号
+			email: '',                 // メールアドレス
+			website: '',               // ホームページURL
+			establishedDate: '',       // 設立年月日
+			capital: 0,                // 資本金
+			employees: 0,              // 従業員数
+			
+			// ★ 取引条件情報（新規追加）
+			paymentTerms: '',          // 支払条件
+			creditLimit: 0,            // 与信限度額
+			taxType: '外税',           // 消費税区分
+			
+			// ★ 導入機械情報（新規追加）
+			installedMachines: [],     // 導入機械リスト
+			
+			// ★ 過去受注履歴（新規追加）
+			orderHistory: []           // 受注履歴リスト
+		};
         const USER_ACCOUNTS = [
             { username: 'admin', password: 'admin', assignee: 'admin', displayName: '管理者', role: 'admin', altUsername: 'admin' },
             { username: '永森', password: 'eimori', assignee: '永森', displayName: '永森', role: 'staff', altUsername: 'eimori' },
@@ -2206,61 +2266,156 @@
             }
 
             // --- Dashboard Render ---
-            renderDashboard() {
+			renderDashboard() {
+				// ★ 既存の宣言（保持する）
+				const filter = document.getElementById('dashboardFilter').value;
+				const currentUser = this.currentUser;
+				
+				// ベースとなるフィルタリング（個人/全体表示の対応）
+				const targetProjects = this.data.projects.filter(p => {
+					if (filter === 'personal') {
+						return p.assignee === currentUser;
+					}
+					return true;
+				});
+
+				// ステータス別の案件分類
+				const orderedProjects = targetProjects.filter(p => 
+					p.stage === '受注' && p.status !== '失注'
+				);
+				const ongoingProjects = targetProjects.filter(p => 
+					p.stage !== '受注' && p.status !== '失注'
+				);
+				const lostProjects = targetProjects.filter(p => 
+					p.status === '失注'
+				);
+				const salesProjects = [...orderedProjects, ...ongoingProjects];
+				
+				// デバッグ用（確認後は削除可能）
+				console.log('受注済み案件:', orderedProjects.length);
+				console.log('進行中案件:', ongoingProjects.length);
+				console.log('失注案件:', lostProjects.length);
+				console.log('売上集計対象:', salesProjects.length);
+
 				const customers = this.data.customers || [];
 				const schedules = this.data.schedules || [];
 				const activities = this.data.activities || [];
 
-				// ↓ 以降は customers / schedules / activities を使う
+				// ★ 既存のロジックを保持（CURRENT_USERを使用）
+				// ❌ 削除済み: const filter = document.getElementById('dashboardFilter').value;
+				const isPersonal = filter === 'personal' && CURRENT_USER.role !== 'admin';
+				
+				const acts = isPersonal ? activities.filter(a => a.assignee === CURRENT_USER.assignee) : activities;
+				const scheds = isPersonal ? schedules.filter(s => s.assignee === CURRENT_USER.assignee) : schedules;
+				const custs = isPersonal ? customers.filter(c => c.assignee === CURRENT_USER.assignee) : customers;
 
-                const filter = document.getElementById('dashboardFilter').value;
-                const isPersonal = filter === 'personal' && CURRENT_USER.role !== 'admin';
-                
-                const acts = isPersonal ? this.data.activities.filter(a => a.assignee === CURRENT_USER.assignee) : this.data.activities;
-                const scheds = isPersonal ? this.data.schedules.filter(s => s.assignee === CURRENT_USER.assignee) : this.data.schedules;
-                const custs = isPersonal ? this.data.customers.filter(c => c.assignee === CURRENT_USER.assignee) : this.data.customers;
-
-                // Stats
-                document.getElementById('statTotalCustomers').textContent = custs.length;
-                const today = new Date().toISOString().split('T')[0];
-                document.getElementById('statTodaySchedule').textContent = scheds.filter(s => s.date === today).length;
-                
-                const now = new Date();
-                const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
-                const weekActs = acts.filter(a => new Date(a.date) >= weekStart);
-                document.getElementById('statWeekActivities').textContent = weekActs.length; 
-                
+				// Stats（既存のまま）
+				document.getElementById('statTotalCustomers').textContent = custs.length;
+				const today = new Date().toISOString().split('T')[0];
+				document.getElementById('statTodaySchedule').textContent = scheds.filter(s => s.date === today).length;
+				
+				const now = new Date();
+				const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
+				const weekActs = acts.filter(a => new Date(a.date) >= weekStart);
+				document.getElementById('statWeekActivities').textContent = weekActs.length;
+				
 				// ★ Phase 1: 案件ベースの予測売上計算
 				const projects = isPersonal ? 
 					(this.data.projects || []).filter(p => p.assignee === CURRENT_USER.assignee) : 
 					(this.data.projects || []);
 
+				// ★★★ 新しい売上計算ロジック（失注除外対応） ★★★
+
+				// 確度の加重値を取得するヘルパー関数
+				function getWinRate(probability) {
+					const rates = {
+						'A': 0.9,  // 90%の確率
+						'B': 0.6,  // 60%の確率
+						'C': 0.3,  // 30%の確率
+						'D': 0.1   // 10%の確率
+					};
+					return rates[probability] || 0;
+				}
+
+				// ★★★ 完全な売上計算ロジック（失注除外対応） ★★★
+
 				// 1. 受注確定額
-				const orderedProjects = projects.filter(p => 
-					p.stage === '受注' || p.status === '完了' || p.probability === '受注済'
-				);
 				const orderedAmount = orderedProjects.reduce((sum, p) => 
 					sum + (Number(p.estimatedAmount) || 0), 0
 				);
 
-				// 2. 進行中案件の加重平均予測
-				const activeProjects = projects.filter(p => 
-					p.status === '進行中' && p.stage !== '受注' && p.probability !== '受注済'
-				);
-
+				// 2. 進行中案件の予測（既存のgetWinRate関数を使用）
 				let weightedPipeline = 0;
 				let rawPipeline = 0;
 
-				activeProjects.forEach(p => {
+				ongoingProjects.forEach(p => {
 					const amount = Number(p.estimatedAmount) || 0;
-					const weight = getWinRate(p.probability);
-					
+					const weight = getWinRate(p.probability);  // ← 既存関数を呼び出すだけ
 					rawPipeline += amount;
 					weightedPipeline += Math.floor(amount * weight);
 				});
 
-				// 3. 総着地見込（確定 + 加重平均）
+				// 3. 着地見込合計
 				const totalForecast = orderedAmount + weightedPipeline;
+
+				// 4. 既存コードとの完全互換性を保つエイリアス
+				const forecastAmount = totalForecast;
+				const activeProjects = ongoingProjects;
+
+				// デバッグログ
+				console.log('=== 売上計算結果（失注除外後） ===');
+				console.log('受注確定額:', orderedAmount.toLocaleString() + '円');
+				console.log('進行中想定額（加重前）:', rawPipeline.toLocaleString() + '円');
+				console.log('進行中想定額（加重後）:', weightedPipeline.toLocaleString() + '円');
+				console.log('着地見込合計:', totalForecast.toLocaleString() + '円');
+				console.log('==============================');
+
+				// ★★★ 受注予定タイムライン集計（新規実装） ★★★
+				console.log('タイムライン集計前:', projects);
+
+				const monthlyOrdered = new Array(12).fill(0);
+				const monthlyExpected = new Array(12).fill(0);
+
+				// ★ 新しい変数名を使用（重複回避）
+				const timelineProjects = salesProjects || this.data.projects || [];
+
+				timelineProjects.forEach(p => {
+					// ★★★ 最重要：失注案件をここで確実に除外 ★★★
+					if (p.status === '失注') return;
+					
+					if (!p.expectedOrderDate) return;
+					
+					const date = new Date(p.expectedOrderDate);
+					const month = date.getMonth();
+					const monthIndex = (month + 12 - 5) % 12; // 6月=0, 7月=1, ..., 5月=11
+					
+					if (monthIndex < 0 || monthIndex > 11) return;
+					
+					const amount = Number(p.estimatedAmount) || 0;
+					
+					// 受注確定 vs 想定の振り分け
+					if (p.stage === '受注' && p.status !== '失注') {
+						monthlyOrdered[monthIndex] += amount;
+					} else if (p.status === '進行中' || p.status === '保留') {
+						// 確度による加重計算
+						const rates = { 'A': 0.9, 'B': 0.6, 'C': 0.3, 'D': 0.1 };
+						const weight = rates[p.probability] || 0;
+						monthlyExpected[monthIndex] += Math.floor(amount * weight);
+					}
+				});
+
+				// チャートの更新（既存のチャートがある場合）
+				if (this.chartTimeline) {
+					this.chartTimeline.data.datasets[0].data = monthlyOrdered;
+					this.chartTimeline.data.datasets[1].data = monthlyExpected;
+					this.chartTimeline.update();
+				}
+
+				// 確認用ログ
+				console.log('=== タイムライン修正結果 ===');
+				console.log('受注確定合計:', monthlyOrdered.reduce((a,b) => a+b, 0).toLocaleString() + '円');
+				console.log('想定合計:', monthlyExpected.reduce((a,b) => a+b, 0).toLocaleString() + '円');
+				console.log('========================');
 
 				// 4. 統計カード表示（既存形式を維持）
 				const orderedSales = acts.filter(a => a.stage === '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
@@ -2313,7 +2468,16 @@
 					forecastElement.textContent = '¥' + totalForecast.toLocaleString();
 				}
 
-                this.renderCharts(acts, target);			
+                this.renderCharts(acts, target);
+				// 失注案件に紐づく活動を除外してグラフに渡す
+				const lostProjectIds = new Set(
+					this.data.projects
+						.filter(p => p.status === '失注')
+						.map(p => p.id)
+				);
+				const cleanActs = acts.filter(a => !a.projectId || !lostProjectIds.has(a.projectId));
+
+				this.renderCharts(cleanActs, target);
 
 				// 分析カードの描画
 				this.renderLostProjectAnalysis();
@@ -2339,7 +2503,14 @@
 					}
     
 					// 個人KPI項目を取得
-					const userItems = this.data.kpiSettings.personalItems.filter(i => i.userId === CURRENT_USER.assignee);
+					// ★★★ 安全なデータアクセスに修正 ★★★
+					// 年度別KPI構造に対応した安全なデータ取得
+					const kpiSettings = this.data.kpiSettings || {};
+					const yearlyData = kpiSettings.yearlyData || {};
+					const currentYear = kpiSettings.currentYear || new Date().getFullYear();
+					const yearData = yearlyData[currentYear] || { personalItems: [] };
+					const personalItems = Array.isArray(yearData.personalItems) ? yearData.personalItems : [];
+					const userItems = personalItems.filter(i => i.userId === CURRENT_USER.assignee);
     
 					if (userItems.length > 0) {
 						personalKpiCard.style.display = 'block';
@@ -2658,6 +2829,7 @@
 				console.log('📊 集計対象案件数:', targetProjects.length);
 
 				targetProjects.forEach(project => {
+					if (project.status === '失注') return;
 					const amount = Number(project.estimatedAmount) || 0;
 					if (!amount) return;
 					
@@ -2719,7 +2891,10 @@
 					if (activity.projectId && processedProjects.has(activity.projectId)) {
 						return;
 					}
-					
+					if (activity.projectId) {
+						const parentProject = this.data.projects.find(p => p.id === activity.projectId);
+						if (parentProject && parentProject.status === '失注') return;
+					}
 					const amount = Number(activity.amount) || 0;
 					if (!amount) return;
 					
@@ -3498,7 +3673,15 @@
 
                 document.querySelector('#customersTable tbody').innerHTML = list.map(c => `
                     <tr>
-                        <td><span class="customer-link" onclick="app.openCustomerStaffModal('${c.id}')">${c.name}</span></td>
+                        <td>
+							<span class="customer-link" onclick="app.showCustomerDetail('${c.id}')" title="詳細情報を表示">
+								${c.name}
+							</span>
+							<button class="btn btn-sm btn-secondary" onclick="app.openCustomerStaffModal('${c.id}'); event.stopPropagation();" 
+									style="margin-left: 0.5rem; padding: 2px 6px; font-size: 0.7rem; width: auto;" title="担当者管理">
+								<i class="fas fa-users"></i>
+							</button>
+						</td>
                         <td>${c.industry || '-'}</td>
                         <td>${c.rank || '-'}</td>
                         <td>${c.status || '-'}</td>
@@ -4076,13 +4259,36 @@
             saveCustomer(e) {
                 e.preventDefault();
                 const id = document.getElementById('customerId').value;
-                const data = {
-                    name: document.getElementById('customerName').value,
-                    industry: document.getElementById('customerIndustry').value,
-                    rank: document.getElementById('customerRank').value,
-                    status: document.getElementById('customerStatus').value,
-                    assignee: document.getElementById('customerAssignee').value
-                };
+                // 既存顧客データの取得（拡張項目を維持するため）
+				const existingCustomer = id ? this.data.customers.find(c => c.id == id) : null;
+
+				const data = {
+					// 既存項目（変更なし）
+					name: document.getElementById('customerName').value,
+					industry: document.getElementById('customerIndustry').value,
+					rank: document.getElementById('customerRank').value,
+					status: document.getElementById('customerStatus').value,
+					assignee: document.getElementById('customerAssignee').value,
+					
+					// ★ 拡張項目の初期化（将来のExcelインポート用）
+					companyCode: existingCustomer?.companyCode || '',
+					postalCode: existingCustomer?.postalCode || '',
+					address: existingCustomer?.address || '',
+					phone: existingCustomer?.phone || '',
+					fax: existingCustomer?.fax || '',
+					email: existingCustomer?.email || '',
+					website: existingCustomer?.website || '',
+					establishedDate: existingCustomer?.establishedDate || '',
+					capital: existingCustomer?.capital || 0,
+					employees: existingCustomer?.employees || 0,
+					paymentTerms: existingCustomer?.paymentTerms || '',
+					creditLimit: existingCustomer?.creditLimit || 0,
+					taxType: existingCustomer?.taxType || '外税',
+					
+					// ★ 配列データの維持（重要：既存データを消さない）
+					installedMachines: existingCustomer?.installedMachines || [],
+					orderHistory: existingCustomer?.orderHistory || []
+				};
 
                 if (id) {
                     const idx = this.data.customers.findIndex(x => x.id == id);
@@ -4530,6 +4736,220 @@
 					console.warn('⚠️ 削除対象が見つかりませんでした');
 				}
 			}
+
+            /**
+             * 顧客詳細情報の表示
+             */
+            showCustomerDetail(customerId) {
+                const customer = this.data.customers.find(c => c.id === customerId);
+                if (!customer) {
+                    this.showToast('顧客情報が見つかりません', 'error');
+                    return;
+                }
+                
+                const content = document.getElementById('customerDetailContent');
+                
+                // 基本情報セクション
+                let html = `
+                    <div class="card" style="margin-bottom: 1.5rem;">
+                        <h3 style="margin-top: 0; color: var(--primary);">
+                            <i class="fas fa-info-circle"></i> 基本情報
+                        </h3>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                            <div>
+                                <strong>顧客名:</strong> ${customer.name}
+                            </div>
+                            <div>
+                                <strong>顧客コード:</strong> ${customer.companyCode || '未設定'}
+                            </div>
+                            <div>
+                                <strong>業種:</strong> ${customer.industry || '-'}
+                            </div>
+                            <div>
+                                <strong>ランク:</strong> <span style="background: ${customer.rank === 'A' ? '#28a745' : customer.rank === 'B' ? '#ffc107' : '#6c757d'}; color: white; padding: 2px 8px; border-radius: 12px;">${customer.rank || '-'}</span>
+                            </div>
+                            <div>
+                                <strong>ステータス:</strong> ${customer.status || '-'}
+                            </div>
+                            <div>
+                                <strong>主担当者:</strong> ${customer.assignee || '-'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // 連絡先情報セクション
+                if (customer.address || customer.phone || customer.email) {
+                    html += `
+                        <div class="card" style="margin-bottom: 1.5rem;">
+                            <h3 style="margin-top: 0; color: var(--primary);">
+                                <i class="fas fa-address-card"></i> 連絡先情報
+                            </h3>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                                ${customer.postalCode ? `<div><strong>郵便番号:</strong> ${customer.postalCode}</div>` : ''}
+                                ${customer.address ? `<div style="grid-column: 1 / -1;"><strong>住所:</strong> ${customer.address}</div>` : ''}
+                                ${customer.phone ? `<div><strong>電話番号:</strong> <a href="tel:${customer.phone}">${customer.phone}</a></div>` : ''}
+                                ${customer.fax ? `<div><strong>FAX番号:</strong> ${customer.fax}</div>` : ''}
+                                ${customer.email ? `<div><strong>メール:</strong> <a href="mailto:${customer.email}">${customer.email}</a></div>` : ''}
+                                ${customer.website ? `<div><strong>ホームページ:</strong> <a href="${customer.website}" target="_blank">${customer.website}</a></div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // 企業情報セクション
+                if (customer.establishedDate || customer.capital || customer.employees) {
+                    html += `
+                        <div class="card" style="margin-bottom: 1.5rem;">
+                            <h3 style="margin-top: 0; color: var(--primary);">
+                                <i class="fas fa-building"></i> 企業情報
+                            </h3>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                                ${customer.establishedDate ? `<div><strong>設立年月日:</strong> ${customer.establishedDate}</div>` : ''}
+                                ${customer.capital ? `<div><strong>資本金:</strong> ¥${Number(customer.capital).toLocaleString()}</div>` : ''}
+                                ${customer.employees ? `<div><strong>従業員数:</strong> ${customer.employees}名</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // 取引条件セクション
+                if (customer.paymentTerms || customer.creditLimit) {
+                    html += `
+                        <div class="card" style="margin-bottom: 1.5rem;">
+                            <h3 style="margin-top: 0; color: var(--primary);">
+                                <i class="fas fa-file-contract"></i> 取引条件
+                            </h3>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                                ${customer.paymentTerms ? `<div><strong>支払条件:</strong> ${customer.paymentTerms}</div>` : ''}
+                                ${customer.creditLimit ? `<div><strong>与信限度額:</strong> ¥${Number(customer.creditLimit).toLocaleString()}</div>` : ''}
+                                <div><strong>消費税区分:</strong> ${customer.taxType || '外税'}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // 導入機械セクション
+                if (customer.installedMachines && customer.installedMachines.length > 0) {
+                    html += `
+                        <div class="card" style="margin-bottom: 1.5rem;">
+                            <h3 style="margin-top: 0; color: var(--primary);">
+                                <i class="fas fa-cogs"></i> 導入機械情報（${customer.installedMachines.length}台）
+                            </h3>
+                            <div class="table-container">
+                                <table style="font-size: 0.85rem;">
+                                    <thead>
+                                        <tr>
+                                            <th>機種名</th>
+                                            <th>型式</th>
+                                            <th>導入日</th>
+                                            <th>シリアル番号</th>
+                                            <th>設置場所</th>
+                                            <th>稼働状況</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${customer.installedMachines.map(machine => `
+                                            <tr>
+                                                <td>${machine.machineName || '-'}</td>
+                                                <td>${machine.machineCode || '-'}</td>
+                                                <td>${machine.installDate || '-'}</td>
+                                                <td>${machine.serialNumber || '-'}</td>
+                                                <td>${machine.installLocation || '-'}</td>
+                                                <td>
+                                                    <span style="padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; background: ${machine.status === '稼働中' ? '#28a745' : '#6c757d'}; color: white;">
+                                                        ${machine.status || '不明'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="card" style="margin-bottom: 1.5rem; background: #f8f9fa;">
+                            <h3 style="margin-top: 0; color: #999;">
+                                <i class="fas fa-cogs"></i> 導入機械情報
+                            </h3>
+                            <p style="text-align: center; color: #999; font-style: italic; margin: 2rem 0;">
+                                <i class="fas fa-inbox" style="font-size: 2rem; display: block; margin-bottom: 0.5rem;"></i>
+                                導入機械情報はまだ登録されていません
+                            </p>
+                        </div>
+                    `;
+                }
+                
+                // 過去受注履歴セクション
+                if (customer.orderHistory && customer.orderHistory.length > 0) {
+                    const totalOrderAmount = customer.orderHistory.reduce((sum, order) => sum + (Number(order.orderAmount) || 0), 0);
+                    
+                    html += `
+                        <div class="card" style="margin-bottom: 1.5rem;">
+                            <h3 style="margin-top: 0; color: var(--primary);">
+                                <i class="fas fa-history"></i> 過去受注履歴（${customer.orderHistory.length}件 / 総額 ¥${totalOrderAmount.toLocaleString()}）
+                            </h3>
+                            <div class="table-container">
+                                <table style="font-size: 0.85rem;">
+                                    <thead>
+                                        <tr>
+                                            <th>受注日</th>
+                                            <th>案件名</th>
+                                            <th>製品</th>
+                                            <th>受注金額</th>
+                                            <th>納期</th>
+                                            <th>担当者</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${customer.orderHistory.sort((a, b) => (b.orderDate || '').localeCompare(a.orderDate || '')).map(order => `
+                                            <tr>
+                                                <td>${order.orderDate || '-'}</td>
+                                                <td>${order.projectName || '-'}</td>
+                                                <td>${order.productCode || '-'}</td>
+                                                <td style="font-weight: bold; color: #28a745;">¥${Number(order.orderAmount || 0).toLocaleString()}</td>
+                                                <td>${order.deliveryDate || '-'}</td>
+                                                <td>${order.salesPerson || '-'}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="card" style="margin-bottom: 1.5rem; background: #f8f9fa;">
+                            <h3 style="margin-top: 0; color: #999;">
+                                <i class="fas fa-history"></i> 過去受注履歴
+                            </h3>
+                            <p style="text-align: center; color: #999; font-style: italic; margin: 2rem 0;">
+                                <i class="fas fa-inbox" style="font-size: 2rem; display: block; margin-bottom: 0.5rem;"></i>
+                                過去受注履歴はまだ登録されていません
+                            </p>
+                        </div>
+                    `;
+                }
+                
+                content.innerHTML = html;
+                
+                // 詳細表示用のグローバル変数に保存（編集機能用）
+                this.currentDetailCustomerId = customerId;
+                
+                this.openModal('customerDetailModal');
+            }
+
+            /**
+             * 詳細表示から編集モーダルへ遷移
+             */
+            editCustomerFromDetail() {
+                this.closeModal('customerDetailModal');
+                if (this.currentDetailCustomerId) {
+                    this.editCustomer(this.currentDetailCustomerId);
+                }
+            }
 
             // ========================================
 			// Project Management Functions
@@ -5603,6 +6023,27 @@
 						projects: localData.projects || [],
 						kpiSettings: kpiSettings
 					};
+					
+					// ★★★ 既存顧客データの拡張項目初期化 ★★★
+					(this.data.customers || []).forEach(customer => {
+						// 拡張項目が未定義の場合は初期値を設定
+						if (customer.companyCode === undefined) customer.companyCode = '';
+						if (customer.postalCode === undefined) customer.postalCode = '';
+						if (customer.address === undefined) customer.address = '';
+						if (customer.phone === undefined) customer.phone = '';
+						if (customer.fax === undefined) customer.fax = '';
+						if (customer.email === undefined) customer.email = '';
+						if (customer.website === undefined) customer.website = '';
+						if (customer.establishedDate === undefined) customer.establishedDate = '';
+						if (customer.capital === undefined) customer.capital = 0;
+						if (customer.employees === undefined) customer.employees = 0;
+						if (customer.paymentTerms === undefined) customer.paymentTerms = '';
+						if (customer.creditLimit === undefined) customer.creditLimit = 0;
+						if (customer.taxType === undefined) customer.taxType = '外税';
+						if (!Array.isArray(customer.installedMachines)) customer.installedMachines = [];
+						if (!Array.isArray(customer.orderHistory)) customer.orderHistory = [];
+					});
+					// ★★★ 初期化処理ここまで ★★★
 					
 					console.log('✅ LocalStorageデータ読み込み完了:', {
 						顧客数: this.data.customers.length,
