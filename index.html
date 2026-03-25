@@ -1442,6 +1442,67 @@
                 border-width: 3px !important;
             }
         }
+		/* ========================================
+           検索窓アイコンの位置と色を修正
+           ======================================== */
+        
+        /* 虫眼鏡アイコンの改善 */
+        .app-header .fas.fa-search {
+            color: #2c5aa0 !important;          /* 白→青色に変更（視認性向上） */
+            position: absolute !important;
+            left: 14px !important;              /* 位置を内側に調整 */
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            font-size: 1rem !important;
+            pointer-events: none !important;    /* アイコンをクリックしても入力可能 */
+            z-index: 5 !important;
+            text-shadow: none !important;       /* 既存の白い影を削除 */
+        }
+        
+        /* 入力テキストの余白調整 */
+        #globalSearchInput {
+            padding-left: 42px !important;      /* アイコンと重ならないよう左余白を確保 */
+        }
+		/* ========================================
+           検索窓アイコンの完全位置修正
+           ======================================== */
+        
+        /* 1. 検索窓コンテナの高さとマージンを正規化 */
+        #globalSearchInput {
+            height: 36px !important;                    /* 明示的な高さ指定 */
+            padding: 8px 8px 8px 42px !important;      /* 統一されたパディング */
+            margin: 0 !important;                       /* フレームワークマージンをリセット */
+            line-height: 20px !important;               /* テキストの垂直位置を調整 */
+            box-sizing: border-box !important;          /* サイズ計算を統一 */
+            display: block !important;
+        }
+        
+        /* 2. 親コンテナの配置を強化 */
+        .app-header > div:has(#globalSearchInput) {
+            display: flex !important;
+            align-items: center !important;             /* 垂直中央揃えを強制 */
+            position: relative !important;
+        }
+        
+        /* 3. 虫眼鏡アイコンの精密配置 */
+        .app-header .fas.fa-search {
+            color: #2c5aa0 !important;                  /* 視認性の高い青色 */
+            position: absolute !important;
+            left: 14px !important;
+            
+            /* 垂直中央配置の確実な方法 */
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            
+            /* レイアウト干渉を防ぐ設定 */
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: 1 !important;
+            font-size: 1rem !important;
+            pointer-events: none !important;
+            z-index: 10 !important;
+            text-shadow: none !important;
+        }
 	</style>
 </head>
 <body>
