@@ -1239,7 +1239,209 @@
                 padding: 0.4rem 0.8rem !important;
                 font-size: 0.9rem;
             }
-        }		
+        }	
+		
+        /* ========================================
+           視認性改善：背景色と文字色のバランス調整
+           ======================================== */
+        
+        /* 1. グローバル検索窓の大幅改善 */
+        #globalSearchInput {
+            background: rgba(255, 255, 255, 0.95) !important;
+            color: #333 !important;
+            border: 2px solid rgba(255, 255, 255, 0.8) !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+            font-weight: 500 !important;
+            backdrop-filter: blur(10px) !important;
+        }
+        
+        #globalSearchInput::placeholder {
+            color: #666 !important;
+            opacity: 0.8 !important;
+        }
+        
+        #globalSearchInput:focus {
+            background: #ffffff !important;
+            border-color: #fff !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+            outline: 3px solid rgba(255, 255, 255, 0.5) !important;
+            outline-offset: 2px !important;
+        }
+        
+        /* 検索アイコンの視認性向上 */
+        .app-header .fas.fa-search {
+            color: rgba(255, 255, 255, 0.9) !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+            z-index: 10 !important;
+        }
+        
+        /* 2. ビュー切替ボタン（カンバン・テーブル）の改善 */
+        .view-toggle {
+            background: #f8f9fa !important;
+            border: 2px solid #dee2e6 !important;
+            border-radius: 8px !important;
+            padding: 4px !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+        }
+        
+        .view-toggle-btn {
+            background: transparent !important;
+            color: #495057 !important;
+            border: none !important;
+            font-weight: 600 !important;
+            padding: 0.6rem 1.2rem !important;
+            border-radius: 4px !important;
+            transition: all 0.2s ease !important;
+            position: relative !important;
+        }
+        
+        .view-toggle-btn:hover:not(.active) {
+            background: #e9ecef !important;
+            color: #212529 !important;
+            transform: translateY(-1px) !important;
+        }
+        
+        .view-toggle-btn.active {
+            background: linear-gradient(135deg, var(--primary) 0%, #1e3a5f 100%) !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 6px rgba(44, 90, 160, 0.4) !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+        }
+        
+        .view-toggle-btn i {
+            font-size: 1rem !important;
+            margin-right: 0.5rem !important;
+        }
+        
+        /* 3. リスク検知アラート展開ボタンの劇的改善 */
+        .risk-alert-card button,
+        .risk-alert-header button {
+            background: #ffffff !important;
+            color: #dc3545 !important;
+            border: 2px solid #dc3545 !important;
+            font-weight: 700 !important;
+            padding: 0.4rem 0.8rem !important;
+            border-radius: 6px !important;
+            box-shadow: 0 2px 6px rgba(220, 53, 69, 0.2) !important;
+            transition: all 0.2s ease !important;
+            text-shadow: none !important;
+        }
+        
+        .risk-alert-card button:hover,
+        .risk-alert-header button:hover {
+            background: #dc3545 !important;
+            color: #ffffff !important;
+            transform: translateY(-2px) scale(1.02) !important;
+            box-shadow: 0 4px 10px rgba(220, 53, 69, 0.3) !important;
+        }
+        
+        .risk-alert-card button i,
+        .risk-alert-header button i {
+            color: inherit !important;
+            margin-right: 0.3rem !important;
+        }
+        
+        /* 4. 活動記録「未案件商談」タブの差別化改善 */
+        #activitiesPage .view-toggle {
+            background: #e8f5e9 !important;
+            border-color: #c8e6c9 !important;
+        }
+        
+        #activitiesPage .view-toggle-btn {
+            color: #2e7d32 !important;
+        }
+        
+        #activitiesPage .view-toggle-btn:hover:not(.active) {
+            background: #f1f8e9 !important;
+            color: #1b5e20 !important;
+        }
+        
+        #activitiesPage .view-toggle-btn.active {
+            background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%) !important;
+            color: #ffffff !important;
+            border-color: #2e7d32 !important;
+            box-shadow: 0 2px 6px rgba(76, 175, 80, 0.4) !important;
+        }
+        
+        /* 5. リスク案件フィルタチェックボックスの改善 */
+        label:has(#projectsRiskFilter) {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%) !important;
+            border: 2px solid #ffc107 !important;
+            box-shadow: 0 2px 6px rgba(255, 193, 7, 0.25) !important;
+            transition: all 0.2s ease !important;
+        }
+        
+        label:has(#projectsRiskFilter):hover {
+            background: linear-gradient(135deg, #ffe082 0%, #ffcc02 100%) !important;
+            border-color: #ff9800 !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 10px rgba(255, 152, 0, 0.3) !important;
+        }
+        
+        label:has(#projectsRiskFilter) span {
+            color: #e65100 !important;
+            font-weight: 700 !important;
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5) !important;
+        }
+        
+        #projectsRiskFilter:checked + span {
+            color: #d32f2f !important;
+            font-weight: 900 !important;
+        }
+        
+        /* 6. 統一感とアクセシビリティの向上 */
+        .btn-sm {
+            font-weight: 600 !important;
+            letter-spacing: 0.3px !important;
+            min-height: 32px !important;
+        }
+        
+        /* フォーカス時の視認性（アクセシビリティ準拠） */
+        #globalSearchInput:focus,
+        .view-toggle-btn:focus,
+        .risk-alert-card button:focus,
+        label:has(#projectsRiskFilter):focus-within {
+            outline: 3px solid rgba(44, 90, 160, 0.5) !important;
+            outline-offset: 2px !important;
+        }
+        
+        /* 7. レスポンシブデザイン対応 */
+        @media (max-width: 768px) {
+            .view-toggle-btn {
+                padding: 0.5rem 0.8rem !important;
+                font-size: 0.85rem !important;
+            }
+            
+            #activitiesPage .view-toggle-btn {
+                padding: 0.5rem 1rem !important;
+            }
+            
+            .risk-alert-card button {
+                padding: 0.3rem 0.6rem !important;
+                font-size: 0.8rem !important;
+            }
+            
+            #globalSearchInput {
+                font-size: 0.85rem !important;
+            }
+        }
+        
+        /* 8. 高コントラストモード対応 */
+        @media (prefers-contrast: high) {
+            .view-toggle-btn.active {
+                background: #000000 !important;
+                color: #ffffff !important;
+                border: 3px solid #ffffff !important;
+            }
+            
+            #globalSearchInput {
+                border-width: 3px !important;
+            }
+            
+            .risk-alert-card button {
+                border-width: 3px !important;
+            }
+        }
 	</style>
 </head>
 <body>
