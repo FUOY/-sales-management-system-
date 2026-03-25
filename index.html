@@ -1168,6 +1168,78 @@
 			min-width: 200px;
 			flex-shrink: 0;
 		}
+		
+		/* ========================================
+           リスク検知アラート機能の改善
+           ======================================== */
+        
+        /* リスク案件フィルタ（チェックボックス）の改善 */
+        label:has(#projectsRiskFilter) {
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        label:has(#projectsRiskFilter):hover {
+            background-color: #ffe5a0 !important;
+            border-color: #ff9800 !important;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* ブラウザ互換性のためのフォールバック */
+        label[for="projectsRiskFilter"]:hover {
+            background-color: #ffe5a0 !important;
+            border-color: #ff9800 !important;
+            transform: translateY(-1px);
+        }
+
+        #projectsRiskFilter {
+            width: 16px !important;
+            height: 16px !important;
+            accent-color: #dc3545;
+            margin: 0 !important;
+        }
+
+        #projectsRiskFilter:checked + span {
+            color: #dc3545 !important;
+            font-weight: bold !important;
+        }
+
+        /* リスクアラートのボタン改善 */
+        .risk-alert-card button:hover {
+            background: rgba(255,255,255,0.4) !important;
+            transform: scale(1.05);
+            transition: all 0.2s ease;
+        }
+
+        /* リスク案件名のホバー効果 */
+        .risk-project-name a {
+            color: #333;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .risk-project-name a:hover {
+            color: var(--primary) !important;
+            text-decoration: underline !important;
+        }
+        
+        /* リスクアラート展開ボタンのアニメーション */
+        .risk-alert-card button i {
+            transition: transform 0.3s ease;
+        }
+        
+        .risk-alert-card button:hover i {
+            transform: translateY(2px);
+        }
+
+        /* レスポンシブ対応 */
+        @media (max-width: 768px) {
+            label:has(#projectsRiskFilter) {
+                padding: 0.4rem 0.8rem !important;
+                font-size: 0.9rem;
+            }
+        }		
 	</style>
 </head>
 <body>
@@ -1596,13 +1668,13 @@
 							<option value="クロージング">クロージング</option>
 							<option value="受注">受注</option>
 						</select>
-						<select id="projectsPriorityFilter" onchange="app.renderProjects()" class="filter-select" 
-								style="border: 2px solid #ff6b35; font-weight: bold;">
-							<option value="all">🎯 重要度フィルタ</option>
-							<option value="urgent">🔥 緊急（7日以内）</option>
-							<option value="high-value">💰 高額（1000万以上）</option>
-							<option value="stagnant">⚠️ 要注意（30日滞留）</option>
-						</select>
+						<!-- ★ 改善：シンプルなリスク案件フィルタ -->
+						<label style="display: flex; align-items: center; gap: 0.5rem; background: #fff3cd; padding: 0.5rem 1rem; border-radius: 4px; border: 2px solid #ffc107; cursor: pointer; white-space: nowrap;">
+							<input type="checkbox" id="projectsRiskFilter" onchange="app.renderProjects()" style="width: auto; margin: 0;">
+							<span style="font-weight: bold; color: #856404;">
+								<i class="fas fa-exclamation-triangle"></i> リスク案件のみ表示
+							</span>
+						</label>
 						<button class="btn btn-primary" onclick="app.openProjectModal()"><i class="fas fa-plus"></i> 新規案件</button>
 					</div>
 				</div>
@@ -5635,7 +5707,16 @@
 				if (statusFilter !== 'all') {
 					list = list.filter(p => p.status === statusFilter);
 				}
-				
+
+				// ★ 新規追加：リスク案件フィルタ（重要度フィルタの代替）
+				const riskFilterCheckbox = document.getElementById('projectsRiskFilter');
+				if (riskFilterCheckbox && riskFilterCheckbox.checked) {
+					list = list.filter(p => {
+						const risk = this.calculateProjectRisk(p);
+						return risk && risk.level !== 'low'; // 中リスク以上の案件のみ
+					});
+				}
+			
 				// ★ Phase 2: ステージフィルター追加
 				const stageFilter = document.getElementById('projectsStageFilter')?.value;
 				if (stageFilter && stageFilter !== 'all') {
@@ -7161,7 +7242,7 @@
 			}
 
 			/**
-			 * Phase 2: リスク案件アラートの表示
+			 * Phase 2: リスク案件アラートの表示（改善版）
 			 */
 			renderRiskAlerts() {
 				const filter = document.getElementById('projectsFilter')?.value || 'all';
@@ -7191,6 +7272,12 @@
 					return;
 				}
 				
+				// ★ 改善：段階的表示の制御
+				const isExpanded = this.isRiskAlertExpanded || false;
+				const initialDisplayCount = 5;
+				const displayProjects = isExpanded ? riskProjects : riskProjects.slice(0, initialDisplayCount);
+				const hiddenCount = riskProjects.length - displayProjects.length;
+				
 				let html = `
 					<div class="risk-alert-section">
 						<div class="risk-alert-card">
@@ -7199,18 +7286,31 @@
 									<i class="fas fa-exclamation-triangle"></i>
 									リスク検知アラート
 								</div>
-								<span class="risk-badge">${riskProjects.length}件</span>
+								<div style="display: flex; gap: 0.5rem; align-items: center;">
+									<span class="risk-badge">
+										${isExpanded ? `全${riskProjects.length}件表示中` : `表示中${displayProjects.length}件 / 全体${riskProjects.length}件`}
+									</span>
+									${riskProjects.length > initialDisplayCount ? `
+										<button class="btn btn-sm" 
+												style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 2px 8px; font-size: 0.8rem;"
+												onclick="app.toggleRiskAlerts()">
+											${isExpanded ? '<i class="fas fa-chevron-up"></i> 閉じる' : `<i class="fas fa-chevron-down"></i> 残り${hiddenCount}件を表示`}
+										</button>
+									` : ''}
+								</div>
 							</div>
 				`;
 				
-				riskProjects.slice(0, 5).forEach(({ project, risk }) => {
+				displayProjects.forEach(({ project, risk }) => {
 					const riskClass = risk.level === 'high' ? 'high-risk' : '';
 					
 					html += `
 						<div class="risk-item ${riskClass}">
 							<div class="risk-content">
 								<div class="risk-project-name">
-									${project.projectNumber}: ${project.projectName}
+									<a href="#" onclick="app.editProject('${project.id}'); return false;" style="color: inherit; text-decoration: underline;">
+										${project.projectNumber}: ${project.projectName}
+									</a>
 								</div>
 								<div class="risk-details">
 									<span class="risk-factor">
@@ -7244,6 +7344,19 @@
 				`;
 				
 				alertContainer.innerHTML = html;
+			}
+
+			/**
+			 * ★ 新規追加：リスクアラートの展開/折りたたみ
+			 */
+			toggleRiskAlerts() {
+				this.isRiskAlertExpanded = !this.isRiskAlertExpanded;
+				this.renderRiskAlerts();
+				
+				const message = this.isRiskAlertExpanded ? 
+					'全てのリスク案件を表示しました' : 
+					'リスク案件を5件に絞って表示しています';
+				this.showToast(message, 'success');
 			}
 
 			// ========================================
