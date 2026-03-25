@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+	<!-- ★ Excel処理用ライブラリ (SheetJS) の追加 -->
+	<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
     <style>
         :root {
@@ -1365,13 +1367,66 @@
             <section id="customersPage" class="page-section">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
                     <h2 class="page-title" style="margin: 0;">顧客管理</h2>
-                    <div class="header-controls">
-                        <select id="customersFilter" onchange="app.renderCustomers()" class="filter-select">
-                            <option value="all">全員表示</option>
-                            <option value="personal">個人表示</option>
-                        </select>
-                        <button class="btn btn-primary" onclick="app.openCustomerModal()"><i class="fas fa-plus"></i> 新規顧客追加</button>
-                    </div>
+				<div class="header-controls">
+					<!-- フィルター選択 -->
+					<select id="customersFilter" onchange="app.renderCustomers()" class="filter-select">
+						<option value="all">全員表示</option>
+						<option value="personal">個人表示</option>
+					</select>
+					
+					<!-- Excel一括インポート（修正版） -->
+					<div style="position: relative; display: inline-block;">
+						<button class="btn btn-success" onclick="const d = document.getElementById('importDropdown'); d.style.display = d.style.display === 'block' ? 'none' : 'block';">
+							<i class="fas fa-file-excel"></i> Excel一括インポート
+						</button>
+						
+						<!-- ★重要: display:none で初期非表示、position:absolute で浮動表示 -->
+						<div id="importDropdown" style="display: none; position: absolute; top: 100%; right: 0; background: white; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; min-width: 220px; margin-top: 5px; padding: 8px 0;">
+							
+							<!-- 各メニュー項目（class="btn"を削除して色の問題を解決） -->
+							<button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #333; cursor: pointer; font-size: 0.9rem;" 
+									onmouseover="this.style.background='#f0f8ff'" 
+									onmouseout="this.style.background='white'"
+									onclick="app.importExcel('customers'); document.getElementById('importDropdown').style.display = 'none';">
+								<i class="fas fa-users" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
+								得意先リスト
+							</button>
+
+							<button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #333; cursor: pointer; font-size: 0.9rem;" 
+									onmouseover="this.style.background='#f0f8ff'" 
+									onmouseout="this.style.background='white'"
+									onclick="app.importExcel('machines'); document.getElementById('importDropdown').style.display = 'none';">
+								<i class="fas fa-cogs" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
+								導入機械情報
+							</button>
+
+							<button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #333; cursor: pointer; font-size: 0.9rem;" 
+									onmouseover="this.style.background='#f0f8ff'" 
+									onmouseout="this.style.background='white'"
+									onclick="app.importExcel('orders'); document.getElementById('importDropdown').style.display = 'none';">
+								<i class="fas fa-history" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
+								受注履歴
+							</button>
+
+							<button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #333; cursor: pointer; font-size: 0.9rem;" 
+									onmouseover="this.style.background='#f0f8ff'" 
+									onmouseout="this.style.background='white'"
+									onclick="app.importExcel('products'); document.getElementById('importDropdown').style.display = 'none';">
+								<i class="fas fa-barcode" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
+								商品コードリスト
+							</button>
+						</div>
+					</div>
+					
+					<!-- 新規顧客追加ボタン -->
+					<button class="btn btn-primary" onclick="app.openCustomerModal()">
+						<i class="fas fa-plus"></i> 新規顧客追加
+					</button>
+				</div>
+
+				<!-- 非表示のファイル入力要素 -->
+				<input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;" onchange="app.handleExcelFile(event)">
+
                 </div>
                 <div class="card table-container">
                     <table id="customersTable">
@@ -1741,23 +1796,156 @@
     </div>
 
     <!-- Modals (修正7: 各モーダルタイトルの改行防止) -->
-    <div id="customerModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header"><h3 style="white-space: nowrap;">顧客情報</h3><button class="close-btn" onclick="app.closeModal('customerModal')">×</button></div>
-            <form onsubmit="app.saveCustomer(event)">
-                <input type="hidden" id="customerId">
-                <div class="form-group"><label>顧客名 *</label><input type="text" id="customerName" required></div>
-                <div class="form-group"><label>業種</label><input type="text" id="customerIndustry"></div>
-                <div class="form-group"><label>ランク</label><select id="customerRank"><option value="A">A</option><option value="B">B</option><option value="C">C</option></select></div>
-                <div class="form-group"><label>ステータス</label><select id="customerStatus"><option value="取引中">取引中</option><option value="アプローチ中">アプローチ中</option><option value="休眠">休眠</option></select></div>
-                <div class="form-group"><label>主担当者 *</label><select id="customerAssignee" required class="staff-select"></select></div>
-                <div class="actions">
-                    <button type="button" class="btn btn-secondary" onclick="app.closeModal('customerModal')">キャンセル</button>
-                    <button type="submit" class="btn btn-primary">保存</button>
-                </div>
-            </form>
-        </div>
-    </div>
+	<div id="customerModal" class="modal">
+		<div class="modal-content" style="max-width: 900px;">
+			<div class="modal-header">
+				<h3><i class="fas fa-building"></i> 顧客情報編集</h3>
+				<button class="close-btn" onclick="app.closeModal('customerModal')">×</button>
+			</div>
+			<form onsubmit="app.saveCustomer(event)">
+				<input type="hidden" id="customerId">
+				
+				<!-- ========== 基本情報セクション ========== -->
+				<div class="card" style="margin-bottom: 1.5rem; padding: 1rem; background: #f8f9fa;">
+					<h4 style="margin-top: 0; color: var(--primary); border-bottom: 2px solid #ddd; padding-bottom: 0.5rem;">
+						<i class="fas fa-info-circle"></i> 基本情報
+					</h4>
+					<div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem;">
+						<div class="form-group">
+							<label>顧客名 *</label>
+							<input type="text" id="customerName" required placeholder="例：株式会社サンプル">
+						</div>
+						<div class="form-group">
+							<label>顧客コード (Smile)</label>
+							<input type="text" id="customerCompanyCode" placeholder="Smile連携用コード">
+						</div>
+						<div class="form-group">
+							<label>業種</label>
+							<input type="text" id="customerIndustry" placeholder="例：製造業">
+						</div>
+					</div>
+					<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+						<div class="form-group">
+							<label>ランク</label>
+							<select id="customerRank">
+								<option value="A">A (重要顧客)</option>
+								<option value="B">B (標準顧客)</option>
+								<option value="C">C (一般顧客)</option>
+							</select>
+						</div>
+						<div class="form-group">
+							<label>ステータス</label>
+							<select id="customerStatus">
+								<option value="取引中">取引中</option>
+								<option value="アプローチ中">アプローチ中</option>
+								<option value="休眠">休眠</option>
+							</select>
+						</div>
+						<div class="form-group">
+							<label>主担当者 *</label>
+							<select id="customerAssignee" required class="staff-select"></select>
+						</div>
+					</div>
+				</div>
+
+				<!-- ========== 連絡先情報セクション ========== -->
+				<div class="card" style="margin-bottom: 1.5rem; padding: 1rem; background: #f8f9fa;">
+					<h4 style="margin-top: 0; color: var(--primary); border-bottom: 2px solid #ddd; padding-bottom: 0.5rem;">
+						<i class="fas fa-address-card"></i> 連絡先情報
+					</h4>
+					<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem;">
+						<div class="form-group">
+							<label>郵便番号</label>
+							<input type="text" id="customerPostalCode" placeholder="123-4567">
+						</div>
+						<div class="form-group">
+							<label>住所</label>
+							<input type="text" id="customerAddress" placeholder="都道府県市区町村番地">
+						</div>
+					</div>
+					<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+						<div class="form-group">
+							<label>電話番号</label>
+							<input type="tel" id="customerPhone" placeholder="03-1234-5678">
+						</div>
+						<div class="form-group">
+							<label>FAX番号</label>
+							<input type="tel" id="customerFax" placeholder="03-1234-5679">
+						</div>
+					</div>
+					<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+						<div class="form-group">
+							<label>メールアドレス</label>
+							<input type="email" id="customerEmail" placeholder="example@company.co.jp">
+						</div>
+						<div class="form-group">
+							<label>ホームページURL</label>
+							<input type="url" id="customerWebsite" placeholder="https://www.company.co.jp">
+						</div>
+					</div>
+				</div>
+
+				<!-- ========== 企業情報セクション ========== -->
+				<div class="card" style="margin-bottom: 1.5rem; padding: 1rem; background: #f8f9fa;">
+					<h4 style="margin-top: 0; color: var(--primary); border-bottom: 2px solid #ddd; padding-bottom: 0.5rem;">
+						<i class="fas fa-building"></i> 企業情報
+					</h4>
+					<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+						<div class="form-group">
+							<label>設立年月日</label>
+							<input type="date" id="customerEstablishedDate">
+						</div>
+						<div class="form-group">
+							<label>資本金（円）</label>
+							<input type="number" id="customerCapital" placeholder="10000000" oninput="app.formatCurrency(this)">
+						</div>
+						<div class="form-group">
+							<label>従業員数</label>
+							<input type="number" id="customerEmployees" placeholder="50">
+						</div>
+					</div>
+				</div>
+
+				<!-- ========== 取引条件セクション ========== -->
+				<div class="card" style="margin-bottom: 1.5rem; padding: 1rem; background: #f8f9fa;">
+					<h4 style="margin-top: 0; color: var(--primary); border-bottom: 2px solid #ddd; padding-bottom: 0.5rem;">
+						<i class="fas fa-file-contract"></i> 取引条件
+					</h4>
+					<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+						<div class="form-group">
+							<label>支払条件</label>
+							<select id="customerPaymentTerms">
+								<option value="">選択してください</option>
+								<option value="月末締め翌月末払い">月末締め翌月末払い</option>
+								<option value="月末締め翌々月末払い">月末締め翌々月末払い</option>
+								<option value="20日締め翌月20日払い">20日締め翌月20日払い</option>
+								<option value="現金払い">現金払い</option>
+								<option value="その他">その他</option>
+							</select>
+						</div>
+						<div class="form-group">
+							<label>与信限度額（円）</label>
+							<input type="number" id="customerCreditLimit" placeholder="50000000" oninput="app.formatCurrency(this)">
+						</div>
+						<div class="form-group">
+							<label>消費税区分</label>
+							<select id="customerTaxType">
+								<option value="外税">外税</option>
+								<option value="内税">内税</option>
+								<option value="非課税">非課税</option>
+							</select>
+						</div>
+					</div>
+				</div>
+
+				<!-- ========== 保存ボタン ========== -->
+				<div class="actions">
+					<button type="button" class="btn btn-secondary" onclick="app.closeModal('customerModal')">キャンセル</button>
+					<button type="submit" class="btn btn-primary">保存</button>
+				</div>
+			</form>
+		</div>
+	</div>
 
     <div id="customerStaffModal" class="modal">
         <div class="modal-content">
@@ -2170,6 +2358,9 @@
 				this.currentProjectFiles = []; // ファイル管理用配列
 				this.selectedFiscalYear = null; // タイムライン年度選択
 				this.activityPeriod = 'all'; // 活動記録期間フィルタ
+				
+				// ★ 追加: 確度フィルター状態
+				this.targetProbability = null;  // A/B/C/D での一時フィルタ
 				
 				// 5. 初期化処理（最後に1回だけ実行）
 				this.init();
@@ -2666,6 +2857,31 @@
 			}
 
 			renderCharts(acts, target) {
+				// ▼▼▼ 【修正】すべての変数を冒頭で1回だけ宣言 ▼▼▼
+				const filter = document.getElementById('dashboardFilter')?.value || 'all';
+				const isPersonal = filter === 'personal' && CURRENT_USER.role !== 'admin';
+
+				// フィルタリング対象の案件リストを取得
+				const targetProjects = this.data.projects.filter(p => {
+					if (isPersonal) {
+						return p.assignee === CURRENT_USER.assignee;
+					}
+					return true;
+				});
+
+				// 受注済み案件（機種名別売上グラフで使用）
+				const orderedProjects = targetProjects.filter(p => 
+					p.stage === '受注' && p.status !== '失注'
+				);
+
+				// 進行中案件（確度別分布で使用）
+				const ongoingProjects = targetProjects.filter(p => 
+					p.stage !== '受注' && 
+					p.status !== '失注' && 
+					p.status !== '完了' &&      // ★追加: 完了ステータスを除外
+					p.probability !== '受注済'  // ★追加: 確度「受注済」を除外
+				);
+				
 				// Canvas要素のリセット
 				['chartActivity', 'chartProduct', 'chartTimeline'].forEach(id => {
 					const canvas = document.getElementById(id);
@@ -2713,12 +2929,13 @@
 					}
 				});
 
-				// Product Doughnut Chart - 受注済のみ
+				// 機種名別売上グラフ（案件ベース集計）
 				const prods = {}; 
-				acts.filter(a => a.stage === '受注').forEach(a => { 
-					if(a.product) prods[a.product] = (prods[a.product] || 0) + (Number(a.amount) || 0); 
+				orderedProjects.forEach(p => { 
+					const product = p.product || '未設定';
+					prods[product] = (prods[product] || 0) + (Number(p.estimatedAmount) || 0); 
 				});
-				
+
 				const colorPalette = [
 					'#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
 					'#FF9F40', '#E7E9ED', '#76D7C4', '#F7DC6F', '#C0392B'
@@ -2736,14 +2953,24 @@
 					options: { maintainAspectRatio: false }
 				});
 
-				// Stage Funnel - クリック機能付き
+				// ステージ別案件数ファネル（案件ベース集計）
 				const stages = ['アプローチ', 'ヒアリング', '提案', '見積提出', 'クロージング', '受注'];
 				const stageCounts = {};
 				stages.forEach(s => stageCounts[s] = { count: 0, amount: 0 });
-				acts.forEach(a => { 
-					if (stageCounts[a.stage]) { 
-						stageCounts[a.stage].count++; 
-						stageCounts[a.stage].amount += (Number(a.amount) || 0); 
+
+				// 進行中案件のみで集計（失注・完了は除外）
+				const activeProjectsForStage = this.data.projects.filter(p => {
+					if (p.status === '失注' || p.status === '完了') return false;
+					if (isPersonal) {
+						return p.assignee === CURRENT_USER.assignee;
+					}
+					return true;
+				});
+
+				activeProjectsForStage.forEach(p => { 
+					if (stageCounts[p.stage]) { 
+						stageCounts[p.stage].count++; 
+						stageCounts[p.stage].amount += (Number(p.estimatedAmount) || 0); 
 					} 
 				});
 				
@@ -2757,28 +2984,25 @@
 						<span class="funnel-value">${stageCounts[s].count}件 / ¥${(stageCounts[s].amount / 10000).toFixed(0)}万</span>
 					</div>`).join('');
 
-				// Probability Funnel - クリック機能付き（金額表示対応）
-				const actsForProb = acts.filter(a => a.stage !== '受注');
+				// 確度別分布ファネル（案件ベース集計）
 				const probs = ['A', 'B', 'C', 'D'];
-
-				// 件数と金額を同時に集計
 				const probStats = {};
 				probs.forEach(p => probStats[p] = { count: 0, amount: 0 });
 
-				actsForProb.forEach(a => { 
-					if (probStats[a.probability]) {
-						probStats[a.probability].count++;
-						probStats[a.probability].amount += (Number(a.amount) || 0);
+				ongoingProjects.forEach(p => { 
+					const prob = p.probability || 'D';
+					if (probStats[prob]) {
+						probStats[prob].count++;
+						probStats[prob].amount += (Number(p.estimatedAmount) || 0);
 					}
 				});
 
-				// バー幅は件数ベースで計算
 				const maxProb = Math.max(...Object.values(probStats).map(s => s.count), 1);
 
 				document.getElementById('funnelProbability').innerHTML = probs.map(p => {
 					const stats = probStats[p];
 					const width = Math.max((stats.count / maxProb) * 100, 10);
-					const amountInMan = (stats.amount / 10000).toFixed(0); // 万円単位
+					const amountInMan = (stats.amount / 10000).toFixed(0);
 					
 					return `
 						<div class="funnel-item funnel-clickable" 
@@ -2790,122 +3014,44 @@
 						</div>`;
 				}).join('');
 
-				// ========================================
-				// Timeline Chart - 年度別切り替え表示（完全版）
-				// ========================================
-				
+				// タイムラインチャート - 年度別表示
 				const months = ['6月','7月','8月','9月','10月','11月','12月','1月','2月','3月','4月','5月'];
 
 				// 現在の営業年度を算出（6月開始）
 				const now = new Date();
-				const currentMonth = now.getMonth(); // 0-11
+				const currentMonth = now.getMonth();
 				const currentYear = now.getFullYear();
 				const currentFiscalYear = currentMonth >= 5 ? currentYear : currentYear - 1;
-
-				// ▼▼▼ 【最終修正版】予定月ベース・ステータス色分けタイムライン集計 ▼▼▼
 
 				// 年度別データの初期化
 				const yearlyData = {};
 
-				// フィルタ状態の取得
-				const filter = document.getElementById('dashboardFilter')?.value || 'all';
-				const isPersonalMode = filter === 'personal' && CURRENT_USER.role !== 'admin';
-
 				// ヘルパー関数：営業年度と月インデックスの算出
 				function getFiscalYearAndMonthIndex(dateObj) {
 					const year = dateObj.getFullYear();
-					const month = dateObj.getMonth(); // 0-11
-					const fiscalYear = month >= 5 ? year : year - 1;        // 6月開始
-					const monthIndex = (month - 5 + 12) % 12;               // 6月→0, 7月→1, ..., 5月→11
+					const month = dateObj.getMonth();
+					const fiscalYear = month >= 5 ? year : year - 1;
+					const monthIndex = (month - 5 + 12) % 12;
 					return { fiscalYear, monthIndex };
 				}
 
-				// 【ステップ1】案件データの集計（重複排除）
+				// 案件データの集計
 				const processedProjects = new Set();
-				const targetProjects = isPersonalMode 
-					? this.data.projects.filter(p => p.assignee === CURRENT_USER.assignee)
-					: this.data.projects;
-
-				console.log('📊 集計対象案件数:', targetProjects.length);
 
 				targetProjects.forEach(project => {
 					if (project.status === '失注') return;
 					const amount = Number(project.estimatedAmount) || 0;
 					if (!amount) return;
 					
-					// 受注確定判定
 					const isConfirmed = 
 						project.stage === '受注' || 
 						project.probability === '受注済' || 
 						project.status === '完了';
 					
-					// ★重要：月の判定は常に「受注予定日」を使用
 					let targetDateStr = project.expectedOrderDate;
-					
-					// 受注予定日がない場合のフォールバック
 					if (!targetDateStr) {
 						targetDateStr = project.lastActivityDate || project.createdDate;
 					}
-					
-					if (!targetDateStr) {
-						console.warn('⚠️ 日付なし案件:', project.projectName);
-						return;
-					}
-					
-					const dateObj = new Date(targetDateStr);
-					if (isNaN(dateObj.getTime())) {
-						console.warn('⚠️ 無効な日付:', targetDateStr, project.projectName);
-						return;
-					}
-					
-					const { fiscalYear, monthIndex } = getFiscalYearAndMonthIndex(dateObj);
-					
-					// 年度データの初期化
-					if (!yearlyData[fiscalYear]) {
-						yearlyData[fiscalYear] = {
-							ordered: new Array(12).fill(0),
-							expected: new Array(12).fill(0)
-						};
-					}
-					
-					// 適切なカテゴリに集計
-					if (isConfirmed) {
-						yearlyData[fiscalYear].ordered[monthIndex] += amount;
-						console.log(`✅ 受注済集計: ${project.projectName} - ${targetDateStr} - ¥${amount.toLocaleString()}`);
-					} else {
-						yearlyData[fiscalYear].expected[monthIndex] += amount;
-						console.log(`📋 想定集計: ${project.projectName} - ${targetDateStr} - ¥${amount.toLocaleString()}`);
-					}
-					
-					// 処理済みとしてマーク
-					processedProjects.add(project.id);
-				});
-
-				// 【ステップ2】未案件化活動の補完集計
-				const targetActivities = isPersonalMode
-					? acts.filter(a => a.assignee === CURRENT_USER.assignee)
-					: acts;
-
-				targetActivities.forEach(activity => {
-					// 案件に紐付いている活動はスキップ（重複防止）
-					if (activity.projectId && processedProjects.has(activity.projectId)) {
-						return;
-					}
-					if (activity.projectId) {
-						const parentProject = this.data.projects.find(p => p.id === activity.projectId);
-						if (parentProject && parentProject.status === '失注') return;
-					}
-					const amount = Number(activity.amount) || 0;
-					if (!amount) return;
-					
-					// 受注確定判定
-					const isConfirmed = 
-						activity.stage === '受注' || 
-						activity.probability === '受注済';
-					
-					// 月の判定は受注予定日を使用
-					const targetDateStr = activity.expected_date;
-					
 					if (!targetDateStr) return;
 					
 					const dateObj = new Date(targetDateStr);
@@ -2913,7 +3059,6 @@
 					
 					const { fiscalYear, monthIndex } = getFiscalYearAndMonthIndex(dateObj);
 					
-					// 年度データの初期化
 					if (!yearlyData[fiscalYear]) {
 						yearlyData[fiscalYear] = {
 							ordered: new Array(12).fill(0),
@@ -2921,26 +3066,61 @@
 						};
 					}
 					
-					// 適切なカテゴリに集計
 					if (isConfirmed) {
 						yearlyData[fiscalYear].ordered[monthIndex] += amount;
-						console.log(`✅ 未案件化受注集計: ${activity.customer} - ${targetDateStr} - ¥${amount.toLocaleString()}`);
+					} else {
+						yearlyData[fiscalYear].expected[monthIndex] += amount;
+					}
+					
+					processedProjects.add(project.id);
+				});
+
+				// 未案件化活動の補完集計
+				const targetActivities = isPersonal
+					? acts.filter(a => a.assignee === CURRENT_USER.assignee)
+					: acts;
+
+				targetActivities.forEach(activity => {
+					if (activity.projectId && processedProjects.has(activity.projectId)) return;
+					if (activity.projectId) {
+						const parentProject = this.data.projects.find(p => p.id === activity.projectId);
+						if (parentProject && parentProject.status === '失注') return;
+					}
+					
+					const amount = Number(activity.amount) || 0;
+					if (!amount) return;
+					
+					const isConfirmed = 
+						activity.stage === '受注' || 
+						activity.probability === '受注済';
+					
+					const targetDateStr = activity.expected_date;
+					if (!targetDateStr) return;
+					
+					const dateObj = new Date(targetDateStr);
+					if (isNaN(dateObj.getTime())) return;
+					
+					const { fiscalYear, monthIndex } = getFiscalYearAndMonthIndex(dateObj);
+					
+					if (!yearlyData[fiscalYear]) {
+						yearlyData[fiscalYear] = {
+							ordered: new Array(12).fill(0),
+							expected: new Array(12).fill(0)
+						};
+					}
+					
+					if (isConfirmed) {
+						yearlyData[fiscalYear].ordered[monthIndex] += amount;
 					} else {
 						yearlyData[fiscalYear].expected[monthIndex] += amount;
 					}
 				});
 
-				console.log('📊 予定月ベースタイムライン集計完了:', yearlyData);
-
-				// ▲▲▲ 修正ここまで ▲▲▲
-
 				// 年度選択ドロップダウンの更新
 				const yearSelect = document.getElementById('timelineYearSelect');
 				if (yearSelect) {
-					// 利用可能な年度を取得
 					const availableYears = Object.keys(yearlyData).map(y => parseInt(y)).sort();
 					
-					// データがない場合は現在年度を追加
 					if (availableYears.length === 0) {
 						availableYears.push(currentFiscalYear);
 						yearlyData[currentFiscalYear] = {
@@ -2949,7 +3129,6 @@
 						};
 					}
 
-					// KPI設定から年度も追加（年度別KPI機能との統合）
 					if (this.data.kpiSettings && this.data.kpiSettings.yearlyData) {
 						Object.keys(this.data.kpiSettings.yearlyData).forEach(y => {
 							const yearInt = parseInt(y);
@@ -2966,19 +3145,16 @@
 						availableYears.sort();
 					}
 
-					// 初回または選択年度が無効な場合は現在年度を選択
 					if (!this.selectedFiscalYear || !availableYears.includes(this.selectedFiscalYear)) {
 						this.selectedFiscalYear = currentFiscalYear;
 					}
 
-					// ドロップダウンの選択肢を更新
 					yearSelect.innerHTML = availableYears.map(year => 
 						`<option value="${year}" ${year === this.selectedFiscalYear ? 'selected' : ''}>
 							${year}年度 (${year}年6月-${year + 1}年5月)
 						</option>`
 					).join('');
 					
-					// 選択変更イベント
 					yearSelect.onchange = () => {
 						this.selectedFiscalYear = parseInt(yearSelect.value);
 						this.renderDashboard();
@@ -2992,19 +3168,18 @@
 					expected: new Array(12).fill(0)
 				};
 
-				// 選択された年度のKPI目標を正しく取得
-				let selectedYearTarget = target; // デフォルトは引数のtarget
+				// 選択された年度のKPI目標を取得
+				let selectedYearTarget = target;
 				if (this.data.kpiSettings && this.data.kpiSettings.yearlyData && this.data.kpiSettings.yearlyData[selectedYear]) {
 					const yearKpi = this.data.kpiSettings.yearlyData[selectedYear];
-					const filter = document.getElementById('dashboardFilter').value;
-					if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
+					if (isPersonal) {
 						selectedYearTarget = yearKpi.personalTargets[CURRENT_USER.assignee] || 0;
 					} else {
 						selectedYearTarget = yearKpi.totalTarget || 0;
 					}
 				}
 
-				// 累積受注済データの計算（折れ線グラフ用）
+				// 累積受注済データの計算
 				let cumulativeSum = 0;
 				const cumulativeOrdered = selectedData.ordered.map(monthlyAmount => {
 					cumulativeSum += monthlyAmount;
@@ -3022,13 +3197,12 @@
 				document.getElementById('timelineExpected').textContent = yearTotalExpected.toLocaleString();
 				document.getElementById('timelineShortage').textContent = yearShortage.toLocaleString();
 
-				// Chart.js でグラフ描画
+				// Chart.js でタイムライングラフを描画
 				new Chart(document.getElementById('chartTimeline'), {
 					type: 'bar',
 					data: {
 						labels: months,
 						datasets: [
-							// 累積受注済（濃い青の折れ線）
 							{
 								label: `${selectedYear}年度 累積受注済 📈`,
 								data: cumulativeOrdered,
@@ -3044,7 +3218,6 @@
 								pointBorderWidth: 2,
 								order: 1
 							},
-							// 月次受注済（青い棒グラフ）
 							{
 								label: `${selectedYear}年度 月次受注済 ✅`,
 								data: selectedData.ordered,
@@ -3054,7 +3227,6 @@
 								stack: 'monthly',
 								order: 3
 							},
-							// 月次受注想定（オレンジの棒グラフ）
 							{
 								label: `${selectedYear}年度 月次受注想定 ⏳`,
 								data: selectedData.expected,
@@ -3064,7 +3236,6 @@
 								stack: 'monthly',
 								order: 3
 							},
-							// KPI目標ライン（緑の点線）
 							{
 								label: 'KPI目標 🎯',
 								data: Array(12).fill(selectedYearTarget),
@@ -4234,84 +4405,126 @@
 			}
 
             // Modal Management
-            openCustomerModal() {
-                document.getElementById('customerId').value = '';
-                document.getElementById('customerName').value = '';
-                document.getElementById('customerIndustry').value = '';
-                document.getElementById('customerRank').value = 'A';
-                document.getElementById('customerStatus').value = '取引中';
-                document.getElementById('customerAssignee').value = CURRENT_USER.assignee;
-                this.openModal('customerModal');
-            }
+			openCustomerModal() {
+				// 基本情報
+				document.getElementById('customerId').value = '';
+				document.getElementById('customerName').value = '';
+				document.getElementById('customerCompanyCode').value = '';
+				document.getElementById('customerIndustry').value = '';
+				document.getElementById('customerRank').value = 'A';
+				document.getElementById('customerStatus').value = '取引中';
+				document.getElementById('customerAssignee').value = CURRENT_USER.assignee;
+				
+				// 連絡先情報
+				document.getElementById('customerPostalCode').value = '';
+				document.getElementById('customerAddress').value = '';
+				document.getElementById('customerPhone').value = '';
+				document.getElementById('customerFax').value = '';
+				document.getElementById('customerEmail').value = '';
+				document.getElementById('customerWebsite').value = '';
+				
+				// 企業情報
+				document.getElementById('customerEstablishedDate').value = '';
+				document.getElementById('customerCapital').value = '';
+				document.getElementById('customerEmployees').value = '';
+				
+				// 取引条件
+				document.getElementById('customerPaymentTerms').value = '';
+				document.getElementById('customerCreditLimit').value = '';
+				document.getElementById('customerTaxType').value = '外税';
+				
+				this.openModal('customerModal');
+			}
 
-            editCustomer(id) {
-                const c = this.data.customers.find(x => x.id == id);
-                if (!c) return;
-                document.getElementById('customerId').value = c.id;
-                document.getElementById('customerName').value = c.name;
-                document.getElementById('customerIndustry').value = c.industry || '';
-                document.getElementById('customerRank').value = c.rank || 'A';
-                document.getElementById('customerStatus').value = c.status || '取引中';
-                document.getElementById('customerAssignee').value = c.assignee || '';
-                this.openModal('customerModal');
-            }
+			editCustomer(id) {
+				const c = this.data.customers.find(x => x.id == id);
+				if (!c) return;
+				
+				// 基本情報
+				document.getElementById('customerId').value = c.id;
+				document.getElementById('customerName').value = c.name;
+				document.getElementById('customerCompanyCode').value = c.companyCode || '';
+				document.getElementById('customerIndustry').value = c.industry || '';
+				document.getElementById('customerRank').value = c.rank || 'A';
+				document.getElementById('customerStatus').value = c.status || '取引中';
+				document.getElementById('customerAssignee').value = c.assignee || '';
+				
+				// 連絡先情報
+				document.getElementById('customerPostalCode').value = c.postalCode || '';
+				document.getElementById('customerAddress').value = c.address || '';
+				document.getElementById('customerPhone').value = c.phone || '';
+				document.getElementById('customerFax').value = c.fax || '';
+				document.getElementById('customerEmail').value = c.email || '';
+				document.getElementById('customerWebsite').value = c.website || '';
+				
+				// 企業情報
+				document.getElementById('customerEstablishedDate').value = c.establishedDate || '';
+				document.getElementById('customerCapital').value = c.capital || '';
+				document.getElementById('customerEmployees').value = c.employees || '';
+				
+				// 取引条件
+				document.getElementById('customerPaymentTerms').value = c.paymentTerms || '';
+				document.getElementById('customerCreditLimit').value = c.creditLimit || '';
+				document.getElementById('customerTaxType').value = c.taxType || '外税';
+				
+				this.openModal('customerModal');
+			}
 
-            saveCustomer(e) {
-                e.preventDefault();
-                const id = document.getElementById('customerId').value;
-                // 既存顧客データの取得（拡張項目を維持するため）
+			saveCustomer(e) {
+				e.preventDefault();
+				const id = document.getElementById('customerId').value;
 				const existingCustomer = id ? this.data.customers.find(c => c.id == id) : null;
-
+				
 				const data = {
-					// 既存項目（変更なし）
+					// 基本情報
 					name: document.getElementById('customerName').value,
+					companyCode: document.getElementById('customerCompanyCode').value,
 					industry: document.getElementById('customerIndustry').value,
 					rank: document.getElementById('customerRank').value,
 					status: document.getElementById('customerStatus').value,
 					assignee: document.getElementById('customerAssignee').value,
 					
-					// ★ 拡張項目の初期化（将来のExcelインポート用）
-					companyCode: existingCustomer?.companyCode || '',
-					postalCode: existingCustomer?.postalCode || '',
-					address: existingCustomer?.address || '',
-					phone: existingCustomer?.phone || '',
-					fax: existingCustomer?.fax || '',
-					email: existingCustomer?.email || '',
-					website: existingCustomer?.website || '',
-					establishedDate: existingCustomer?.establishedDate || '',
-					capital: existingCustomer?.capital || 0,
-					employees: existingCustomer?.employees || 0,
-					paymentTerms: existingCustomer?.paymentTerms || '',
-					creditLimit: existingCustomer?.creditLimit || 0,
-					taxType: existingCustomer?.taxType || '外税',
+					// 連絡先情報
+					postalCode: document.getElementById('customerPostalCode').value,
+					address: document.getElementById('customerAddress').value,
+					phone: document.getElementById('customerPhone').value,
+					fax: document.getElementById('customerFax').value,
+					email: document.getElementById('customerEmail').value,
+					website: document.getElementById('customerWebsite').value,
 					
-					// ★ 配列データの維持（重要：既存データを消さない）
+					// 企業情報
+					establishedDate: document.getElementById('customerEstablishedDate').value,
+					capital: Number(document.getElementById('customerCapital').value) || 0,
+					employees: Number(document.getElementById('customerEmployees').value) || 0,
+					
+					// 取引条件
+					paymentTerms: document.getElementById('customerPaymentTerms').value,
+					creditLimit: Number(document.getElementById('customerCreditLimit').value) || 0,
+					taxType: document.getElementById('customerTaxType').value,
+					
+					// 配列データの維持（既存データがある場合）
 					installedMachines: existingCustomer?.installedMachines || [],
-					orderHistory: existingCustomer?.orderHistory || []
+					orderHistory: existingCustomer?.orderHistory || [],
+					staffs: existingCustomer?.staffs || []
 				};
-
-                if (id) {
-                    const idx = this.data.customers.findIndex(x => x.id == id);
-                    if (idx !== -1) {
-                        this.data.customers[idx] = { ...this.data.customers[idx], ...data };
-                    }
-                } else {
-                    this.data.customers.push({ id: Date.now().toString(), ...data, staffs: [] });
-                }
-
-                this.saveData();
-                this.closeModal('customerModal');
-                this.renderCustomers();
-                this.showToast('顧客を保存しました', 'success');
-            }
-
-            deleteCustomer(id) {
-                if (!confirm('この顧客を削除しますか?')) return;
-                this.data.customers = this.data.customers.filter(c => c.id != id);
-                this.saveData();
-                this.renderCustomers();
-                this.showToast('顧客を削除しました', 'success');
-            }
+				
+				if (id) {
+					const idx = this.data.customers.findIndex(x => x.id == id);
+					if (idx !== -1) {
+						this.data.customers[idx] = { ...this.data.customers[idx], ...data };
+					}
+				} else {
+					this.data.customers.push({ 
+						id: Date.now().toString(), 
+						...data 
+					});
+				}
+				
+				this.saveData();
+				this.closeModal('customerModal');
+				this.renderCustomers();
+				this.showToast('顧客情報を保存しました', 'success');
+			}
 
             openCustomerStaffModal(customerId) {
                 this.currentEditingCustomerId = customerId;
@@ -5022,7 +5235,25 @@
 					// 進行中案件のみを残す（完了案件は除外）
 					return !isCompleted;
 				});
-				// ★★★ 修正ここまで ★★★
+				
+				// ★ 追加: ダッシュボードからの確度フィルタ適用
+				if (this.targetProbability) {
+					console.log(`🎯 確度${this.targetProbability}でフィルタリング中`);
+					list = list.filter(p => p.probability === this.targetProbability);
+					
+					// フィルタ適用中の視覚的フィードバック
+					const activeSummary = document.getElementById('activeProjectsSummary');
+					if (activeSummary) {
+						activeSummary.innerHTML = `
+							<span style="background: #ffc107; color: white; padding: 4px 12px; border-radius: 12px; font-weight: bold;">
+								🎯 確度${this.targetProbability}フィルタ中: ${list.length}件
+							</span>
+							<button class="btn btn-sm btn-secondary" onclick="app.clearProbabilityFilter()" style="margin-left: 1rem;">
+								<i class="fas fa-times"></i> フィルタ解除
+							</button>
+						`;
+					}
+				}
 				
 				// 個人/全体フィルター
 				if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
@@ -5397,71 +5628,49 @@
                 return null;
             }
 			
+			/**
+			 * 確度別分布ファネルから案件管理へのドリルダウン（修正版）
+			 */
 			filterProjectsByProbability(probability) {
-				// 案件管理ページに遷移
-				this.showPage('projects');
+				try {
+					console.log(`🎯 確度${probability}でフィルタリング開始`);
 					
-				// フィルターを個人/全体のまま維持
-				const currentFilter = document.getElementById('projectsFilter').value;
-				let list = this.data.projects || [];
+					// 1. フィルタ条件を状態として保存
+					this.targetProbability = probability;
 					
-				if (currentFilter === 'personal' && CURRENT_USER.role !== 'admin') {
-					list = list.filter(p => p.assignee === CURRENT_USER.assignee);
+					// ★ 追加：ステージフィルタを「全ステージ」にリセット
+					const stageFilter = document.getElementById('projectsStageFilter');
+					if (stageFilter) stageFilter.value = 'all';
+					
+					// 2. 案件管理ページに遷移
+					this.showPage('projects');
+					
+					// 3. テーブルビューに切り替え（カンバンの場合）
+					if (this.projectViewMode === 'kanban') {
+						this.switchProjectView('table');
+					}
+					
+					// 4. 既存の renderProjects() が自動的にフィルタを適用
+					// （上記ステップ2の修正により、this.targetProbability を見てフィルタリング）
+					
+					// 5. 成功メッセージ
+					this.showToast(`確度${probability}の案件を表示中`, 'success');
+					
+				} catch (error) {
+					console.error('❌ 確度フィルタリングエラー:', error);
+					this.showToast('フィルタリング中にエラーが発生しました', 'error');
 				}
-					
-				// 確度でフィルタリング（受注済は除外）
-				list = list.filter(p => p.probability === probability && p.status !== '受注済');
-					
-				// テーブルビューに切替
-				document.getElementById('projectViewToggle').value = 'table';
-				const kanbanBoard = document.querySelector('.kanban-board');
-				const tableView = document.querySelector('#projectsTable').closest('.card');
-				if (kanbanBoard) kanbanBoard.style.display = 'none';
-				if (tableView) tableView.style.display = 'block';
-					
-				// テーブルを描画
-				document.querySelector('#projectsTable tbody').innerHTML = list.map(p => {
-					const days = this.calculateStagnantDays(p);
-					let rowClass = '';
-					if (p.status === '進行中' && days >= 60) rowClass = 'project-alert-danger filter-applied';
-					else if (p.status === '進行中' && days >= 30) rowClass = 'project-alert-warning filter-applied';
-					else rowClass = 'filter-applied';
-						
-					return `<tr class="${rowClass}">
-						<td><span class="project-number-badge">${p.projectNumber || '-'}</span></td>
-						<td><a href="#" onclick="app.viewProjectDetails('${p.id}'); return false;" class="customer-link">${p.projectName}</a></td>
-						<td>${p.customer || '-'}</td>
-						<td>${p.stage || '-'}</td>
-						<td><span class="prob-${p.probability}">${p.probability || '-'}</span></td>
-						<td>¥${Number(p.amount || 0).toLocaleString()}</td>
-						<td>${p.expectedDate || '-'}</td>
-						<td>${p.assignee || '-'}</td>
-						<td class="${days >= 60 ? 'stagnant-danger' : days >= 30 ? 'stagnant-warning' : ''}">${days}日</td>
-						<td>
-							<div class="btn-group">
-								<button class="btn btn-secondary btn-sm" onclick="app.editProject('${p.id}')">編集</button>
-								<button class="btn btn-danger btn-sm" onclick="app.deleteProject('${p.id}')">削除</button>
-							</div>
-						</td>
-					</tr>`;
-				}).join('');
-				const activeSummary = document.getElementById('activeProjectsSummary');
-				if (activeSummary) {
-					const stagnantCount = list.filter(p => {
-						const days = this.calculateStagnantDays(p);
-						return days >= 30;
-					}).length;
-					
-					activeSummary.innerHTML = `
-						進行中: <strong>${list.length}件</strong>
-						${stagnantCount > 0 ? `<span style="color: #dc3545; font-weight: bold; margin-left: 0.5rem;">
-							<i class="fas fa-exclamation-triangle"></i> 滞留: ${stagnantCount}件
-						</span>` : '<span style="color: #28a745; margin-left: 0.5rem;"><i class="fas fa-check"></i> 滞留なし</span>'}
-					`;
-				}
-					
-				this.showToast(`確度${probability}の案件を${list.length}件表示しました`, 'success');
 			}
+
+			/**
+			 * 確度フィルタを解除する関数（新規追加）
+			 */
+			clearProbabilityFilter() {
+				console.log('🔄 確度フィルタを解除');
+				this.targetProbability = null;
+				this.renderProjects();
+				this.showToast('フィルタを解除しました', 'success');
+			}				
 
 			sortProjects(field) {
 				if (this.projectsSortField === field) {
@@ -6363,34 +6572,42 @@
             /**
              * ダッシュボードファネルから案件管理へのドリルダウン
              */
-            drillDownToProjectsByStage(stage) {
-                try {
-                    this.showPage('projects');
-                    
-                    // フィルター設定
-                    const filters = {
-                        projectsFilter: document.getElementById('projectsFilter'),
-                        projectsStatusFilter: document.getElementById('projectsStatusFilter'),
-                        projectsStageFilter: document.getElementById('projectsStageFilter')
-                    };
-                    
-                    if (filters.projectsFilter) filters.projectsFilter.value = 'all';
-                    if (filters.projectsStatusFilter) filters.projectsStatusFilter.value = 'all';
-                    if (filters.projectsStageFilter) {
-                        filters.projectsStageFilter.value = stage;
-                        filters.projectsStageFilter.classList.add('filter-applied');
-                        setTimeout(() => {
-                            filters.projectsStageFilter.classList.remove('filter-applied');
-                        }, 2000);
-                    }
-                    
-                    this.renderProjects();
-                    this.showToast(`「${stage}」ステージの案件を表示しています`, 'success');
-                    
-                } catch (error) {
-                    console.error('ステージドリルダウンエラー:', error);
-                }
-            }
+			drillDownToProjectsByStage(stage) {
+				try {
+					// ★ 追加：確度フィルタをリセットする
+					this.targetProbability = null;
+
+					this.showPage('projects');
+					
+					const filters = {
+						projectsFilter: document.getElementById('projectsFilter'),
+						projectsStatusFilter: document.getElementById('projectsStatusFilter'),
+						projectsStageFilter: document.getElementById('projectsStageFilter')
+					};
+					
+					if (filters.projectsFilter) filters.projectsFilter.value = 'all';
+					
+					// ★ 重要修正：失注・完了案件を表示しない
+					if (filters.projectsStatusFilter) filters.projectsStatusFilter.value = '進行中';
+					
+					if (filters.projectsStageFilter) {
+						filters.projectsStageFilter.value = stage;
+						filters.projectsStageFilter.classList.add('filter-applied');
+						setTimeout(() => {
+							filters.projectsStageFilter.classList.remove('filter-applied');
+						}, 2000);
+					}
+					
+					this.renderProjects();
+					
+					// 件数も含めた詳細メッセージ
+					const count = document.querySelector('#projectsTable tbody').children.length;
+					this.showToast(`「${stage}」ステージの進行中案件を${count}件表示しています`, 'success');
+					
+				} catch (error) {
+					console.error('ステージドリルダウンエラー:', error);
+				}
+			}
 
             /**
              * 活動記録から案件詳細を開く
@@ -6697,9 +6914,13 @@
              * フィルタ済み案件リストを取得
              */
             getFilteredProjectsList() {
-                const filter = document.getElementById('projectsFilter')?.value || 'all';
-                const statusFilter = document.getElementById('projectsStatusFilter')?.value || 'all';
-                const stageFilter = document.getElementById('projectsStageFilter')?.value || 'all';
+				const filterElement = document.getElementById('projectsFilter');
+				const statusFilterElement = document.getElementById('projectsStatusFilter');
+				const stageFilterElement = document.getElementById('projectsStageFilter');
+
+				const filter = filterElement ? filterElement.value : 'all';
+				const statusFilter = statusFilterElement ? statusFilterElement.value : 'all';
+				const stageFilter = stageFilterElement ? stageFilterElement.value : 'all';
                 
                 let list = this.data.projects || [];
                 
@@ -6919,7 +7140,7 @@
 					this.showToast('ステージ移動中にエラーが発生しました', 'error');
 					this.renderKanbanBoard();
 				}
-			} // ← ★ この閉じカッコが重要！
+			}
 
 			/**
 			 * Phase 3: グローバル検索ハンドラ
@@ -6928,14 +7149,333 @@
 				this.searchKeyword = keyword.toLowerCase().trim();
 				
 				// 現在アクティブなページを再レンダリング
-				const activePage = document.querySelector('.page-section.active')?.id;
+				const activePageElement = document.querySelector('.page-section.active');
+				const activePage = activePageElement ? activePageElement.id : null;
 				
 				if (activePage === 'customersPage') this.renderCustomers();
 				if (activePage === 'projectsPage') this.renderProjects();
 				if (activePage === 'activitiesPage') this.renderActivities();
 				if (activePage === 'schedulePage') this.renderSchedule();
 			}
+			
+			/**
+			 * ========================================
+			 * Excel一括インポート機能
+			 * ========================================
+			 */
+
+			// インポートタイプを保持
+			importExcel(type) {
+				this.currentImportType = type;
+				document.getElementById('excelFileInput').click();
+			}
+
+			// Excelファイルの読み込み処理
+			async handleExcelFile(event) {
+				const file = event.target.files[0];
+				if (!file) return;
+				
+				this.showLoading(true);
+				
+				try {
+					const data = await this.readExcelFile(file);
+					const result = await this.processExcelData(data, this.currentImportType);
+					
+					this.showLoading(false);
+					
+					if (result.success) {
+						this.showToast(`${result.count}件のデータをインポートしました`, 'success');
+						this.renderCustomers();
+					} else {
+						this.showToast(`インポート失敗: ${result.error}`, 'error');
+					}
+					
+				} catch (error) {
+					this.showLoading(false);
+					console.error('Excel読み込みエラー:', error);
+					this.showToast('Excelファイルの読み込みに失敗しました', 'error');
+				}
+				
+				// ファイル入力をリセット
+				event.target.value = '';
+			}
+
+			// Excelファイルの読み込み（Promise化）
+			readExcelFile(file) {
+				return new Promise((resolve, reject) => {
+					const reader = new FileReader();
+					
+					reader.onload = (e) => {
+						try {
+							const data = new Uint8Array(e.target.result);
+							const workbook = XLSX.read(data, { type: 'array' });
+							const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+							const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+							resolve(jsonData);
+						} catch (error) {
+							reject(error);
+						}
+					};
+					
+					reader.onerror = () => reject(new Error('ファイル読み込みエラー'));
+					reader.readAsArrayBuffer(file);
+				});
+			}
+
+			// データタイプ別の処理振り分け
+			async processExcelData(rows, type) {
+				try {
+					switch (type) {
+						case 'customers':
+							return this.importCustomerList(rows);
+						case 'machines':
+							return this.importMachineList(rows);
+						case 'orders':
+							return this.importOrderHistory(rows);
+						case 'products':
+							return this.importProductCodes(rows);
+						default:
+							return { success: false, error: '不明なインポートタイプ' };
+					}
+				} catch (error) {
+					return { success: false, error: error.message };
+				}
+			}
+
+			/**
+			 * 得意先リストのインポート
+			 * 期待される列: 顧客名, 顧客コード, 郵便番号, 住所, 電話番号, FAX, メール, 業種, 資本金, 従業員数
+			 */
+			importCustomerList(rows) {
+				let importCount = 0;
+				let updateCount = 0;
+				
+				rows.forEach(row => {
+					// 必須項目チェック
+					if (!row['顧客名'] && !row['得意先名']) return;
+					
+					const customerName = row['顧客名'] || row['得意先名'];
+					const existingCustomer = this.data.customers.find(c => c.name === customerName);
+					
+					const customerData = {
+						name: customerName,
+						companyCode: row['顧客コード'] || row['得意先コード'] || '',
+						postalCode: row['郵便番号'] || '',
+						address: row['住所'] || '',
+						phone: row['電話番号'] || row['TEL'] || '',
+						fax: row['FAX'] || row['FAX番号'] || '',
+						email: row['メールアドレス'] || row['メール'] || '',
+						website: row['ホームページ'] || row['URL'] || '',
+						industry: row['業種'] || '',
+						capital: this.parseNumber(row['資本金']) || 0,
+						employees: this.parseNumber(row['従業員数']) || 0,
+						paymentTerms: row['支払条件'] || '',
+						creditLimit: this.parseNumber(row['与信限度額']) || 0,
+						taxType: row['消費税区分'] || '外税',
+						rank: row['ランク'] || 'B',
+						status: row['ステータス'] || '取引中',
+						assignee: row['担当者'] || CURRENT_USER.assignee
+					};
+					
+					if (existingCustomer) {
+						// 既存顧客の更新
+						Object.assign(existingCustomer, customerData);
+						updateCount++;
+					} else {
+						// 新規顧客の追加
+						this.data.customers.push({
+							id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+							...customerData,
+							staffs: [],
+							installedMachines: [],
+							orderHistory: []
+						});
+						importCount++;
+					}
+				});
+				
+				this.saveData();
+				return { 
+					success: true, 
+					count: importCount + updateCount,
+					message: `新規${importCount}件、更新${updateCount}件`
+				};
+			}
+
+			/**
+			 * 導入機械情報のインポート
+			 * 期待される列: 顧客名, 機種名, 型式, 導入日, シリアル番号, 設置場所, 稼働状況
+			 */
+			importMachineList(rows) {
+				let importCount = 0;
+				
+				rows.forEach(row => {
+					if (!row['顧客名'] && !row['得意先名']) return;
+					if (!row['機種名']) return;
+					
+					const customerName = row['顧客名'] || row['得意先名'];
+					const customer = this.data.customers.find(c => c.name === customerName);
+					
+					if (!customer) {
+						console.warn(`顧客が見つかりません: ${customerName}`);
+						return;
+					}
+					
+					if (!customer.installedMachines) {
+						customer.installedMachines = [];
+					}
+					
+					customer.installedMachines.push({
+						machineName: row['機種名'],
+						machineCode: row['型式'] || row['機種コード'] || '',
+						installDate: this.parseDate(row['導入日']),
+						serialNumber: row['シリアル番号'] || row['製造番号'] || '',
+						installLocation: row['設置場所'] || '',
+						status: row['稼働状況'] || '稼働中'
+					});
+					
+					importCount++;
+				});
+				
+				this.saveData();
+				return { success: true, count: importCount };
+			}
+
+			/**
+			 * 受注履歴のインポート
+			 * 期待される列: 顧客名, 受注日, 案件名, 製品コード, 受注金額, 納期, 担当者
+			 */
+			importOrderHistory(rows) {
+				let importCount = 0;
+				
+				rows.forEach(row => {
+					if (!row['顧客名'] && !row['得意先名']) return;
+					if (!row['受注日']) return;
+					
+					const customerName = row['顧客名'] || row['得意先名'];
+					const customer = this.data.customers.find(c => c.name === customerName);
+					
+					if (!customer) {
+						console.warn(`顧客が見つかりません: ${customerName}`);
+						return;
+					}
+					
+					if (!customer.orderHistory) {
+						customer.orderHistory = [];
+					}
+					
+					customer.orderHistory.push({
+						orderDate: this.parseDate(row['受注日']),
+						projectName: row['案件名'] || row['件名'] || '',
+						productCode: row['製品コード'] || row['機種名'] || '',
+						orderAmount: this.parseNumber(row['受注金額']) || 0,
+						deliveryDate: this.parseDate(row['納期']),
+						salesPerson: row['担当者'] || ''
+					});
+					
+					importCount++;
+				});
+				
+				this.saveData();
+				return { success: true, count: importCount };
+			}
+
+			/**
+			 * 商品コードリストのインポート
+			 * 期待される列: 商品コード, 商品名, 標準価格, カテゴリ
+			 */
+			importProductCodes(rows) {
+				// 商品マスタ用の配列を初期化（将来の拡張用）
+				if (!this.data.productMaster) {
+					this.data.productMaster = [];
+				}
+				
+				let importCount = 0;
+				
+				rows.forEach(row => {
+					if (!row['商品コード'] && !row['製品コード']) return;
+					
+					const productCode = row['商品コード'] || row['製品コード'];
+					const existing = this.data.productMaster.find(p => p.code === productCode);
+					
+					const productData = {
+						code: productCode,
+						name: row['商品名'] || row['製品名'] || '',
+						standardPrice: this.parseNumber(row['標準価格']) || 0,
+						category: row['カテゴリ'] || row['分類'] || '',
+						description: row['説明'] || ''
+					};
+					
+					if (existing) {
+						Object.assign(existing, productData);
+					} else {
+						this.data.productMaster.push({
+							id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+							...productData
+						});
+						importCount++;
+					}
+				});
+				
+				this.saveData();
+				return { success: true, count: importCount };
+			}
+
+			/**
+			 * ヘルパー関数: 数値のパース
+			 */
+			parseNumber(value) {
+				if (!value) return 0;
+				if (typeof value === 'number') return value;
+				
+				// カンマ・円マークを除去して数値化
+				const cleaned = String(value).replace(/[,円¥]/g, '');
+				const parsed = parseFloat(cleaned);
+				return isNaN(parsed) ? 0 : parsed;
+			}
+
+			/**
+			 * ヘルパー関数: 日付のパース
+			 */
+			parseDate(value) {
+				if (!value) return '';
+				
+				// Excel日付（シリアル値）の場合
+				if (typeof value === 'number') {
+					const excelEpoch = new Date(1900, 0, 1);
+					const days = value - 2; // Excelのバグ補正
+					const date = new Date(excelEpoch.getTime() + days * 24 * 60 * 60 * 1000);
+					return date.toISOString().split('T')[0];
+				}
+				
+				// 文字列の場合
+				const dateStr = String(value);
+				
+				// YYYY-MM-DD形式
+				if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+					return dateStr;
+				}
+				
+				// YYYY/MM/DD形式
+				if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(dateStr)) {
+					const parts = dateStr.split('/');
+					return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+				}
+				
+				// その他の形式は Date オブジェクトでパース
+				try {
+					const date = new Date(dateStr);
+					if (!isNaN(date.getTime())) {
+						return date.toISOString().split('T')[0];
+					}
+				} catch (e) {
+					console.warn('日付パースエラー:', dateStr);
+				}
+				
+				return '';
+			}		
 		}
+		
 		let app;
         // DOM読み込み後にアプリ起動
         window.addEventListener('DOMContentLoaded', async () => {
