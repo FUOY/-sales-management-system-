@@ -1498,6 +1498,16 @@
             <section id="activitiesPage" class="page-section">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
                     <h2 class="page-title" style="margin: 0;">活動記録</h2>
+					<!-- ★ 新規追加：タブ切替ボタン -->
+					<div class="view-toggle" style="margin-right: auto; margin-left: 1rem;">
+						<button class="view-toggle-btn active" onclick="app.switchActivityView('normal')">
+							<i class="fas fa-list"></i> 通常表示
+						</button>
+						<button class="view-toggle-btn" onclick="app.switchActivityView('prospect')">
+							<i class="fas fa-layer-group"></i> 未案件商談
+						</button>
+					</div>
+					
                     <div class="header-controls">
                         <select id="activitiesFilter" onchange="app.renderActivities()" class="filter-select">
                             <option value="all">全員表示</option>
@@ -1508,6 +1518,23 @@
                         <button class="btn btn-primary" onclick="app.openActivityModal()"><i class="fas fa-plus"></i> 記録追加</button>
                     </div>
                 </div>
+				<!-- ★ 新規追加：未案件商談管理パネル -->
+				<div id="prospectManagementPanel" style="display: none;">
+					<div class="card">
+						<h3 style="margin-top: 0; color: var(--primary);">
+							<i class="fas fa-seedling"></i> 未案件商談の進捗管理
+							<span id="prospectCount" style="background: var(--primary); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; margin-left: 1rem;">0件</span>
+						</h3>
+						<p style="font-size: 0.9rem; color: #666; margin-bottom: 1.5rem;">
+							「顧客名 + 機種名」で自動グループ化された商談です。ステージや確度を更新して進捗を管理し、適切なタイミングで案件化してください。
+						</p>
+						<div id="prospectGroupsList"></div>
+					</div>
+				</div>
+
+				<!-- ★ 既存の活動記録を囲むdivタグの開始 -->
+				<div id="normalActivityView">
+
 				<div id="unlinkedActivityAlerts" style="margin-bottom: 1.5rem;"></div>
                 <div class="card table-container">
                     <table id="activitiesTable">
@@ -1531,7 +1558,8 @@
                         <tbody></tbody>
                     </table>
                 </div>
-            </section>
+			</div>	
+        </section>
 
             <!-- Projects Section -->
 			<section id="projectsPage" class="page-section">
@@ -4147,6 +4175,349 @@
 				const sortedCustomers = [...this.data.customers].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
 				custSelect.innerHTML = '<option value="">選択</option>' + sortedCustomers.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
 			} 
+			
+			/**
+             * ========================================
+             * 未案件商談管理機能
+             * ========================================
+             */
+
+            /**
+             * 活動記録のビュー切替（通常 ⇔ 未案件商談管理）
+             */
+            switchActivityView(mode) {
+                const normalView = document.getElementById('normalActivityView');
+                const prospectPanel = document.getElementById('prospectManagementPanel');
+                const buttons = document.querySelectorAll('#activitiesPage .view-toggle-btn');
+                
+                // 要素の存在確認（エラー防止）
+                if (!normalView || !prospectPanel) {
+                    console.error('必要な要素が見つかりません');
+                    return;
+                }
+                
+                if (mode === 'prospect') {
+                    normalView.style.display = 'none';
+                    prospectPanel.style.display = 'block';
+                    if (buttons[0]) buttons[0].classList.remove('active');
+                    if (buttons[1]) buttons[1].classList.add('active');
+                    this.renderProspectGroups();
+                } else {
+                    normalView.style.display = 'block';
+                    prospectPanel.style.display = 'none';
+                    if (buttons[0]) buttons[0].classList.add('active');
+                    if (buttons[1]) buttons[1].classList.remove('active');
+                }
+            }
+
+            /**
+             * 未案件商談グループの取得（顧客+機種でグループ化）
+             */
+            getProspectGroups() {
+                const groups = {};
+                
+                // 未案件化活動のみ抽出（顧客名・機種名が両方ある）
+                const unlinkedActivities = this.data.activities.filter(a => 
+                    !a.projectId && a.customer && a.product
+                );
+                
+                unlinkedActivities.forEach(activity => {
+                    const key = `${activity.customer}__${activity.product}`;
+                    
+                    if (!groups[key]) {
+                        groups[key] = {
+                            key: key,
+                            customer: activity.customer,
+                            product: activity.product,
+                            partner: activity.partner || '',
+                            firstDate: activity.date,
+                            lastDate: activity.date,
+                            latestStage: activity.stage,
+                            latestProbability: activity.probability,
+                            totalAmount: 0,
+                            activityCount: 0,
+                            assignees: new Set()
+                        };
+                    }
+                    
+                    const group = groups[key];
+                    group.activityCount++;
+                    group.assignees.add(activity.assignee);
+                    
+                    // 最新の活動情報で更新
+                    if (activity.date >= group.lastDate) {
+                        group.lastDate = activity.date;
+                        group.latestStage = activity.stage;
+                        group.latestProbability = activity.probability;
+                        if (activity.partner) group.partner = activity.partner;
+                    }
+                    
+                    // 最古の活動日を記録
+                    if (activity.date < group.firstDate) {
+                        group.firstDate = activity.date;
+                    }
+                    
+                    // 金額は最新の活動の値を採用
+                    if (activity.date === group.lastDate && activity.amount) {
+                        group.totalAmount = Number(activity.amount);
+                    }
+                });
+                
+                // 滞留日数を計算して配列に変換
+                const today = new Date();
+                return Object.values(groups).map(group => {
+                    const lastDate = new Date(group.lastDate);
+                    const stagnantDays = Math.ceil((today - lastDate) / (1000 * 60 * 60 * 24));
+                    
+                    return {
+                        ...group,
+                        stagnantDays: stagnantDays,
+                        assigneeList: Array.from(group.assignees).join(', ')
+                    };
+                }).sort((a, b) => b.stagnantDays - a.stagnantDays);
+            }
+
+            /**
+             * 未案件商談グループの描画
+             */
+            renderProspectGroups() {
+                const groups = this.getProspectGroups();
+                const container = document.getElementById('prospectGroupsList');
+                const countElement = document.getElementById('prospectCount');
+                
+                if (!container) return;
+                
+                // 件数バッジを更新
+                if (countElement) countElement.textContent = `${groups.length}件`;
+                
+                if (groups.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 3rem; color: #999; background: #f8f9fa; border-radius: 8px;">
+                            <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                            <p style="font-size: 1.1rem; margin: 0;">未案件化商談はありません</p>
+                            <p style="font-size: 0.9rem; margin-top: 0.5rem;">活動記録で顧客名・機種名を入力すると、自動的にここに表示されます</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                container.innerHTML = groups.map(group => {
+                    const alertColor = group.stagnantDays >= 60 ? '#dc3545' : 
+                                      group.stagnantDays >= 30 ? '#ffc107' : '#28a745';
+                    
+                    return `
+                        <div class="card" style="margin-bottom: 1.5rem; border-left: 5px solid ${alertColor};">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                                <div style="flex: 1;">
+                                    <h4 style="margin: 0 0 0.5rem 0; color: var(--primary); font-size: 1.1rem;">
+                                        ${group.customer} - ${group.product}
+                                    </h4>
+                                    ${group.partner ? `<div style="font-size: 0.9rem; color: #666; margin-bottom: 0.5rem;">
+                                        <i class="fas fa-user"></i> 提案相手: ${group.partner}
+                                    </div>` : ''}
+                                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.85rem; color: #666;">
+                                        <span><i class="fas fa-users"></i> ${group.assigneeList}</span>
+                                        <span><i class="fas fa-comment-dots"></i> ${group.activityCount}回の商談</span>
+                                        <span><i class="fas fa-calendar-alt"></i> ${group.firstDate} 〜 ${group.lastDate}</span>
+                                        <span style="color: ${alertColor}; font-weight: bold;">
+                                            <i class="fas fa-clock"></i> ${group.stagnantDays}日経過
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; background: #f8f9fa; padding: 1rem; border-radius: 6px; margin-bottom: 1rem;">
+                                <div>
+                                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 0.3rem; font-weight: 600;">
+                                        現在のステージ
+                                    </label>
+                                    <select id="stage_${group.key}" 
+                                            style="width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid #ddd; font-size: 0.9rem;"
+                                            onchange="app.updateProspectStage('${group.key}', this.value)">
+                                        <option value="アプローチ" ${group.latestStage === 'アプローチ' ? 'selected' : ''}>アプローチ</option>
+                                        <option value="ヒアリング" ${group.latestStage === 'ヒアリング' ? 'selected' : ''}>ヒアリング</option>
+                                        <option value="提案" ${group.latestStage === '提案' ? 'selected' : ''}>提案</option>
+                                        <option value="見積提出" ${group.latestStage === '見積提出' ? 'selected' : ''}>見積提出</option>
+                                        <option value="クロージング" ${group.latestStage === 'クロージング' ? 'selected' : ''}>クロージング</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 0.3rem; font-weight: 600;">
+                                        確度
+                                    </label>
+                                    <select id="prob_${group.key}" 
+                                            style="width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid #ddd; font-size: 0.9rem;"
+                                            onchange="app.updateProspectProbability('${group.key}', this.value)">
+                                        <option value="A" ${group.latestProbability === 'A' ? 'selected' : ''}>A (高)</option>
+                                        <option value="B" ${group.latestProbability === 'B' ? 'selected' : ''}>B</option>
+                                        <option value="C" ${group.latestProbability === 'C' ? 'selected' : ''}>C</option>
+                                        <option value="D" ${group.latestProbability === 'D' ? 'selected' : ''}>D (低)</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label style="font-size: 0.85rem; color: #666; display: block; margin-bottom: 0.3rem; font-weight: 600;">
+                                        想定金額
+                                    </label>
+                                    <div style="padding: 0.5rem; background: white; border: 1px solid #ddd; border-radius: 4px; font-weight: bold; color: #28a745;">
+                                        ¥${group.totalAmount.toLocaleString()}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                <button class="btn btn-sm btn-secondary" 
+                                        onclick="app.viewProspectActivities('${group.key}')">
+                                    <i class="fas fa-search"></i> 活動履歴
+                                </button>
+                                <button class="btn btn-sm btn-success" 
+                                        onclick="app.createProjectFromProspectGroup('${group.key}')">
+                                    <i class="fas fa-arrow-up"></i> 案件化する
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            /**
+             * 未案件商談のステージ更新
+             */
+            updateProspectStage(groupKey, newStage) {
+                const [customer, product] = groupKey.split('__');
+                let updateCount = 0;
+                
+                this.data.activities.forEach(activity => {
+                    if (!activity.projectId && 
+                        activity.customer === customer && 
+                        activity.product === product) {
+                        activity.stage = newStage;
+                        activity.stage_updated_at = new Date().toISOString();
+                        updateCount++;
+                    }
+                });
+                
+                this.saveData();
+                this.showToast(`「${customer} - ${product}」のステージを「${newStage}」に更新しました（${updateCount}件の活動）`, 'success');
+                this.renderProspectGroups();
+            }
+
+            /**
+             * 未案件商談の確度更新
+             */
+            updateProspectProbability(groupKey, newProbability) {
+                const [customer, product] = groupKey.split('__');
+                let updateCount = 0;
+                
+                this.data.activities.forEach(activity => {
+                    if (!activity.projectId && 
+                        activity.customer === customer && 
+                        activity.product === product) {
+                        activity.probability = newProbability;
+                        updateCount++;
+                    }
+                });
+                
+                this.saveData();
+                this.showToast(`「${customer} - ${product}」の確度を「${newProbability}」に更新しました（${updateCount}件の活動）`, 'success');
+                this.renderProspectGroups();
+            }
+
+            /**
+             * 未案件商談グループの活動履歴を表示
+             */
+            viewProspectActivities(groupKey) {
+                const [customer, product] = groupKey.split('__');
+                
+                // 検索キーワードを設定して通常ビューに切り替え
+                this.searchKeyword = customer.toLowerCase();
+                
+                // 検索ボックスにも値を設定（UI連携）
+                const searchInput = document.getElementById('globalSearchInput');
+                if (searchInput) searchInput.value = customer;
+                
+                this.switchActivityView('normal');
+                this.renderActivities();
+                
+                this.showToast(`「${customer}」の活動履歴を表示しています`, 'success');
+            }
+
+            /**
+             * 未案件商談グループから正式案件を作成
+             */
+            createProjectFromProspectGroup(groupKey) {
+                const groups = this.getProspectGroups();
+                const group = groups.find(g => g.key === groupKey);
+                
+                if (!group) {
+                    this.showToast('グループ情報が見つかりません', 'error');
+                    return;
+                }
+                
+                const confirmMsg = `以下の商談を正式案件として登録しますか？\n\n` +
+                    `顧客: ${group.customer}\n` +
+                    `機種: ${group.product}\n` +
+                    `${group.partner ? `提案相手: ${group.partner}\n` : ''}` +
+                    `ステージ: ${group.latestStage}\n` +
+                    `確度: ${group.latestProbability}\n` +
+                    `想定金額: ¥${group.totalAmount.toLocaleString()}\n` +
+                    `活動回数: ${group.activityCount}回\n` +
+                    `商談期間: ${group.firstDate} 〜 ${group.lastDate}`;
+                
+                if (!confirm(confirmMsg)) return;
+                
+                // 主担当者の決定（最も活動回数が多い担当者）
+                const assigneeCounts = {};
+                const relatedActivities = this.data.activities.filter(a => 
+                    !a.projectId && 
+                    a.customer === group.customer && 
+                    a.product === group.product
+                );
+                
+                relatedActivities.forEach(a => {
+                    assigneeCounts[a.assignee] = (assigneeCounts[a.assignee] || 0) + 1;
+                });
+                
+                const mainAssignee = Object.entries(assigneeCounts)
+                    .sort(([,a], [,b]) => b - a)[0][0];
+                
+                // 案件作成
+                const projectNumber = this.generateProjectNumber();
+                const newProject = {
+                    id: Date.now().toString(),
+                    projectNumber: projectNumber,
+                    projectName: `${group.customer} ${group.product}案件`,
+                    customer: group.customer,
+                    product: group.product,
+                    assignee: mainAssignee,
+                    stage: group.latestStage || 'ヒアリング',
+                    probability: group.latestProbability || 'B',
+                    estimatedAmount: group.totalAmount,
+                    expectedOrderDate: '',
+                    status: '進行中',
+                    notes: `未案件商談から昇格\n商談期間: ${group.firstDate} 〜 ${group.lastDate}\n活動回数: ${group.activityCount}回\n${group.partner ? `提案相手: ${group.partner}` : ''}`,
+                    lastActivityDate: group.lastDate,
+                    createdDate: new Date().toISOString().split('T')[0],
+                    stageChangedDate: new Date().toISOString().split('T')[0],
+                    documents: []
+                };
+                
+                this.data.projects.push(newProject);
+                
+                // 関連活動に案件IDを紐付け
+                relatedActivities.forEach(activity => {
+                    const activityIndex = this.data.activities.findIndex(a => a.id === activity.id);
+                    if (activityIndex !== -1) {
+                        this.data.activities[activityIndex].projectId = newProject.id;
+                    }
+                });
+                
+                this.saveData();
+                this.renderProspectGroups();
+                
+                this.showToast(`案件 ${projectNumber} を作成し、${relatedActivities.length}件の活動を紐付けました`, 'success');
+            }
 			
             sortActivities(field) {
                 if (this.activitiesSortField === field) {
