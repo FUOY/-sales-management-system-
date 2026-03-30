@@ -3876,152 +3876,209 @@
 						</div>`;
 				}).join('');
 
-				// タイムラインチャート - 年度別表示
-				const months = ['6月','7月','8月','9月','10月','11月','12月','1月','2月','3月','4月','5月'];
+			// タイムラインチャート - 年度別表示
+			const months = ['6月','7月','8月','9月','10月','11月','12月','1月','2月','3月','4月','5月'];
 
-				// 現在の営業年度を算出（6月開始）
-				const now = new Date();
-				const currentMonth = now.getMonth();
-				const currentYear = now.getFullYear();
-				const currentFiscalYear = currentMonth >= 5 ? currentYear : currentYear - 1;
+			// ★★★ タイムライン集計の完全修正版（二重計上防止） ★★★
 
-				// 年度別データの初期化
-				const yearlyData = {};
+			// 営業年度計算用のヘルパー関数
+			function getFiscalYearAndMonthIndex(dateObj) {
+				const year = dateObj.getFullYear();
+				const month = dateObj.getMonth();
+				const fiscalYear = month >= 5 ? year : year - 1;
+				const monthIndex = (month - 5 + 12) % 12; // 6月=0, 7月=1, ..., 5月=11
+				return { fiscalYear, monthIndex };
+			}
 
-				// ヘルパー関数：営業年度と月インデックスの算出
-				function getFiscalYearAndMonthIndex(dateObj) {
-					const year = dateObj.getFullYear();
-					const month = dateObj.getMonth();
-					const fiscalYear = month >= 5 ? year : year - 1;
-					const monthIndex = (month - 5 + 12) % 12;
-					return { fiscalYear, monthIndex };
+			// 現在の営業年度を算出（6月開始）
+			const now = new Date();
+			const currentMonth = now.getMonth();
+			const currentYear = now.getFullYear();
+			const currentFiscalYear = currentMonth >= 5 ? currentYear : currentYear - 1;
+			const selectedYear = this.selectedFiscalYear || currentFiscalYear;
+
+			// 毎回ゼロから集計開始
+			const yearlyData = {};
+			const processedProjects = new Set();
+			const orderedProjectKeys = new Set(); // 受注済み案件の「顧客+機種」ペア管理
+
+			// ★★★ 1. 案件データの集計（重複防止付き） ★★★
+			targetProjects.forEach(project => {
+				if (project.status === '失注') return;
+				const amount = Number(project.estimatedAmount) || 0;
+				if (!amount) return;
+				
+				const isConfirmed = 
+					project.stage === '受注' || 
+					project.probability === '受注済' || 
+					project.status === '完了';
+				
+				// 受注済み案件の識別キーを記録（活動記録との重複防止用）
+				if (isConfirmed && project.customer && project.product) {
+					orderedProjectKeys.add(`${project.customer}__${project.product}`);
+				}
+				
+				let targetDateStr = project.expectedOrderDate;
+				if (!targetDateStr) {
+					targetDateStr = project.lastActivityDate || project.createdDate;
+				}
+				if (!targetDateStr) return;
+				
+				const dateObj = new Date(targetDateStr);
+				if (isNaN(dateObj.getTime())) return;
+				
+				const { fiscalYear, monthIndex } = getFiscalYearAndMonthIndex(dateObj);
+				
+				// 年度データの初期化
+				if (!yearlyData[fiscalYear]) {
+					yearlyData[fiscalYear] = {
+						ordered: new Array(12).fill(0),
+						expected: new Array(12).fill(0)
+					};
+				}
+				
+				if (isConfirmed) {
+					// 受注確定：実績として計上
+					yearlyData[fiscalYear].ordered[monthIndex] += amount;
+				} else if (project.status === '進行中' || project.status === '保留') {
+					// 進行中：確度による加重計算を適用
+					const weight = PROBABILITY_WEIGHTS[project.probability] || 0.3;
+					yearlyData[fiscalYear].expected[monthIndex] += Math.floor(amount * weight);
+				}
+				
+				processedProjects.add(project.id);
+			});
+
+			// ★★★ 2. 未案件化活動の補完集計（多重計上防止版） ★★★
+			const targetActivities = isPersonal
+				? acts.filter(a => a.assignee === CURRENT_USER.assignee)
+				: acts;
+
+			// 活動記録を「顧客+機種」でグループ化し、最新のもののみ抽出
+			const prospectGroups = {};
+			targetActivities.forEach(activity => {
+				// 既に案件化されているものは除外
+				if (activity.projectId && processedProjects.has(activity.projectId)) return;
+				if (activity.projectId) {
+					const parentProject = this.data.projects.find(p => p.id === activity.projectId);
+					if (parentProject && parentProject.status === '失注') return;
+				}
+				
+				// グループ化キーの生成
+				const key = (activity.customer && activity.product) 
+					? `${activity.customer}__${activity.product}` 
+					: `single__${activity.id}`;
+				
+				// 同じ商談の場合は最新の日付のデータのみ保持
+				if (!prospectGroups[key] || activity.date > prospectGroups[key].date) {
+					prospectGroups[key] = activity;
+				}
+			});
+
+			// 最新の活動データのみを集計
+			Object.values(prospectGroups).forEach(activity => {
+				// ★重要：既に受注済みの案件と同じ顧客・機種なら除外（二重計上防止）
+				const key = `${activity.customer}__${activity.product}`;
+				if (orderedProjectKeys.has(key)) {
+					console.log(`🚫 二重計上防止: ${activity.customer} - ${activity.product} は既に受注済み`);
+					return;
 				}
 
-				// 案件データの集計
-				const processedProjects = new Set();
+				const amount = Number(activity.amount) || 0;
+				if (!amount) return;
+				
+				const isConfirmed = 
+					activity.stage === '受注' || 
+					activity.probability === '受注済';
+				
+				const targetDateStr = activity.expected_date || activity.date;
+				if (!targetDateStr) return;
+				
+				const dateObj = new Date(targetDateStr);
+				if (isNaN(dateObj.getTime())) return;
+				
+				const { fiscalYear, monthIndex } = getFiscalYearAndMonthIndex(dateObj);
+				
+				if (!yearlyData[fiscalYear]) {
+					yearlyData[fiscalYear] = {
+						ordered: new Array(12).fill(0),
+						expected: new Array(12).fill(0)
+					};
+				}
+				
+				if (isConfirmed) {
+					yearlyData[fiscalYear].ordered[monthIndex] += amount;
+				} else {
+					// 確度による加重計算を適用
+					const weight = PROBABILITY_WEIGHTS[activity.probability] || 0.3;
+					yearlyData[fiscalYear].expected[monthIndex] += Math.floor(amount * weight);
+				}
+			});
 
-				// 未案件化活動の補完集計
-				const targetActivities = isPersonal
-					? acts.filter(a => a.assignee === CURRENT_USER.assignee)
-					: acts;
+			// ★★★ 3. 選択された年度のデータを取得 ★★★
+			let monthlyOrdered = new Array(12).fill(0);
+			let monthlyExpected = new Array(12).fill(0);
 
-				targetActivities.forEach(activity => {
-					if (activity.projectId && processedProjects.has(activity.projectId)) return;
-					if (activity.projectId) {
-						const parentProject = this.data.projects.find(p => p.id === activity.projectId);
-						if (parentProject && parentProject.status === '失注') return;
-					}
-					
-					const amount = Number(activity.amount) || 0;
-					if (!amount) return;
-					
-					const isConfirmed = 
-						activity.stage === '受注' || 
-						activity.probability === '受注済';
-					
-					const targetDateStr = activity.expected_date;
-					if (!targetDateStr) return;
-					
-					const dateObj = new Date(targetDateStr);
-					if (isNaN(dateObj.getTime())) return;
-					
-					const { fiscalYear, monthIndex } = getFiscalYearAndMonthIndex(dateObj);
-					
-					if (!yearlyData[fiscalYear]) {
-						yearlyData[fiscalYear] = {
-							ordered: new Array(12).fill(0),
-							expected: new Array(12).fill(0)
-						};
-					}
-					
-					if (isConfirmed) {
-						yearlyData[fiscalYear].ordered[monthIndex] += amount;
-					} else {
-						yearlyData[fiscalYear].expected[monthIndex] += amount;
-					}
-				});
+			if (yearlyData[selectedYear]) {
+				monthlyOrdered = yearlyData[selectedYear].ordered.slice();
+				monthlyExpected = yearlyData[selectedYear].expected.slice();
+			}
 
-				// 既存の宣言を保持・修正
-				const selectedYear = this.selectedFiscalYear || currentFiscalYear;
+			// 選択された年度のKPI目標を取得
+			let selectedYearTarget = target;
+			if (this.data.kpiSettings && this.data.kpiSettings.yearlyData && this.data.kpiSettings.yearlyData[selectedYear]) {
+				const yearKpi = this.data.kpiSettings.yearlyData[selectedYear];
+				if (isPersonal) {
+					selectedYearTarget = yearKpi.personalTargets[CURRENT_USER.assignee] || 0;
+				} else {
+					selectedYearTarget = yearKpi.totalTarget || 0;
+				}
+			}
 
-				// ★★★ 年度別の月次データをそのまま利用する ★★★
-				let monthlyOrdered = new Array(12).fill(0);
-				let monthlyExpected = new Array(12).fill(0);
+			// 集計値の計算と表示更新
+			const yearTotalOrdered = monthlyOrdered.reduce((sum, amount) => sum + amount, 0);
+			const yearTotalExpected = monthlyExpected.reduce((sum, amount) => sum + amount, 0);
+			const yearShortage = Math.max(selectedYearTarget - yearTotalOrdered, 0);
 
-				if (yearlyData[selectedYear]) {
-					const yearData = yearlyData[selectedYear];
-					// 既に集計済みの配列をコピーして使用
-					monthlyOrdered = (yearData.ordered || new Array(12).fill(0)).slice();
-					monthlyExpected = (yearData.expected || new Array(12).fill(0)).slice();
+			// 統計表示の更新
+			document.getElementById('timelineTarget').textContent = selectedYearTarget.toLocaleString();
+			document.getElementById('timelineOrdered').textContent = yearTotalOrdered.toLocaleString();
+			document.getElementById('timelineExpected').textContent = yearTotalExpected.toLocaleString();
+			document.getElementById('timelineShortage').textContent = yearShortage.toLocaleString();
+
+			// 年度選択ドロップダウンの更新
+			const yearSelect = document.getElementById('timelineYearSelect');
+			if (yearSelect) {
+				const availableYears = Object.keys(yearlyData).map(y => parseInt(y)).sort();
+				if (availableYears.length === 0) availableYears.push(currentFiscalYear);
+
+				if (this.data.kpiSettings && this.data.kpiSettings.yearlyData) {
+					Object.keys(this.data.kpiSettings.yearlyData).forEach(y => {
+						const yearInt = parseInt(y);
+						if (!availableYears.includes(yearInt)) availableYears.push(yearInt);
+					});
+					availableYears.sort();
 				}
 
-				console.log(`📊 ${selectedYear}年度のデータを表示:`, {
-					受注済: monthlyOrdered,
-					受注想定: monthlyExpected
-				});
-
-				// 選択された年度のKPI目標を取得
-				let selectedYearTarget = target;
-				if (this.data.kpiSettings && this.data.kpiSettings.yearlyData && this.data.kpiSettings.yearlyData[selectedYear]) {
-					const yearKpi = this.data.kpiSettings.yearlyData[selectedYear];
-					if (isPersonal) {
-						selectedYearTarget = yearKpi.personalTargets[CURRENT_USER.assignee] || 0;
-					} else {
-						selectedYearTarget = yearKpi.totalTarget || 0;
-					}
+				if (!this.selectedFiscalYear || !availableYears.includes(this.selectedFiscalYear)) {
+					this.selectedFiscalYear = currentFiscalYear;
 				}
 
-				// 集計値の計算と表示更新
-				const yearTotalOrdered = monthlyOrdered.reduce((sum, amount) => sum + amount, 0);
-				const yearTotalExpected = monthlyExpected.reduce((sum, amount) => sum + amount, 0);
-				const yearShortage = Math.max(selectedYearTarget - yearTotalOrdered, 0);
+				yearSelect.innerHTML = availableYears.map(year => 
+					`<option value="${year}" ${year === this.selectedFiscalYear ? 'selected' : ''}>
+						${year}年度 (${year}年6月-${year + 1}年5月)
+					</option>`
+				).join('');
+				
+				yearSelect.onchange = () => {
+					this.selectedFiscalYear = parseInt(yearSelect.value);
+					this.renderDashboard();
+				};
+			}
 
-				// 統計表示の更新
-				document.getElementById('timelineTarget').textContent = selectedYearTarget.toLocaleString();
-				document.getElementById('timelineOrdered').textContent = yearTotalOrdered.toLocaleString();
-				document.getElementById('timelineExpected').textContent = yearTotalExpected.toLocaleString();
-				document.getElementById('timelineShortage').textContent = yearShortage.toLocaleString();
+			// ★★★ 4. チャート生成：累積計算の完全修正版 ★★★
 
-                // 年度選択ドロップダウンの更新
-                const yearSelect = document.getElementById('timelineYearSelect');
-                if (yearSelect) {
-                    const availableYears = Object.keys(yearlyData)
-                        .map(y => parseInt(y))
-                        .sort();
-                    
-                    if (availableYears.length === 0) {
-                        availableYears.push(currentFiscalYear);
-                    }
-
-                    if (this.data.kpiSettings && this.data.kpiSettings.yearlyData) {
-                        Object.keys(this.data.kpiSettings.yearlyData).forEach(y => {
-                            const yearInt = parseInt(y);
-                            if (!availableYears.includes(yearInt)) {
-                                availableYears.push(yearInt);
-                            }
-                        });
-                        availableYears.sort();
-                    }
-
-                    if (!this.selectedFiscalYear || !availableYears.includes(this.selectedFiscalYear)) {
-                        this.selectedFiscalYear = currentFiscalYear;
-                    }
-
-                    yearSelect.innerHTML = availableYears.map(year => 
-                        `<option value="${year}" ${year === this.selectedFiscalYear ? 'selected' : ''}>
-                            ${year}年度 (${year}年6月-${year + 1}年5月)
-                        </option>`
-                    ).join('');
-                    
-                    yearSelect.onchange = () => {
-                        this.selectedFiscalYear = parseInt(yearSelect.value);
-                        this.renderDashboard();
-                    };
-                }
-
-            // ★★★ チャート生成：累積計算の完全修正版 ★★★
-            
-			// 1. 累積受注済を計算（既存のまま）
+			// 1. 累積受注済を計算
 			const cumulativeOrdered = [];
 			let orderedSum = 0;
 			for (let i = 0; i < 12; i++) {
@@ -4029,28 +4086,13 @@
 				cumulativeOrdered.push(orderedSum);
 			}
 
-			// 2. 受注予測の累積を計算（修正：実績と予測の合算を累積）
+			// 2. 受注予測の累積を計算（実績+予測の合算を累積）
 			const cumulativeForecast = [];
 			let forecastSum = 0;
 			for (let i = 0; i < 12; i++) {
-				// 各月の実績と予測を足し合わせたものを累積していく
 				forecastSum += (monthlyOrdered[i] || 0) + (monthlyExpected[i] || 0);
 				cumulativeForecast.push(forecastSum);
 			}
-
-			// 3. デバッグ出力（修正版）
-			console.log('【最終チャート用データ - 完全修正版】', {
-				月次受注済: monthlyOrdered,
-				月次受注予測: monthlyExpected,
-				累積受注済: cumulativeOrdered,
-				累積受注予測: cumulativeForecast,
-				最終受注済: cumulativeOrdered[cumulativeOrdered.length - 1],
-				最終受注予測: cumulativeForecast[cumulativeForecast.length - 1],
-				検証: {
-					受注予測は受注済以上か: cumulativeForecast.every((v, i) => v >= cumulativeOrdered[i]),
-					受注予測は単調増加か: cumulativeForecast.every((v, i, arr) => i === 0 || v >= arr[i-1])
-				}
-			});
 			           
             // チャート生成
             new Chart(document.getElementById('chartTimeline'), {
