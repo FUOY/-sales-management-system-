@@ -1761,6 +1761,257 @@
                 margin-bottom: 0.5rem !important;
             }
         }
+		/* ========================================
+           モバイル用テーブル横スクロール完全対応
+           ======================================== */
+        
+        @media (max-width: 768px) {
+            /* 1. テーブルコンテナの横スクロール対応 */
+            .table-container {
+                width: 100% !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                border-radius: 4px !important;
+                border: 1px solid #ddd !important;
+                background: white !important;
+                position: relative !important;
+            }
+            
+            /* 2. テーブル自体のサイズ固定 */
+            table {
+                width: 100% !important;
+                min-width: 900px !important;           /* スマホ画面より広い幅 */
+                table-layout: fixed !important;
+                border-collapse: collapse !important;
+            }
+            
+            /* 3. テーブルセルの最小幅確保 */
+            th, td {
+                min-width: 80px !important;            /* 最小幅を確保 */
+                padding: 0.5rem !important;
+                word-break: break-word !important;
+                white-space: normal !important;
+            }
+            
+            th {
+                background: #f8f9fa !important;
+                font-weight: 600 !important;
+                font-size: 0.75rem !important;
+                position: sticky !important;           /* ヘッダー固定 */
+                top: 0 !important;
+                z-index: 10 !important;
+            }
+            
+            td {
+                font-size: 0.75rem !important;
+                border-bottom: 1px solid #eee !important;
+            }
+            
+            /* 4. 見出し列の固定（左固定） */
+            tr td:first-child {
+                position: sticky !important;
+                left: 0 !important;
+                background: white !important;
+                font-weight: 600 !important;
+                min-width: 100px !important;
+                z-index: 5 !important;
+                border-right: 2px solid #ddd !important;
+            }
+            
+            tr th:first-child {
+                position: sticky !important;
+                left: 0 !important;
+                z-index: 11 !important;
+                border-right: 2px solid #ddd !important;
+            }
+            
+            /* 5. ボタングループのモバイル最適化 */
+            .btn-group {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 0.25rem !important;
+                width: 100% !important;
+            }
+            
+            .btn-sm {
+                padding: 0.3rem 0.5rem !important;
+                font-size: 0.7rem !important;
+                white-space: nowrap !important;
+            }
+            
+            /* 6. 個別ページのテーブル調整 */
+            #customersTable,
+            #projectsTable,
+            #activitiesTable,
+            #personalKPITable,
+            #completedProjectsTable,
+            #adminKpiTable,
+            #customerStaffTable,
+            #scheduleListTable {
+                min-width: 1000px !important;
+            }
+            
+            /* 7. スクロールヒント表示 */
+            .table-container::after {
+                content: "← → でスクロール" !important;
+                position: absolute !important;
+                bottom: -24px !important;
+                right: 0 !important;
+                font-size: 0.7rem !important;
+                color: #999 !important;
+                display: none !important;
+            }
+            
+            .table-container:has(table[min-width]) {
+                margin-bottom: 24px !important;
+            }
+            
+            .table-container::after {
+                display: block !important;
+            }
+            
+            /* 8. ファネル・リスト要素のモバイル対応 */
+            .funnel-container {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+            
+            .funnel-item {
+                flex-shrink: 0 !important;
+                min-width: 150px !important;
+            }
+            
+            /* 9. ダッシュボード特化テーブル */
+            .card .table-container {
+                background: transparent !important;
+                border: none !important;
+            }
+            
+            /* 10. 視認性の確保 */
+            table tr:hover {
+                background-color: #f8f9fa !important;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            /* 超小画面調整 */
+            th, td {
+                min-width: 60px !important;
+                padding: 0.3rem !important;
+                font-size: 0.7rem !important;
+            }
+            
+            .btn-sm {
+                padding: 0.2rem 0.3rem !important;
+                font-size: 0.65rem !important;
+            }
+            
+            table {
+                min-width: 800px !important;
+            }
+        }
+		/* ========================================
+           リスク検知アラートのモバイル最適化
+           ======================================== */
+        
+        @media (max-width: 768px) {
+            .risk-alert-card {
+                padding: 1rem !important;
+            }
+            
+            .risk-alert-header {
+                flex-direction: column !important;
+                gap: 0.75rem !important;
+                align-items: flex-start !important;
+            }
+            
+            .risk-alert-title {
+                font-size: 1rem !important;
+                flex-basis: 100% !important;
+                word-break: keep-all !important;
+            }
+            
+            .risk-badge {
+                align-self: flex-start !important;
+            }
+            
+            /* リスク項目のスタック表示 */
+            .risk-item {
+                flex-direction: column !important;
+                gap: 0.75rem !important;
+                align-items: flex-start !important;
+            }
+            
+            .risk-content {
+                width: 100% !important;
+            }
+            
+            .risk-project-name {
+                font-size: 0.95rem !important;
+                word-break: break-word !important;
+            }
+            
+            .risk-details {
+                flex-direction: column !important;
+                gap: 0.5rem !important;
+            }
+            
+            .risk-factor {
+                display: block !important;
+                font-size: 0.8rem !important;
+            }
+            
+            .risk-action {
+                width: 100% !important;
+                align-self: flex-end !important;
+            }
+            
+            .risk-action .btn {
+                width: 100% !important;
+                text-align: center !important;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .risk-alert-card {
+                padding: 0.75rem !important;
+            }
+            
+            .risk-alert-title {
+                font-size: 0.95rem !important;
+            }
+            
+            .risk-item {
+                padding: 0.75rem !important;
+            }
+            
+            .risk-project-name {
+                font-size: 0.9rem !important;
+            }
+            
+            .risk-action .btn {
+                padding: 0.4rem 0.6rem !important;
+                font-size: 0.7rem !important;
+            }
+        }
+		
+		/* タイムラインチャートの横幅最適化 */
+		.chart-wrapper {
+			position: relative;
+			width: 100%;
+			height: 350px;
+		}
+
+		.chart-wrapper canvas {
+			width: 100% !important;
+			height: 100% !important;
+			display: block;
+		}
+
+		/* タイムライン専用の調整 */
+		#chartTimeline {
+			max-width: 100%;
+		}
 	</style>
 </head>
 <body>
@@ -3219,19 +3470,6 @@
 					}
 				});
 
-				// チャートの更新（既存のチャートがある場合）
-				if (this.chartTimeline) {
-					this.chartTimeline.data.datasets[0].data = monthlyOrdered;
-					this.chartTimeline.data.datasets[1].data = monthlyExpected;
-					this.chartTimeline.update();
-				}
-
-				// 確認用ログ
-				console.log('=== タイムライン修正結果 ===');
-				console.log('受注確定合計:', monthlyOrdered.reduce((a,b) => a+b, 0).toLocaleString() + '円');
-				console.log('想定合計:', monthlyExpected.reduce((a,b) => a+b, 0).toLocaleString() + '円');
-				console.log('========================');
-
 				// 4. 統計カード表示（既存形式を維持）
 				const orderedSales = acts.filter(a => a.stage === '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
 				const expectedSales = acts.filter(a => a.stage !== '受注').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
@@ -3662,43 +3900,6 @@
 				// 案件データの集計
 				const processedProjects = new Set();
 
-				targetProjects.forEach(project => {
-					if (project.status === '失注') return;
-					const amount = Number(project.estimatedAmount) || 0;
-					if (!amount) return;
-					
-					const isConfirmed = 
-						project.stage === '受注' || 
-						project.probability === '受注済' || 
-						project.status === '完了';
-					
-					let targetDateStr = project.expectedOrderDate;
-					if (!targetDateStr) {
-						targetDateStr = project.lastActivityDate || project.createdDate;
-					}
-					if (!targetDateStr) return;
-					
-					const dateObj = new Date(targetDateStr);
-					if (isNaN(dateObj.getTime())) return;
-					
-					const { fiscalYear, monthIndex } = getFiscalYearAndMonthIndex(dateObj);
-					
-					if (!yearlyData[fiscalYear]) {
-						yearlyData[fiscalYear] = {
-							ordered: new Array(12).fill(0),
-							expected: new Array(12).fill(0)
-						};
-					}
-					
-					if (isConfirmed) {
-						yearlyData[fiscalYear].ordered[monthIndex] += amount;
-					} else {
-						yearlyData[fiscalYear].expected[monthIndex] += amount;
-					}
-					
-					processedProjects.add(project.id);
-				});
-
 				// 未案件化活動の補完集計
 				const targetActivities = isPersonal
 					? acts.filter(a => a.assignee === CURRENT_USER.assignee)
@@ -3740,57 +3941,24 @@
 					}
 				});
 
-				// 年度選択ドロップダウンの更新
-				const yearSelect = document.getElementById('timelineYearSelect');
-				if (yearSelect) {
-					const availableYears = Object.keys(yearlyData).map(y => parseInt(y)).sort();
-					
-					if (availableYears.length === 0) {
-						availableYears.push(currentFiscalYear);
-						yearlyData[currentFiscalYear] = {
-							ordered: new Array(12).fill(0),
-							expected: new Array(12).fill(0)
-						};
-					}
+				// 既存の宣言を保持・修正
+				const selectedYear = this.selectedFiscalYear || currentFiscalYear;
 
-					if (this.data.kpiSettings && this.data.kpiSettings.yearlyData) {
-						Object.keys(this.data.kpiSettings.yearlyData).forEach(y => {
-							const yearInt = parseInt(y);
-							if (!availableYears.includes(yearInt)) {
-								availableYears.push(yearInt);
-								if (!yearlyData[yearInt]) {
-									yearlyData[yearInt] = { 
-										ordered: new Array(12).fill(0), 
-										expected: new Array(12).fill(0) 
-									};
-								}
-							}
-						});
-						availableYears.sort();
-					}
+				// ★★★ 年度別の月次データをそのまま利用する ★★★
+				let monthlyOrdered = new Array(12).fill(0);
+				let monthlyExpected = new Array(12).fill(0);
 
-					if (!this.selectedFiscalYear || !availableYears.includes(this.selectedFiscalYear)) {
-						this.selectedFiscalYear = currentFiscalYear;
-					}
-
-					yearSelect.innerHTML = availableYears.map(year => 
-						`<option value="${year}" ${year === this.selectedFiscalYear ? 'selected' : ''}>
-							${year}年度 (${year}年6月-${year + 1}年5月)
-						</option>`
-					).join('');
-					
-					yearSelect.onchange = () => {
-						this.selectedFiscalYear = parseInt(yearSelect.value);
-						this.renderDashboard();
-					};
+				if (yearlyData[selectedYear]) {
+					const yearData = yearlyData[selectedYear];
+					// 既に集計済みの配列をコピーして使用
+					monthlyOrdered = (yearData.ordered || new Array(12).fill(0)).slice();
+					monthlyExpected = (yearData.expected || new Array(12).fill(0)).slice();
 				}
 
-				// 選択された年度のデータを取得
-				const selectedYear = this.selectedFiscalYear || currentFiscalYear;
-				const selectedData = yearlyData[selectedYear] || {
-					ordered: new Array(12).fill(0),
-					expected: new Array(12).fill(0)
-				};
+				console.log(`📊 ${selectedYear}年度のデータを表示:`, {
+					受注済: monthlyOrdered,
+					受注想定: monthlyExpected
+				});
 
 				// 選択された年度のKPI目標を取得
 				let selectedYearTarget = target;
@@ -3803,16 +3971,9 @@
 					}
 				}
 
-				// 累積受注済データの計算
-				let cumulativeSum = 0;
-				const cumulativeOrdered = selectedData.ordered.map(monthlyAmount => {
-					cumulativeSum += monthlyAmount;
-					return cumulativeSum;
-				});
-
 				// 集計値の計算と表示更新
-				const yearTotalOrdered = selectedData.ordered.reduce((sum, amount) => sum + amount, 0);
-				const yearTotalExpected = selectedData.expected.reduce((sum, amount) => sum + amount, 0);
+				const yearTotalOrdered = monthlyOrdered.reduce((sum, amount) => sum + amount, 0);
+				const yearTotalExpected = monthlyExpected.reduce((sum, amount) => sum + amount, 0);
 				const yearShortage = Math.max(selectedYearTarget - yearTotalOrdered, 0);
 
 				// 統計表示の更新
@@ -3821,122 +3982,187 @@
 				document.getElementById('timelineExpected').textContent = yearTotalExpected.toLocaleString();
 				document.getElementById('timelineShortage').textContent = yearShortage.toLocaleString();
 
-				// Chart.js でタイムライングラフを描画
-				new Chart(document.getElementById('chartTimeline'), {
-					type: 'bar',
-					data: {
-						labels: months,
-						datasets: [
-							{
-								label: `${selectedYear}年度 累積受注済 📈`,
-								data: cumulativeOrdered,
-								borderColor: '#1565C0',
-								backgroundColor: 'rgba(21, 101, 192, 0.1)',
-								type: 'line',
-								fill: true,
-								tension: 0.1,
-								borderWidth: 3,
-								pointRadius: 6,
-								pointBackgroundColor: '#1565C0',
-								pointBorderColor: '#ffffff',
-								pointBorderWidth: 2,
-								order: 1
-							},
-							{
-								label: `${selectedYear}年度 月次受注済 ✅`,
-								data: selectedData.ordered,
-								backgroundColor: 'rgba(33, 150, 243, 0.85)',
-								borderColor: 'rgba(33, 150, 243, 1)',
-								borderWidth: 2,
-								stack: 'monthly',
-								order: 3
-							},
-							{
-								label: `${selectedYear}年度 月次受注想定 ⏳`,
-								data: selectedData.expected,
-								backgroundColor: 'rgba(255, 152, 0, 0.85)',
-								borderColor: 'rgba(255, 152, 0, 1)',
-								borderWidth: 2,
-								stack: 'monthly',
-								order: 3
-							},
-							{
-								label: 'KPI目標 🎯',
-								data: Array(12).fill(selectedYearTarget),
-								borderColor: '#4CAF50',
-								borderDash: [8, 4],
-								borderWidth: 2,
-								pointRadius: 0,
-								type: 'line',
-								fill: false,
-								order: 0
-							}
-						]
-					},
-					options: {
-						maintainAspectRatio: false,
-						interaction: { 
-							mode: 'index', 
-							intersect: false 
-						},
-						plugins: {
-							legend: {
-								display: true,
-								position: 'top',
-								labels: {
-									usePointStyle: true,
-									padding: 15
-								}
-							},
-							tooltip: {
-								callbacks: {
-									label: function(context) {
-										let label = context.dataset.label || '';
-										if (label) label += ': ';
-										if (context.parsed.y !== null) {
-											label += '¥' + context.parsed.y.toLocaleString();
-										}
-										return label;
-									},
-									footer: function() {
-										return `\n【${selectedYear}年度 合計】\n受注済: ¥${yearTotalOrdered.toLocaleString()}\n受注想定: ¥${yearTotalExpected.toLocaleString()}\n目標との差: ¥${yearShortage.toLocaleString()}`;
-									}
-								}
-							}
-						},
-						scales: {
-							x: {
-								grid: {
-									display: false
-								},
-								title: {
-									display: true,
-									text: `${selectedYear}年度 営業月`
-								}
-							},
-							y: {
-								beginAtZero: true,
-								ticks: {
-									callback: function(value) {
-										if (value >= 100000000) {
-											return '¥' + (value / 100000000).toFixed(1) + '億';
-										} else if (value >= 10000000) {
-											return '¥' + (value / 10000000).toFixed(0) + '千万';
-										} else if (value >= 10000) {
-											return '¥' + (value / 10000).toFixed(0) + '万';
-										}
-										return '¥' + value.toLocaleString();
-									}
-								},
-								grid: {
-									color: 'rgba(0, 0, 0, 0.05)'
-								}
-							}
-						}
-					}
-				});
+                // 年度選択ドロップダウンの更新
+                const yearSelect = document.getElementById('timelineYearSelect');
+                if (yearSelect) {
+                    const availableYears = Object.keys(yearlyData)
+                        .map(y => parseInt(y))
+                        .sort();
+                    
+                    if (availableYears.length === 0) {
+                        availableYears.push(currentFiscalYear);
+                    }
+
+                    if (this.data.kpiSettings && this.data.kpiSettings.yearlyData) {
+                        Object.keys(this.data.kpiSettings.yearlyData).forEach(y => {
+                            const yearInt = parseInt(y);
+                            if (!availableYears.includes(yearInt)) {
+                                availableYears.push(yearInt);
+                            }
+                        });
+                        availableYears.sort();
+                    }
+
+                    if (!this.selectedFiscalYear || !availableYears.includes(this.selectedFiscalYear)) {
+                        this.selectedFiscalYear = currentFiscalYear;
+                    }
+
+                    yearSelect.innerHTML = availableYears.map(year => 
+                        `<option value="${year}" ${year === this.selectedFiscalYear ? 'selected' : ''}>
+                            ${year}年度 (${year}年6月-${year + 1}年5月)
+                        </option>`
+                    ).join('');
+                    
+                    yearSelect.onchange = () => {
+                        this.selectedFiscalYear = parseInt(yearSelect.value);
+                        this.renderDashboard();
+                    };
+                }
+
+            // ★★★ チャート生成：累積計算の完全修正版 ★★★
+            
+			// 1. 累積受注済を計算（既存のまま）
+			const cumulativeOrdered = [];
+			let orderedSum = 0;
+			for (let i = 0; i < 12; i++) {
+				orderedSum += monthlyOrdered[i] || 0;
+				cumulativeOrdered.push(orderedSum);
 			}
-			
+
+			// 2. 受注予測の累積を計算（修正：実績と予測の合算を累積）
+			const cumulativeForecast = [];
+			let forecastSum = 0;
+			for (let i = 0; i < 12; i++) {
+				// 各月の実績と予測を足し合わせたものを累積していく
+				forecastSum += (monthlyOrdered[i] || 0) + (monthlyExpected[i] || 0);
+				cumulativeForecast.push(forecastSum);
+			}
+
+			// 3. デバッグ出力（修正版）
+			console.log('【最終チャート用データ - 完全修正版】', {
+				月次受注済: monthlyOrdered,
+				月次受注予測: monthlyExpected,
+				累積受注済: cumulativeOrdered,
+				累積受注予測: cumulativeForecast,
+				最終受注済: cumulativeOrdered[cumulativeOrdered.length - 1],
+				最終受注予測: cumulativeForecast[cumulativeForecast.length - 1],
+				検証: {
+					受注予測は受注済以上か: cumulativeForecast.every((v, i) => v >= cumulativeOrdered[i]),
+					受注予測は単調増加か: cumulativeForecast.every((v, i, arr) => i === 0 || v >= arr[i-1])
+				}
+			});
+			           
+            // チャート生成
+            new Chart(document.getElementById('chartTimeline'), {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: [
+                        {
+                            label: `${selectedYear}年度 月次受注済 ✅`,
+                            data: monthlyOrdered,
+                            backgroundColor: 'rgba(33, 150, 243, 0.85)',
+                            borderColor: 'rgba(33, 150, 243, 1)',
+                            borderWidth: 2,
+                            stack: 'monthly',
+                            order: 3
+                        },
+                        {
+                            label: `${selectedYear}年度 月次受注想定 ⏳`,
+                            data: monthlyExpected,
+                            backgroundColor: 'rgba(255, 152, 0, 0.85)',
+                            borderColor: 'rgba(255, 152, 0, 1)',
+                            borderWidth: 2,
+                            stack: 'monthly',
+                            order: 3
+                        },
+                        {
+                            label: `${selectedYear}年度 累積受注済 📈`,
+                            data: cumulativeOrdered,
+                            borderColor: '#1565C0',
+                            backgroundColor: 'rgba(21, 101, 192, 0.1)',
+                            type: 'line',
+                            fill: true,
+                            tension: 0.2,
+                            borderWidth: 3,
+                            pointRadius: 5,
+                            pointBackgroundColor: '#1565C0',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            order: 1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: `${selectedYear}年度 受注予測（分岐） 📊`,
+                            data: cumulativeForecast,
+                            borderColor: '#7B68EE',
+                            backgroundColor: 'transparent',
+                            type: 'line',
+                            fill: false,
+                            tension: 0.3,
+                            borderWidth: 2.5,
+                            borderDash: [5, 5],
+                            pointRadius: 4,
+                            pointBackgroundColor: '#7B68EE',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointStyle: 'diamond',
+                            order: 2,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'KPI目標 🎯',
+                            data: new Array(12).fill(selectedYearTarget),
+                            borderColor: '#4CAF50',
+                            borderDash: [8, 4],
+                            borderWidth: 2.5,
+                            pointRadius: 0,
+                            type: 'line',
+                            fill: false,
+                            order: 0,
+                            yAxisID: 'y'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: true, position: 'top', labels: { usePointStyle: true, padding: 15, font: { size: 12, weight: 'bold' } } },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)', padding: 12, titleFont: { size: 13, weight: 'bold' }, bodyFont: { size: 12 }, cornerRadius: 6,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed.y !== null) label += '¥' + context.parsed.y.toLocaleString();
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { stacked: true, grid: { display: false }, title: { display: true, text: `${selectedYear}年度 営業月` } },
+                        y: { 
+                            id: 'y', 
+                            beginAtZero: true, 
+                            position: 'left', 
+                            ticks: { 
+                                callback: function(value) { 
+                                    if (value >= 100000000) return '¥' + (value / 100000000).toFixed(1) + '億'; 
+                                    if (value >= 10000000) return '¥' + (value / 10000000).toFixed(0) + '千万'; 
+                                    if (value >= 10000) return '¥' + (value / 10000).toFixed(0) + '万'; 
+                                    return '¥' + value.toLocaleString(); 
+                                } 
+                            }, 
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' } 
+                        }
+                    }
+                }
+            });
+		}
+
 			/**
 			 * 滞留活動の計算（未案件化活動を「顧客＋機種」単位でグループ化）
 			 */
@@ -5123,7 +5349,60 @@
                     this.activitiesSortOrder = 'asc';
                 }
                 this.renderActivities();
-            }
+            }		
+
+ 			/**
+			 * 受注予定の累積推移を計算（完全修正版）
+			 * 受注済の折れ線から分岐する点線予測グラフを生成
+			 */
+			calculateCumulativeWithForecast(orderedData, expectedData, target) {
+				// 配列が存在するか確認
+				if (!orderedData || !expectedData) {
+					return {
+						orderedCumulative: [],
+						forecastCumulative: [],
+						targetLine: [],
+						willAchieve: false,
+						achievementRate: 0,
+						forecastRate: 0
+					};
+				}
+				
+				// 1. 受注済の累積を計算
+				const orderedCumulative = [];
+				let cumulativeOrdered = 0;
+				for (let i = 0; i < orderedData.length; i++) {
+					cumulativeOrdered += (orderedData[i] || 0);
+					orderedCumulative.push(cumulativeOrdered);
+				}
+				
+				// 2. 受注予測の累積を計算（修正：実績と予測の合算を累積）
+				const forecastCumulative = [];
+				let cumulativeForecastSum = 0;
+				for (let i = 0; i < orderedData.length; i++) {
+					cumulativeForecastSum += (orderedData[i] || 0) + (expectedData[i] || 0);
+					forecastCumulative.push(cumulativeForecastSum);
+				}
+				
+				// 3. 目標ラインの配列化
+				const targetLine = new Array(orderedData.length).fill(target);
+				
+				// 4. 達成判定（最終月での判定）
+				const finalForecast = forecastCumulative[forecastCumulative.length - 1] || 0;
+				const finalOrdered = orderedCumulative[orderedCumulative.length - 1] || 0;
+				const willAchieve = finalForecast >= target;
+				const achievementRate = target > 0 ? Math.round((finalOrdered / target) * 100) : 0;
+				const forecastRate = target > 0 ? Math.round((finalForecast / target) * 100) : 0;
+				
+				return {
+					orderedCumulative: orderedCumulative,
+					forecastCumulative: forecastCumulative,
+					targetLine: targetLine,
+					willAchieve: willAchieve,
+					achievementRate: achievementRate,
+					forecastRate: forecastRate
+				};
+			}
 
             exportReport(type) {
                 const BOM = '\uFEFF';
