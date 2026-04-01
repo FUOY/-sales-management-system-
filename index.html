@@ -2262,6 +2262,22 @@
 								<i class="fas fa-barcode" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
 								商品コードリスト
 							</button>
+							<div style="border-top: 1px solid #eee; margin: 4px 0;"></div>
+
+							<button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #333; cursor: pointer; font-size: 0.9rem;" 
+									onmouseover="this.style.background='#f0f8ff'" 
+									onmouseout="this.style.background='white'"
+									onclick="app.importExcel('tokuisaki_legacy'); document.getElementById('importDropdown').style.display = 'none';">
+								<i class="fas fa-address-book" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
+								得意先名リスト（差分更新）
+							</button>
+							<button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #333; cursor: pointer; font-size: 0.9rem;" 
+									onmouseover="this.style.background='#f0f8ff'" 
+									onmouseout="this.style.background='white'"
+									onclick="app.importExcel('order_tickets'); document.getElementById('importDropdown').style.display = 'none';">
+								<i class="fas fa-file-invoice" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
+								受注票データ
+							</button>
 						</div>
 					</div>
 					
@@ -3151,7 +3167,54 @@
 		function getWinRate(probability) {
 			return PROBABILITY_WEIGHTS[probability || 'C'] || 0.3;
 		}
-		
+
+		/**
+		 * 既存データを保護する差分マージ関数（空欄のみ補完）
+		 */
+		function mergeFillOnlyMissing(existing, newData) {
+			const result = { ...existing };
+			
+			for (const [key, newVal] of Object.entries(newData)) {
+				const oldVal = result[key];
+
+				// 配列の場合は安全に結合（重複回避）
+				if (Array.isArray(newVal)) {
+					if (!Array.isArray(oldVal)) {
+						result[key] = newVal;
+					} else {
+						// 既存配列に新要素を追加（JSON文字列比較で重複回避）
+						const existingStrings = oldVal.map(item => JSON.stringify(item));
+						const newItems = newVal.filter(item => 
+							!existingStrings.includes(JSON.stringify(item))
+						);
+						result[key] = [...oldVal, ...newItems];
+					}
+					continue;
+				}
+
+				// 備考欄は追記モード（改行で連結）
+				if (key === 'notes' && newVal && typeof newVal === 'string') {
+					if (!oldVal) {
+						result[key] = newVal;
+					} else if (!oldVal.includes(newVal)) {
+						result[key] = oldVal + '\n[追加] ' + newVal;
+					}
+					continue;
+				}
+
+				// 既存値が存在する場合は保護（空文字・null・undefined・0以外）
+				if (oldVal !== undefined && oldVal !== null && oldVal !== '' && oldVal !== 0) {
+					continue;
+				}
+
+				// 新値が有効な場合のみ設定
+				if (newVal !== undefined && newVal !== null && newVal !== '' && newVal !== 0) {
+					result[key] = newVal;
+				}
+			}
+			
+			return result;
+		}
 		let supabaseClient = null;
 
 		// ▼▼▼ 【修正】Supabase設定を固定値で確定 ▼▼▼
@@ -8557,6 +8620,10 @@
 					switch (type) {
 						case 'customers':
 							return this.importCustomerList(rows);
+						case 'tokuisaki_legacy':  // 得意先名リスト専用（差分更新）
+							return this.importCustomerListLegacy(rows);
+						case 'order_tickets':     // 受注票データ専用
+							return this.importOrderTickets(rows);
 						case 'machines':
 							return this.importMachineList(rows);
 						case 'orders':
@@ -8567,6 +8634,7 @@
 							return { success: false, error: '不明なインポートタイプ' };
 					}
 				} catch (error) {
+					console.error('Excel処理エラー:', error);
 					return { success: false, error: error.message };
 				}
 			}
@@ -8628,6 +8696,219 @@
 					success: true, 
 					count: importCount + updateCount,
 					message: `新規${importCount}件、更新${updateCount}件`
+				};
+			}
+			
+			/**
+			 * 得意先名リスト専用インポーター（差分更新対応）
+			 */
+			importCustomerListLegacy(rows) {
+				let importCount = 0;
+				let updateCount = 0;
+				let skipCount = 0;
+
+				rows.forEach((row, index) => {
+					try {
+						// 複数の列名パターンに対応
+						const customerName = row['顧客名'] || row['得意先名'] || row['旧得意先名'];
+						if (!customerName || customerName.trim() === '') {
+							skipCount++;
+							return;
+						}
+
+						const existingCustomer = this.data.customers.find(c => 
+							c.name === customerName.trim()
+						);
+
+						// ステータス自動判定（添付Excelの実際の列に対応）
+						let status = '取引中';
+						const closedFlag = row['廃業 倒産'];
+						const declineFlag = row['撤退 衰退'];
+						const remarks = row['備考'] || '';
+
+						if (closedFlag === '○' || closedFlag === '〇' || closedFlag === 'ナシ') {
+							status = '廃業';
+						} else if (declineFlag === '○' || declineFlag === '〇') {
+							status = '休眠';
+						} else if (remarks.includes('有休状態') || remarks.includes('廃業')) {
+							status = '休眠';
+						}
+
+						// 新データの構築（添付Excelの実際の列名に対応）
+						const newCustomerData = {
+							name: customerName.trim(),
+							companyCode: row['得意先コード'] || row['No,'] || '',
+							region: row['地域'] || row['地域１'] || '',
+							industry: row['業種'] || (row['商社'] === '○' ? '商社' : ''),
+							status: status,
+							assignee: row['担当者'] || '',
+							notes: remarks,
+							// 履歴フラグ（分析用）
+							tradingHistory: {
+								trading2005: row['2005年時点'] === '○',
+								trading2022: row['2022年時点'] === '○',
+								trading2023Plus: row['2023年以降導入'] === '○',
+								isHealthy: row['健全'] === '○'
+							}
+						};
+
+						if (existingCustomer) {
+							// 差分更新実行
+							const beforeUpdate = JSON.stringify(existingCustomer);
+							const merged = mergeFillOnlyMissing(existingCustomer, newCustomerData);
+							
+							// 実際に変更があったかチェック
+							if (beforeUpdate !== JSON.stringify(merged)) {
+								Object.assign(existingCustomer, merged);
+								updateCount++;
+								console.log(`更新: ${customerName} - 差分マージ完了`);
+							}
+						} else {
+							// 新規顧客作成
+							const baseCustomer = {
+								id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+								rank: 'B',
+								assignee: newCustomerData.assignee || CURRENT_USER.assignee,
+								staffs: [],
+								installedMachines: [],
+								orderHistory: [],
+								// 拡張フィールドの初期化
+								postalCode: '',
+								address: '',
+								phone: '',
+								fax: '',
+								email: '',
+								website: '',
+								establishedDate: '',
+								capital: 0,
+								employees: 0,
+								paymentTerms: '',
+								creditLimit: 0,
+								taxType: '外税'
+							};
+
+							this.data.customers.push(mergeFillOnlyMissing(baseCustomer, newCustomerData));
+							importCount++;
+							console.log(`新規追加: ${customerName}`);
+						}
+
+					} catch (error) {
+						console.error(`行${index + 1}の処理エラー:`, error, row);
+						skipCount++;
+					}
+				});
+
+				this.saveData();
+				
+				return {
+					success: true,
+					count: importCount + updateCount,
+					message: `✅ 新規: ${importCount}件 | 差分更新: ${updateCount}件 | スキップ: ${skipCount}件`
+				};
+			}
+
+			/**
+			 * 受注票データインポーター
+			 */
+			importOrderTickets(rows) {
+				let processedCount = 0;
+				let newCustomerCount = 0;
+				let errorCount = 0;
+
+				rows.forEach((row, index) => {
+					try {
+						// 顧客名の抽出（受注票の実際の列名に対応）
+						const customerName = row['得意先名'] || row['発注会社'] || row['得 意 先 名'];
+						if (!customerName || customerName.trim() === '') return;
+
+						let customer = this.data.customers.find(c => c.name === customerName.trim());
+
+						// 顧客が存在しない場合は最小限の情報で作成
+						if (!customer) {
+							customer = {
+								id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+								name: customerName.trim(),
+								companyCode: row['得 意 先 コード'] || '',
+								status: '取引中',
+								rank: 'B',
+								assignee: row['担 当 者'] || CURRENT_USER.assignee,
+								staffs: [],
+								installedMachines: [],
+								orderHistory: [],
+								notes: '受注票から自動作成'
+							};
+							this.data.customers.push(customer);
+							newCustomerCount++;
+						}
+
+						// 受注履歴データの構築
+						const orderData = {
+							orderDate: this.parseDate(row['受注日'] || row['受 注 日']),
+							orderNumber: row['受注No,'] || `AUTO-${Date.now()}`,
+							projectName: row['部 品 名 ／ 型 式'] || '',
+							productCode: row['部 品 コード'] || row['機種コード'] || '',
+							quantity: this.parseNumber(row['数量']) || 1,
+							deliveryDate: this.parseDate(row['納期']),
+							deliveryAddress: row['納品先'] || '',
+							salesPerson: row['担 当 者'] || '',
+							notes: row['摘要'] || '',
+							importSource: '受注票'
+						};
+
+						// 重複チェック（受注番号または日付+商品で）
+						const isDuplicate = customer.orderHistory.some(existing => 
+							(orderData.orderNumber && existing.orderNumber === orderData.orderNumber) ||
+							(existing.orderDate === orderData.orderDate && 
+							 existing.projectName === orderData.projectName)
+						);
+
+						if (!isDuplicate && orderData.projectName) {
+							customer.orderHistory.push(orderData);
+						}
+
+						// 機械情報の追加（機種コードがある場合）
+						if (orderData.productCode && orderData.projectName) {
+							// 機械として登録すべきかの簡易判定
+							const isMachine = !orderData.projectName.includes('部品') && 
+											 !orderData.projectName.includes('消耗品');
+
+							if (isMachine) {
+								const machineData = {
+									machineName: orderData.projectName,
+									machineCode: orderData.productCode,
+									serialNumber: row['製造番号'] || '',
+									installDate: orderData.deliveryDate || orderData.orderDate,
+									installLocation: orderData.deliveryAddress || '',
+									status: '稼働中',
+									quantity: orderData.quantity
+								};
+
+								// 機械の重複チェック
+								const machineExists = customer.installedMachines.some(existing =>
+									existing.machineCode === machineData.machineCode &&
+									existing.serialNumber === machineData.serialNumber
+								);
+
+								if (!machineExists) {
+									customer.installedMachines.push(machineData);
+								}
+							}
+						}
+
+						processedCount++;
+
+					} catch (error) {
+						console.error(`受注票 行${index + 1} 処理エラー:`, error);
+						errorCount++;
+					}
+				});
+
+				this.saveData();
+
+				return {
+					success: true,
+					count: processedCount,
+					message: `📋 処理完了: ${processedCount}件 | 新規顧客: ${newCustomerCount}件 | エラー: ${errorCount}件`
 				};
 			}
 
