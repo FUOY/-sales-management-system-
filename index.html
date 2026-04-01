@@ -2071,6 +2071,7 @@
         <nav class="tab-menu">
 			<button class="tab-button active" onclick="app.showPage('dashboard')">ダッシュボード</button>
 			<button class="tab-button" onclick="app.showPage('customers')">顧客管理</button>
+			<button class="tab-button" onclick="app.showPage('machines')">機械情報</button>
 			<button class="tab-button" onclick="app.showPage('projects')">案件管理</button>
 			<button class="tab-button" onclick="app.showPage('schedule')">スケジュール</button>
 			<button class="tab-button" onclick="app.showPage('activities')">活動記録</button>
@@ -2229,54 +2230,27 @@
 						
 						<!-- ★重要: display:none で初期非表示、position:absolute で浮動表示 -->
 						<div id="importDropdown" style="display: none; position: absolute; top: 100%; right: 0; background: white; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; min-width: 220px; margin-top: 5px; padding: 8px 0;">
-							
-							<!-- 各メニュー項目（class="btn"を削除して色の問題を解決） -->
-							<button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #333; cursor: pointer; font-size: 0.9rem;" 
-									onmouseover="this.style.background='#f0f8ff'" 
-									onmouseout="this.style.background='white'"
-									onclick="app.importExcel('customers'); document.getElementById('importDropdown').style.display = 'none';">
-								<i class="fas fa-users" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
-								得意先リスト
-							</button>
 
 							<button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #333; cursor: pointer; font-size: 0.9rem;" 
-									onmouseover="this.style.background='#f0f8ff'" 
-									onmouseout="this.style.background='white'"
+									onmouseover="this.style.background='#f0f8ff'" onmouseout="this.style.background='white'"
+									onclick="app.importExcel('customers'); document.getElementById('importDropdown').style.display = 'none';">
+								<i class="fas fa-building" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
+								得意先データ (一括/差分)
+							</button>
+
+
+							<button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #333; cursor: pointer; font-size: 0.9rem;" 
+									onmouseover="this.style.background='#f0f8ff'" onmouseout="this.style.background='white'"
 									onclick="app.importExcel('machines'); document.getElementById('importDropdown').style.display = 'none';">
 								<i class="fas fa-cogs" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
-								導入機械情報
+								導入機械データ (一括/差分)
 							</button>
 
 							<button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #333; cursor: pointer; font-size: 0.9rem;" 
-									onmouseover="this.style.background='#f0f8ff'" 
-									onmouseout="this.style.background='white'"
-									onclick="app.importExcel('orders'); document.getElementById('importDropdown').style.display = 'none';">
-								<i class="fas fa-history" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
-								受注履歴
-							</button>
-
-							<button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #333; cursor: pointer; font-size: 0.9rem;" 
-									onmouseover="this.style.background='#f0f8ff'" 
-									onmouseout="this.style.background='white'"
-									onclick="app.importExcel('products'); document.getElementById('importDropdown').style.display = 'none';">
-								<i class="fas fa-barcode" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
-								商品コードリスト
-							</button>
-							<div style="border-top: 1px solid #eee; margin: 4px 0;"></div>
-
-							<button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #333; cursor: pointer; font-size: 0.9rem;" 
-									onmouseover="this.style.background='#f0f8ff'" 
-									onmouseout="this.style.background='white'"
-									onclick="app.importExcel('tokuisaki_legacy'); document.getElementById('importDropdown').style.display = 'none';">
-								<i class="fas fa-address-book" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
-								得意先名リスト（差分更新）
-							</button>
-							<button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #333; cursor: pointer; font-size: 0.9rem;" 
-									onmouseover="this.style.background='#f0f8ff'" 
-									onmouseout="this.style.background='white'"
+									onmouseover="this.style.background='#f0f8ff'" onmouseout="this.style.background='white'"
 									onclick="app.importExcel('order_tickets'); document.getElementById('importDropdown').style.display = 'none';">
 								<i class="fas fa-file-invoice" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
-								受注票データ
+								受注履歴データ (一括/差分)
 							</button>
 						</div>
 					</div>
@@ -2292,15 +2266,43 @@
 
                 </div>
                 <div class="card table-container">
-                    <table id="customersTable">
+					<table id="customersTable">
+						<thead>
+							<tr>
+								<th onclick="app.sortCustomers('name')">顧客名 <i class="fas fa-sort" id="sortIconCustomerName"></i></th>
+								<th>業種</th>
+								<th>導入台数</th>
+								<th>ランク</th>
+								<th>ステータス</th>
+								<th>主担当者</th>
+								<th>操作</th>
+							</tr>
+						</thead>
+						<tbody></tbody>
+					</table>
+                </div>
+            </section>
+            <section id="machinesPage" class="page-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
+                    <h2 class="page-title" style="margin: 0;">機械情報</h2>
+                    <div class="header-controls">
+                        <select id="machinesFilter" onchange="app.renderMachines()" class="filter-select">
+                            <option value="all">全機械表示</option>
+                            <option value="稼働中">稼働中のみ</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card table-container">
+                    <table id="machinesTable">
                         <thead>
                             <tr>
-                                <th onclick="app.sortCustomers('name')">顧客名 <i class="fas fa-sort" id="sortIconCustomerName"></i></th>
-                                <th>業種</th>
-                                <th>ランク</th>
+                                <th>顧客名</th>
+                                <th>機種名</th>
+                                <th>メーカー</th>
+                                <th>導入日</th>
+                                <th>シリアル番号</th>
+                                <th>設置場所</th>
                                 <th>ステータス</th>
-                                <th>主担当者</th>
-                                <th>担当者数</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -3100,6 +3102,23 @@
 	</div>
 
     <!-- Toast Notification -->
+		<!-- 機械詳細情報モーダル -->
+		<div id="machineDetailModal" class="modal">
+			<div class="modal-content" style="max-width: 600px;">
+				<div class="modal-header">
+					<h3 style="white-space: nowrap;">
+						<i class="fas fa-cog"></i> 機械詳細情報
+					</h3>
+					<button class="close-btn" onclick="app.closeModal('machineDetailModal')">×</button>
+				</div>
+				<div id="machineDetailContent" style="line-height: 1.6;">
+					<!-- JavaScriptで動的に生成 -->
+				</div>
+				<div class="actions">
+					<button type="button" class="btn btn-secondary" onclick="app.closeModal('machineDetailModal')">閉じる</button>
+				</div>
+			</div>
+		</div>
     <div id="toast" class="toast"></div>
 
     <script>
@@ -3289,6 +3308,8 @@
 				this.scheduleSortOrder = 'asc';
 				this.projectsSortField = null;
 				this.projectsSortOrder = 'asc';
+				this.machinesSortField = null;
+				this.machinesSortOrder = 'asc';
 				
 				// 4. 機能別状態管理
 				this.projectViewMode = 'table'; // カンバンボード表示モード
@@ -3379,16 +3400,19 @@
                 }
             }
 
-            showPage(pageId) {
-                document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
-                document.getElementById(pageId + 'Page').classList.add('active');
-                document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
-                const idx = ['dashboard', 'customers', 'projects', 'schedule', 'activities', 'kpi'].indexOf(pageId);
-                if (idx !== -1) document.querySelectorAll('.tab-button')[idx].classList.add('active');
+			showPage(pageId) {
+				document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+				document.getElementById(pageId + 'Page').classList.add('active');
+				document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+				// ↓↓↓ 'machines'を配列に追加 ↓↓↓
+				const idx = ['dashboard', 'customers', 'machines', 'projects', 'schedule', 'activities', 'kpi'].indexOf(pageId);
+				if (idx !== -1) document.querySelectorAll('.tab-button')[idx].classList.add('active');
 
-                if (pageId === 'dashboard') this.renderDashboard();
-                if (pageId === 'customers') this.renderCustomers();
-				if (pageId === 'projects') this.renderProjects(); 
+				if (pageId === 'dashboard') this.renderDashboard();
+				if (pageId === 'customers') this.renderCustomers();
+				// ↓↓↓ 機械情報ページの描画処理を追加 ↓↓↓
+				if (pageId === 'machines') this.renderMachines();
+				if (pageId === 'projects') this.renderProjects();
                 if (pageId === 'schedule') this.renderSchedule();
                 if (pageId === 'activities') this.renderActivities();
                 if (pageId === 'kpi') this.renderKPI();
@@ -4797,10 +4821,14 @@
                     document.getElementById('sortIconCustomerName').className = 'fas fa-sort';
                 }
 
-                document.querySelector('#customersTable tbody').innerHTML = list.map(c => `
-                    <tr>
-                        <td>
-							<span class="customer-link" onclick="app.showCustomerDetail('${c.id}')" title="詳細情報を表示">
+				document.querySelector('#customersTable tbody').innerHTML = list.map(c => {
+					const machines = c.installedMachines || [];
+					const totalMachines = machines.length;
+					
+					return `
+					<tr>
+						<td>
+							<span class="customer-link" onclick="app.editCustomer('${c.id}')" title="顧客情報を編集">
 								${c.name}
 							</span>
 							<button class="btn btn-sm btn-secondary" onclick="app.openCustomerStaffModal('${c.id}'); event.stopPropagation();" 
@@ -4808,19 +4836,19 @@
 								<i class="fas fa-users"></i>
 							</button>
 						</td>
-                        <td>${c.industry || '-'}</td>
-                        <td>${c.rank || '-'}</td>
-                        <td>${c.status || '-'}</td>
-                        <td>${c.assignee || '-'}</td>
-                        <td>${c.staffs.length}</td>
-                        <!-- 修正4: ボタン配置修正 -->
-                        <td>
-                            <div class="btn-group">
-                                <button class="btn btn-secondary btn-sm" onclick="app.editCustomer('${c.id}')">編集</button>
-                                <button class="btn btn-danger btn-sm" onclick="app.deleteCustomer('${c.id}')">削除</button>
-                            </div>
-                        </td>
-                    </tr>`).join('');
+						<td>${c.industry || '-'}</td>
+						<td><strong>${totalMachines}</strong></td>
+						<td>${c.rank || '-'}</td>
+						<td>${c.status || '-'}</td>
+						<td>${c.assignee || '-'}</td>
+						<td>
+							<div class="btn-group">
+								<button class="btn btn-secondary btn-sm" onclick="app.editCustomer('${c.id}')">編集</button>
+								<button class="btn btn-danger btn-sm" onclick="app.deleteCustomer('${c.id}')">削除</button>
+							</div>
+						</td>
+					</tr>`;
+				}).join('');
             }
 
             sortCustomers(field) {
@@ -4833,6 +4861,137 @@
                 this.renderCustomers();
             }
 
+            // ↓↓↓ 機械情報ページの描画メソッドを追加 ↓↓↓
+			renderMachines() {
+				const filter = document.getElementById('machinesFilter')?.value || 'all';
+				const machines = [];
+				
+				// 全顧客の機械情報を収集
+				(this.data.customers || []).forEach(customer => {
+					(customer.installedMachines || []).forEach((machine, index) => {
+						if (filter === 'all' || machine.status === filter) {
+							machines.push({
+								...machine,
+								customerName: customer.name,
+								customerId: customer.id,
+								machineIndex: index
+							});
+						}
+					});
+				});
+				
+				// 検索フィルタ適用
+				let filteredMachines = machines;
+				if (this.searchKeyword) {
+					filteredMachines = machines.filter(m => 
+						m.customerName.toLowerCase().includes(this.searchKeyword) ||
+						(m.machineName && m.machineName.toLowerCase().includes(this.searchKeyword)) ||
+						(m.machineCode && m.machineCode.toLowerCase().includes(this.searchKeyword)) ||
+						(m.serialNumber && String(m.serialNumber ?? '').toLowerCase().includes(this.searchKeyword))
+					);
+				}
+				
+				// ソート処理
+				if (this.machinesSortField) {
+					filteredMachines.sort((a, b) => {
+						let valA = (a[this.machinesSortField] || '').toString();
+						let valB = (b[this.machinesSortField] || '').toString();
+						
+						if (this.machinesSortField === 'installDate') {
+							valA = valA || '9999-12-31';
+							valB = valB || '9999-12-31';
+						}
+						
+						const order = this.machinesSortOrder === 'asc' ? 1 : -1;
+						return valA.localeCompare(valB, 'ja') * order;
+					});
+				}
+
+				// ソートアイコンの生成
+				const getSortIcon = (field) => {
+					if (this.machinesSortField !== field) {
+						return '<i class="fas fa-sort" style="color: #ccc; margin-left: 4px;"></i>';
+					}
+					return this.machinesSortOrder === 'asc' ? 
+						'<i class="fas fa-sort-up" style="color: var(--primary); margin-left: 4px;"></i>' : 
+						'<i class="fas fa-sort-down" style="color: var(--primary); margin-left: 4px;"></i>';
+				};
+				
+				// ヘッダーの更新
+				const thead = document.querySelector('#machinesTable thead');
+				if (thead) {
+					thead.innerHTML = `
+						<tr>
+							<th onclick="app.sortMachinesList('customerName')" style="cursor: pointer;">顧客名 ${getSortIcon('customerName')}</th>
+							<th onclick="app.sortMachinesList('machineName')" style="cursor: pointer;">機種名 ${getSortIcon('machineName')}</th>
+							<th onclick="app.sortMachinesList('machineCode')" style="cursor: pointer;">メーカー ${getSortIcon('machineCode')}</th>
+							<th onclick="app.sortMachinesList('installDate')" style="cursor: pointer;">導入日 ${getSortIcon('installDate')}</th>
+							<th onclick="app.sortMachinesList('serialNumber')" style="cursor: pointer;">シリアル番号 ${getSortIcon('serialNumber')}</th>
+							<th onclick="app.sortMachinesList('installLocation')" style="cursor: pointer;">設置場所 ${getSortIcon('installLocation')}</th>
+							<th onclick="app.sortMachinesList('status')" style="cursor: pointer;">ステータス ${getSortIcon('status')}</th>
+							<th>操作</th>
+						</tr>
+					`;
+				}
+				
+				const tbody = document.querySelector('#machinesTable tbody');
+				if (!tbody) return;
+				
+				if (filteredMachines.length === 0) {
+					tbody.innerHTML = `
+						<tr>
+							<td colspan="8" style="text-align: center; padding: 2rem; color: #999; font-style: italic;">
+								<i class="fas fa-inbox" style="font-size: 2rem; display: block; margin-bottom: 0.5rem;"></i>
+								機械情報が見つかりません
+							</td>
+						</tr>
+					`;
+					return;
+				}
+				
+				tbody.innerHTML = filteredMachines.map(machine => `
+					<tr>
+						<td>
+							<a href="#" onclick="app.showCustomerDetail('${machine.customerId}'); return false;" 
+							   style="color: var(--primary); text-decoration: underline;">
+								${machine.customerName}
+							</a>
+						</td>
+						<td>
+							<a href="#" onclick="app.showMachineDetail('${machine.customerId}', ${machine.machineIndex}); return false;"
+							   style="color: var(--primary); text-decoration: underline; font-weight: bold;">
+								${machine.machineName || '-'}
+							</a>
+						</td>
+						<td>${machine.machineCode || '-'}</td>
+						<td>${machine.installDate || '-'}</td>
+						<td>${machine.serialNumber || '-'}</td>
+						<td>${machine.installLocation || '-'}</td>
+						<td>
+							<span style="padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; background: ${machine.status === '稼働中' ? '#28a745' : '#6c757d'}; color: white;">
+								${machine.status || '不明'}
+							</span>
+						</td>
+						<td>
+							<button class="btn btn-sm btn-secondary" onclick="app.showMachineDetail('${machine.customerId}', ${machine.machineIndex})">
+								<i class="fas fa-eye"></i> 詳細
+							</button>
+						</td>
+					</tr>
+				`).join('');
+			}
+
+			// ソート関数の追加
+			sortMachinesList(field) {
+				if (this.machinesSortField === field) {
+					this.machinesSortOrder = this.machinesSortOrder === 'asc' ? 'desc' : 'asc';
+				} else {
+					this.machinesSortField = field;
+					this.machinesSortOrder = 'asc';
+				}
+				this.renderMachines();
+			}
+					
             // --- Schedule ---
             renderSchedule() {
                 const view = document.getElementById('scheduleViewType').value;
@@ -6395,6 +6554,34 @@
                 
                 // 導入機械セクション
                 if (customer.installedMachines && customer.installedMachines.length > 0) {
+                    // ★ソート処理
+                    let machines = [...customer.installedMachines];
+                    if (this.machineSortField) {
+                        machines.sort((a, b) => {
+                            let valA = (a[this.machineSortField] || '').toString();
+                            let valB = (b[this.machineSortField] || '').toString();
+                            
+                            // 日付の場合は日付比較
+                            if (this.machineSortField === 'installDate') {
+                                valA = valA || '9999-12-31';
+                                valB = valB || '9999-12-31';
+                            }
+                            
+                            const order = this.machineSortOrder === 'asc' ? 1 : -1;
+                            return valA.localeCompare(valB, 'ja') * order;
+                        });
+                    }
+
+                    // ソートアイコン取得関数
+                    const getSortIcon = (field) => {
+                        if (this.machineSortField !== field) {
+                            return '<i class="fas fa-sort" style="color: #ccc; margin-left: 4px;"></i>';
+                        }
+                        return this.machineSortOrder === 'asc' ? 
+                            '<i class="fas fa-sort-up" style="color: var(--primary); margin-left: 4px;"></i>' : 
+                            '<i class="fas fa-sort-down" style="color: var(--primary); margin-left: 4px;"></i>';
+                    };
+
                     html += `
                         <div class="card" style="margin-bottom: 1.5rem;">
                             <h3 style="margin-top: 0; color: var(--primary);">
@@ -6404,18 +6591,43 @@
                                 <table style="font-size: 0.85rem;">
                                     <thead>
                                         <tr>
-                                            <th>機種名</th>
-                                            <th>型式</th>
-                                            <th>導入日</th>
-                                            <th>シリアル番号</th>
-                                            <th>設置場所</th>
-                                            <th>稼働状況</th>
+                                            <th onclick="app.sortMachines('machineName')" style="cursor: pointer; user-select: none; padding: 0.75rem; white-space: nowrap;">
+                                                機種名 ${getSortIcon('machineName')}
+                                            </th>
+                                            <th onclick="app.sortMachines('machineCode')" style="cursor: pointer; user-select: none; padding: 0.75rem; white-space: nowrap;">
+                                                型式 ${getSortIcon('machineCode')}
+                                            </th>
+                                            <th onclick="app.sortMachines('installDate')" style="cursor: pointer; user-select: none; padding: 0.75rem; white-space: nowrap;">
+                                                導入日 ${getSortIcon('installDate')}
+                                            </th>
+                                            <th onclick="app.sortMachines('serialNumber')" style="cursor: pointer; user-select: none; padding: 0.75rem; white-space: nowrap;">
+                                                シリアル番号 ${getSortIcon('serialNumber')}
+                                            </th>
+                                            <th onclick="app.sortMachines('installLocation')" style="cursor: pointer; user-select: none; padding: 0.75rem; white-space: nowrap;">
+                                                設置場所 ${getSortIcon('installLocation')}
+                                            </th>
+                                            <th onclick="app.sortMachines('status')" style="cursor: pointer; user-select: none; padding: 0.75rem; white-space: nowrap;">
+                                                稼働状況 ${getSortIcon('status')}
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        ${customer.installedMachines.map(machine => `
+                                        ${machines.map(machine => {
+                                            // ソート後も正しい元のインデックスを取得
+                                            const originalIndex = customer.installedMachines.findIndex(m => 
+                                                m.machineName === machine.machineName && 
+                                                m.installDate === machine.installDate &&
+                                                m.serialNumber === machine.serialNumber
+                                            );
+                                            return `
                                             <tr>
-                                                <td>${machine.machineName || '-'}</td>
+                                                <td>
+                                                    <a href="#" onclick="app.showMachineDetail('${customer.id}', ${originalIndex}); return false;" 
+                                                       style="color: var(--primary); text-decoration: underline; font-weight: bold;" 
+                                                       title="クリックで詳細を表示">
+                                                        ${machine.machineName || '-'}
+                                                    </a>
+                                                </td>
                                                 <td>${machine.machineCode || '-'}</td>
                                                 <td>${machine.installDate || '-'}</td>
                                                 <td>${machine.serialNumber || '-'}</td>
@@ -6426,7 +6638,7 @@
                                                     </span>
                                                 </td>
                                             </tr>
-                                        `).join('')}
+                                        `}).join('')}
                                     </tbody>
                                 </table>
                             </div>
@@ -6513,6 +6725,169 @@
                 if (this.currentDetailCustomerId) {
                     this.editCustomer(this.currentDetailCustomerId);
                 }
+            }
+			
+			            /**
+             * 機械詳細情報の表示
+             */
+            showMachineDetail(customerId, machineIndex) {
+                const customer = this.data.customers.find(c => c.id === customerId);
+                if (!customer || !customer.installedMachines || !customer.installedMachines[machineIndex]) {
+                    this.showToast('機械情報が見つかりません', 'error');
+                    return;
+                }
+                
+                const machine = customer.installedMachines[machineIndex];
+                const content = document.getElementById('machineDetailContent');
+                
+                content.innerHTML = `
+                    <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; margin-bottom: 1rem;">
+                        <h4 style="margin: 0 0 1rem 0; color: var(--primary); text-align: center;">
+                            ${customer.name} - ${machine.machineName || '機種名不明'}
+                        </h4>
+                    </div>
+                    
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <tbody>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; width: 35%; background: #f8f9fa; font-weight: bold;">メーカー</th>
+                                <td style="padding: 0.75rem;">${machine.machineCode || '-'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">機械タイプ</th>
+                                <td style="padding: 0.75rem;">${machine.machineType || '-'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">導入日</th>
+                                <td style="padding: 0.75rem;">${machine.installDate || '-'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">金額</th>
+                                <td style="padding: 0.75rem; font-weight: bold; color: #28a745;">${machine.amount ? '¥' + Number(machine.amount).toLocaleString() : '-'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">製造番号</th>
+                                <td style="padding: 0.75rem;">${machine.serialNumber || '-'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">機番Ｌ / 機番Ｒ</th>
+                                <td style="padding: 0.75rem;">L: ${machine.machineNumberL || '-'} / R: ${machine.machineNumberR || '-'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">設置場所</th>
+                                <td style="padding: 0.75rem;">${machine.installLocation || '-'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">稼働状況</th>
+                                <td style="padding: 0.75rem;">
+                                    <span style="padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; background: ${machine.status === '稼働中' ? '#28a745' : '#6c757d'}; color: white;">
+                                        ${machine.status || '不明'}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">特別仕様等</th>
+                                <td style="padding: 0.75rem;">${machine.specialSpec || '-'}</td>
+                            </tr>
+                            <tr>
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">特記・備考</th>
+                                <td style="padding: 0.75rem; white-space: pre-wrap;">${machine.notes || '-'}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `;
+                
+                this.openModal('machineDetailModal');
+            }
+				
+			/**
+             * 導入機械情報のソート処理
+             */
+            sortMachines(field) {
+                if (this.machineSortField === field) {
+                    this.machineSortOrder = this.machineSortOrder === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.machineSortField = field;
+                    this.machineSortOrder = 'asc';
+                }
+                
+                // 現在開いている詳細モーダルを再描画
+                if (this.currentDetailCustomerId) {
+                    this.showCustomerDetail(this.currentDetailCustomerId);
+                }
+            }
+			
+            /**
+             * 機械詳細情報の表示
+             */
+            showMachineDetail(customerId, machineIndex) {
+                const customer = this.data.customers.find(c => c.id === customerId);
+                if (!customer || !customer.installedMachines || !customer.installedMachines[machineIndex]) {
+                    this.showToast('機械情報が見つかりません', 'error');
+                    return;
+                }
+                
+                const machine = customer.installedMachines[machineIndex];
+                const content = document.getElementById('machineDetailContent');
+                
+                content.innerHTML = `
+                    <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; margin-bottom: 1rem;">
+                        <h4 style="margin: 0 0 1rem 0; color: var(--primary); text-align: center;">
+                            ${customer.name} - ${machine.machineName || '機種名不明'}
+                        </h4>
+                    </div>
+                    
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <tbody>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; width: 35%; background: #f8f9fa; font-weight: bold;">メーカー</th>
+                                <td style="padding: 0.75rem;">${machine.machineCode || '-'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">機械タイプ</th>
+                                <td style="padding: 0.75rem;">${machine.machineType || '-'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">導入日</th>
+                                <td style="padding: 0.75rem;">${machine.installDate || '-'} ${machine.deliveryYear ? '(' + machine.deliveryYear + '年)' : ''}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">金額</th>
+                                <td style="padding: 0.75rem; font-weight: bold; color: #28a745;">${machine.amount ? '¥' + Number(machine.amount).toLocaleString() : '-'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">製造番号</th>
+                                <td style="padding: 0.75rem;">${machine.serialNumber || '-'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">機番Ｌ / 機番Ｒ</th>
+                                <td style="padding: 0.75rem;">L: ${machine.machineNumberL || '-'} / R: ${machine.machineNumberR || '-'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">設置場所</th>
+                                <td style="padding: 0.75rem;">${machine.installLocation || '-'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">稼働状況</th>
+                                <td style="padding: 0.75rem;">
+                                    <span style="padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; background: ${machine.status === '稼働中' ? '#28a745' : '#6c757d'}; color: white;">
+                                        ${machine.status || '不明'}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">特別仕様等</th>
+                                <td style="padding: 0.75rem;">${machine.specialSpec || '-'}</td>
+                            </tr>
+                            <tr>
+                                <th style="padding: 0.75rem; background: #f8f9fa; font-weight: bold;">特記・備考</th>
+                                <td style="padding: 0.75rem; white-space: pre-wrap;">${machine.notes || '-'}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `;
+                
+                this.openModal('machineDetailModal');
             }
 
             // ========================================
@@ -6822,7 +7197,6 @@
 							</td>
 							<td>
 								<div class="btn-group">
-									<button class="btn btn-secondary btn-sm" onclick="app.editProject('${p.id}')">編集</button>
 									<button class="btn btn-danger btn-sm" onclick="app.deleteProject('${p.id}')">削除</button>
 								</div>
 							</td>
@@ -7038,6 +7412,8 @@
 				} else {
 					this.projectsSortField = field;
 					this.projectsSortOrder = 'asc';
+					this.machineSortField = null;
+					this.machineSortOrder = 'asc';
 				}
 				this.renderProjects();
 			}
@@ -7523,6 +7899,58 @@
                 document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
             }
 
+			findColumnValue(row, patterns) {
+				for (const pattern of patterns) {
+					if (row[pattern] !== undefined && row[pattern] !== '') {
+						return row[pattern];
+					}
+				}
+				return '';
+			}
+
+			parseNumber(value) {
+				if (!value) return 0;
+				if (typeof value === 'number') return value;
+				
+				const cleaned = String(value).replace(/[,円¥]/g, '');
+				const parsed = parseFloat(cleaned);
+				return isNaN(parsed) ? 0 : parsed;
+			}
+
+			parseDate(value) {
+				if (!value) return '';
+				
+				// Excel日付（シリアル値）の場合
+				if (typeof value === 'number') {
+					const excelEpoch = new Date(1900, 0, 1);
+					const days = value - 2;
+					const date = new Date(excelEpoch.getTime() + days * 24 * 60 * 60 * 1000);
+					return date.toISOString().split('T')[0];
+				}
+				
+				const dateStr = String(value);
+				
+				if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+					return dateStr;
+				}
+				
+				if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(dateStr)) {
+					const parts = dateStr.split('/');
+					return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+				}
+				
+				try {
+					const date = new Date(dateStr);
+					if (!isNaN(date.getTime())) {
+						return date.toISOString().split('T')[0];
+					}
+				} catch (e) {
+					console.warn('日付パースエラー:', dateStr);
+				}
+				
+				return '';
+			}
+			
             formatCurrency(input) {
                 let val = input.value.replace(/,/g, '');
                 if (!isNaN(val) && val !== '') {
@@ -8545,6 +8973,7 @@
 				const activePage = activePageElement ? activePageElement.id : null;
 				
 				if (activePage === 'customersPage') this.renderCustomers();
+				if (activePage === 'machinesPage') this.renderMachines();
 				if (activePage === 'projectsPage') this.renderProjects();
 				if (activePage === 'activitiesPage') this.renderActivities();
 				if (activePage === 'schedulePage') this.renderSchedule();
@@ -8558,7 +8987,9 @@
 
 			// インポートタイプを保持
 			importExcel(type) {
+				console.log('🔁 importExcel called, type =', type); // ←追加
 				this.currentImportType = type;
+				console.log('📝 currentImportType set to:', this.currentImportType); // ←追加
 				document.getElementById('excelFileInput').click();
 			}
 
@@ -8592,26 +9023,121 @@
 				event.target.value = '';
 			}
 
-			// Excelファイルの読み込み（Promise化）
 			readExcelFile(file) {
 				return new Promise((resolve, reject) => {
 					const reader = new FileReader();
-					
+
 					reader.onload = (e) => {
 						try {
 							const data = new Uint8Array(e.target.result);
 							const workbook = XLSX.read(data, { type: 'array' });
+
+							// ★ 顧客インポート時は全シートを統合処理
+							if (this.currentImportType === 'customers') {
+								console.log('🎯 顧客データインポートモードで実行中');
+								const allRows = [];
+
+								workbook.SheetNames.forEach((sheetName, idx) => {
+									console.log(`📄 シート${idx + 1} 読み込み: ${sheetName}`);
+									const sheet = workbook.Sheets[sheetName];
+									const raw = XLSX.utils.sheet_to_json(sheet, {
+										header: 1,
+										defval: "",
+										range: 0
+									});
+
+									raw.forEach(row => {
+										// 完全な空行は除外
+										if (row.some(c => c !== "" && c !== null && c !== undefined)) {
+											allRows.push(row);
+										}
+									});
+								});
+
+								console.log('📊 顧客インポート用統合行数 =', allRows.length);
+								resolve(allRows);
+								return;
+							}
+
+							// 機械・受注データ等は従来通り先頭シートのみ
+							console.log('🔧 機械データインポートモードで実行中');
 							const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-							const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-							resolve(jsonData);
-						} catch (error) {
-							reject(error);
+							const rawData = XLSX.utils.sheet_to_json(firstSheet, {
+								header: 1,
+								defval: "",
+								range: 0
+							});
+
+							const isStandardTable = this.detectTableFormat(rawData);
+
+							if (isStandardTable) {
+								const headers = rawData[0];
+								const jsonData = [];
+
+								for (let i = 1; i < rawData.length; i++) {
+									const row = rawData[i];
+									if (row.every(cell => cell === "" || cell === null)) continue;
+
+									const obj = {};
+									headers.forEach((header, colIndex) => {
+										if (header) {
+											const cleanHeader = header.replace(/[\s　\r\n]+/g, '').trim();
+											obj[cleanHeader] = row[colIndex] || "";
+										}
+									});
+									jsonData.push(obj);
+								}
+								resolve(jsonData);
+							} else {
+								resolve(rawData.filter(row =>
+									row.some(cell => cell !== "" && cell !== null)
+								));
+							}
+
+						} catch (err) {
+							console.error('❌ Excel読み込みエラー:', err);
+							reject(err);
 						}
 					};
-					
+
 					reader.onerror = () => reject(new Error('ファイル読み込みエラー'));
 					reader.readAsArrayBuffer(file);
 				});
+			}
+
+			/**
+			 * Excelデータ形式の自動判定（改良版）
+			 */
+			detectTableFormat(rawData) {
+				if (rawData.length < 2) return false;
+				
+				const firstRow = rawData[0];
+				const headerKeywords = ['得意先名', '顧客名', '社名', '住所', '電話番号', 'TEL', 'メール'];
+				
+				// 1行目にヘッダーキーワードが含まれているか
+				const hasHeaderKeywords = firstRow.some(cell => 
+					typeof cell === 'string' && 
+					headerKeywords.some(keyword => cell.includes(keyword))
+				);
+				
+				// 帳票形式の特徴（複数行に情報ラベルが散在）
+				// ★改良点: キーワード追加と探索範囲を10行に拡大
+				const labelKeywords = ['本社住所', '工場住所', 'E-mail', 'URL', 'ＦＡＸ'];
+				const hasLabelKeywords = rawData.slice(0, 10).some(row =>
+					row.some(cell => 
+						typeof cell === 'string' && 
+						labelKeywords.some(keyword => cell.includes(keyword))
+					)
+				);
+				
+				// 標準テーブル形式の判定
+				if (hasHeaderKeywords && !hasLabelKeywords) {
+					console.log('📋 標準テーブル形式と判定');
+					return true;
+				} else {
+					console.log('📄 帳票形式と判定');
+					return false;
+				}
 			}
 
 			// データタイプ別の処理振り分け
@@ -8640,46 +9166,245 @@
 			}
 
 			/**
-			 * 得意先リストのインポート
-			 * 期待される列: 顧客名, 顧客コード, 郵便番号, 住所, 電話番号, FAX, メール, 業種, 資本金, 従業員数
+			 * 顧客リストのインポート（帳票形式・表記ゆれ対応版）
 			 */
 			importCustomerList(rows) {
+				console.log('📊 顧客データ処理開始:', rows.length, '行');
+				
 				let importCount = 0;
 				let updateCount = 0;
-				
-				rows.forEach(row => {
-					// 必須項目チェック
-					if (!row['顧客名'] && !row['得意先名']) return;
-					
-					const customerName = row['顧客名'] || row['得意先名'];
-					const existingCustomer = this.data.customers.find(c => c.name === customerName);
-					
-					const customerData = {
-						name: customerName,
-						companyCode: row['顧客コード'] || row['得意先コード'] || '',
-						postalCode: row['郵便番号'] || '',
-						address: row['住所'] || '',
-						phone: row['電話番号'] || row['TEL'] || '',
-						fax: row['FAX'] || row['FAX番号'] || '',
-						email: row['メールアドレス'] || row['メール'] || '',
-						website: row['ホームページ'] || row['URL'] || '',
-						industry: row['業種'] || '',
-						capital: this.parseNumber(row['資本金']) || 0,
-						employees: this.parseNumber(row['従業員数']) || 0,
-						paymentTerms: row['支払条件'] || '',
-						creditLimit: this.parseNumber(row['与信限度額']) || 0,
-						taxType: row['消費税区分'] || '外税',
-						rank: row['ランク'] || 'B',
-						status: row['ステータス'] || '取引中',
-						assignee: row['担当者'] || CURRENT_USER.assignee
-					};
+				const customerMap = {};
+
+				rows.forEach((row, index) => {
+					try {
+						let customerName = '';
+						let customerCode = '';
+						
+						// データ形式の判定と基本情報抽出
+						if (Array.isArray(row)) {
+							// 帳票形式（二次元配列）の場合
+							customerCode = row[0] || '';
+							customerName = (row[3] || '').toString().trim();
+						} else {
+							// 標準テーブル形式（オブジェクト）の場合
+							customerName = this.findColumnValue(row, ['顧客名', '得意先名', '社名']);
+							customerCode = this.findColumnValue(row, ['顧客コード', 'コード']);
+						}
+						
+						if (!customerName) return;
+
+						// ★ 表記ゆれの正規化（ハート vs ハ－ト等）
+						const normalizedName = customerName
+							.replace(/[－−‐-ー]/g, 'ー')  // 各種ハイフンを長音符に統一
+							.replace(/[　\s]+/g, '')      // 全角・半角スペースを削除
+							.trim();
+						
+						// 顧客データの初期化または取得
+						if (!customerMap[normalizedName]) {
+							customerMap[normalizedName] = {
+								name: customerName, // 表示用は元の名前を保持
+								companyCode: customerCode,
+								region: '',
+								industry: '',
+								rank: 'B',
+								status: '取引中',
+								assignee: CURRENT_USER.assignee,
+								// 連絡先情報
+								postalCode: '',
+								address: '',
+								phone: '',
+								fax: '',
+								email: '',
+								website: '',
+								// 企業情報
+								establishedDate: '',
+								capital: 0,
+								employees: 0,
+								representative: '',
+								// 取引条件
+								paymentTerms: '',
+								creditLimit: 0,
+								taxType: '外税',
+								// その他
+								notes: ''
+							};
+						}
+						
+						const customer = customerMap[normalizedName];
+						
+						if (Array.isArray(row)) {
+							// 帳票形式の特殊処理
+							customer.region = customer.region || (row[1] || '').toString().trim();
+							// 行種別の判定（E列から本社/工場を識別）
+							const rowType = (row[4] || '').toString().trim();
+							const isHeadOfficeRow = rowType === '本社住所';
+							
+							// 行内の各セルをスキャンしてキーワードマッチング
+							for (let i = 0; i < row.length - 1; i++) {
+								const cellValue = (row[i] || '').toString().trim();
+								const nextValue = (row[i + 1] || '').toString().trim();
+								
+								// 住所情報の抽出
+								if (cellValue === '本社住所' || cellValue === '住所') {
+									// 郵便番号（〒マーク付き）の検出
+									for (let j = i + 1; j < Math.min(i + 5, row.length); j++) {
+										const postalCandidate = (row[j] || '').toString().trim();
+										if (postalCandidate.includes('〒')) {
+											customer.postalCode = customer.postalCode || postalCandidate;
+											// 郵便番号の次の列を住所として取得
+											const addressCandidate = (row[j + 1] || '').toString().trim();
+											if (addressCandidate && !customer.address) {
+												customer.address = addressCandidate;
+											}
+											break;
+										}
+									}
+								}
+								
+								// 電話番号の抽出（本社住所行を優先）
+								else if (cellValue === '電話番号' || cellValue === 'TEL') {
+									if (nextValue && nextValue.match(/[\d-]{10,13}/)) {
+										if (isHeadOfficeRow) {
+											customer.phone = nextValue; // 本社行なら強制上書き
+										} else if (!customer.phone || customer.phone === '03-1234-5678') {
+											customer.phone = nextValue; // 空またはダミーデータの場合のみ補完
+										}
+									}
+								}
+
+								else if (cellValue === 'ＦＡＸ' || cellValue === 'FAX') {
+									if (nextValue && nextValue.match(/[\d-]{10,13}/)) {
+										if (isHeadOfficeRow) {
+											customer.fax = nextValue; // 本社行なら強制上書き
+										} else if (!customer.fax || customer.fax === '03-1234-5679') {
+											customer.fax = nextValue; // 空またはダミーデータの場合のみ補完
+										}
+									}
+								}
+
+								// FAX番号の抽出（本社住所行を優先）
+								else if (cellValue === 'ＦＡＸ' || cellValue === 'FAX') {
+									if (nextValue && nextValue.match(/[\d-]{10,13}/)) {
+										if (isHeadOfficeRow) {
+											customer.fax = nextValue; // 本社行なら強制上書き
+										} else if (!customer.fax || customer.fax === '03-1234-5679') {
+											customer.fax = nextValue; // 空またはダミーデータの場合のみ補完
+										}
+									}
+								}
+							
+								// メールアドレスの抽出
+								else if (cellValue === 'E-mail' || cellValue === 'Ｅ-mail' || cellValue === 'メール') {
+									if (nextValue && nextValue.includes('@')) {
+										customer.email = customer.email || nextValue;
+									}
+								}
+								
+								// ホームページURLの抽出
+								else if (cellValue === 'URL' || cellValue === 'ホームページ') {
+									if (nextValue && (nextValue.startsWith('http') || nextValue.includes('www'))) {
+										customer.website = customer.website || nextValue;
+									}
+								}
+								
+								// 代表者情報の抽出
+								else if (cellValue === '社長' || cellValue === '代表者') {
+									if (nextValue) {
+										customer.representative = customer.representative || nextValue;
+									}
+								}
+								
+								// 支払条件の抽出
+								else if (cellValue === '支払条件') {
+									if (nextValue) {
+										customer.paymentTerms = customer.paymentTerms || nextValue;
+									}
+								}
+								
+								// 資本金の抽出
+								else if (cellValue === '資本金') {
+									const capitalValue = this.parseNumber(nextValue);
+									if (capitalValue > 0) {
+										customer.capital = customer.capital || capitalValue;
+									}
+								}
+								
+								// 従業員数の抽出
+								else if (cellValue === '従業員') {
+									const employeeValue = this.parseNumber(nextValue);
+									if (employeeValue > 0) {
+										customer.employees = customer.employees || employeeValue;
+									}
+								}
+							}
+							
+							// 工場住所は備考に追記（本社住所と区別）
+							if (row.includes('工場住所')) {
+								const factoryIndex = row.indexOf('工場住所');
+								for (let j = factoryIndex + 1; j < Math.min(factoryIndex + 5, row.length); j++) {
+									const postalCandidate = (row[j] || '').toString().trim();
+									if (postalCandidate.includes('〒')) {
+										const factoryAddress = `${postalCandidate} ${row[j + 1] || ''}`.trim();
+										if (!customer.notes.includes('工場住所')) {
+											customer.notes += `\n[工場住所] ${factoryAddress}`;
+										}
+										break;
+									}
+								}
+							}
+							
+						} else {
+							// 標準テーブル形式の処理（既存ロジック）
+							Object.assign(customer, {
+								companyCode: this.findColumnValue(row, ['顧客コード', '得意先コード', 'コード']),
+								postalCode: this.findColumnValue(row, ['郵便番号', '〒']),
+								address: this.findColumnValue(row, ['住所', '住所1', '所在地']),
+								phone: this.findColumnValue(row, ['電話番号', 'TEL', '電話']),
+								fax: this.findColumnValue(row, ['FAX', 'FAX番号']),
+								email: this.findColumnValue(row, ['メールアドレス', 'Email']),
+								website: this.findColumnValue(row, ['ホームページ', 'URL']),
+								industry: this.findColumnValue(row, ['業種']),
+								paymentTerms: this.findColumnValue(row, ['支払条件']),
+								capital: this.parseNumber(this.findColumnValue(row, ['資本金'])),
+								employees: this.parseNumber(this.findColumnValue(row, ['従業員数']))
+							});
+						}
+						
+					} catch (error) {
+						console.error(`行${index + 1}処理エラー:`, error);
+					}
+				});
+
+				// 抽出したデータを既存の顧客データとマージ
+				Object.values(customerMap).forEach(customerData => {
+					// ★ 既存顧客検索時も名前正規化で比較
+					const existingCustomer = this.data.customers.find(c => {
+						const existingName = (c.name || '').replace(/[－−‐-ー]/g, 'ー').replace(/[　\s]+/g, '');
+						const searchName = (customerData.name || '').replace(/[－−‐-ー]/g, 'ー').replace(/[　\s]+/g, '');
+						return existingName === searchName;
+					});
 					
 					if (existingCustomer) {
-						// 既存顧客の更新
-						Object.assign(existingCustomer, customerData);
+						// 既存顧客の更新（空欄のみ補完）
+						Object.keys(customerData).forEach(key => {
+							if (key === 'notes' && customerData[key]) {
+								// 備考は追記モード
+								if (!existingCustomer[key]) existingCustomer[key] = '';
+								if (!existingCustomer[key].includes(customerData[key].trim())) {
+									existingCustomer[key] += customerData[key];
+								}
+							} else if (customerData[key]) {
+								// 連絡先関連の項目はExcelデータで上書き（ダミーデータを置換）
+								const overwriteFields = ['postalCode', 'address', 'phone', 'fax', 'email', 'website', 'representative', 'capital', 'employees', 'paymentTerms', 'companyCode'];
+								if (!existingCustomer[key] || overwriteFields.includes(key)) {
+									existingCustomer[key] = customerData[key];
+								}
+							}
+						});
 						updateCount++;
+						console.log(`✏️ 更新: ${customerData.name}`);
 					} else {
-						// 新規顧客の追加
+						// 新規顧客の作成
 						this.data.customers.push({
 							id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
 							...customerData,
@@ -8688,6 +9413,7 @@
 							orderHistory: []
 						});
 						importCount++;
+						console.log(`➕ 新規: ${customerData.name}`);
 					}
 				});
 				
@@ -8695,8 +9421,30 @@
 				return { 
 					success: true, 
 					count: importCount + updateCount,
-					message: `新規${importCount}件、更新${updateCount}件`
+					message: `✅ 顧客データ処理完了 - 新規: ${importCount}件, 更新: ${updateCount}件`
 				};
+			}
+			
+			/**
+			 * 納入年 + 納入日から正しい導入日を構築
+			 */
+			parseInstallDateFromYearAndDay(row) {
+				const yearVal = this.findColumnValue(row, ['納入年', '導入年']);
+				const year = parseInt(yearVal, 10);
+				
+				if (!year || year < 1900 || year > 2100) return '';
+				
+				const dayStr = String(this.findColumnValue(row, ['納入日', '導入日']) || '').trim();
+				let month = 1;
+				let day = 1;
+				
+				if (dayStr && dayStr.includes('.')) {
+					const [m, d] = dayStr.split('.').map(v => parseInt(v, 10));
+					if (!isNaN(m) && m >= 1 && m <= 12) month = m;
+					if (!isNaN(d) && d >= 1 && d <= 31) day = d;
+				}
+				
+				return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 			}
 			
 			/**
@@ -8708,102 +9456,106 @@
 				let skipCount = 0;
 
 				rows.forEach((row, index) => {
-					try {
-						// 複数の列名パターンに対応
-						const customerName = row['顧客名'] || row['得意先名'] || row['旧得意先名'];
-						if (!customerName || customerName.trim() === '') {
-							skipCount++;
-							return;
+					// ★ 修正：複数の列名パターンに対応
+					const customerName = (
+						row['得意先名'] || 
+						row['顧客名'] || 
+						row['旧得意先名'] || 
+						row['発注会社'] || 
+						''
+					).toString().trim();
+					
+					// デバッグ情報（一時的）
+					if (index < 3) {
+						console.log(`行${index + 1}: 顧客名="${customerName}", 元データ=`, {
+							得意先名: row['得意先名'],
+							顧客名: row['顧客名'],
+							旧得意先名: row['旧得意先名']
+						});
+					}
+					
+					if (!customerName) {
+						console.log(`⚠️ 行${index + 1}: 顧客名が空のためスキップ`);
+						return;
+					}
+
+					const existingCustomer = this.data.customers.find(c => c.name === customerName);
+					
+					// ステータスの自動判定（添付Excelの実際の列に対応）
+					let status = '取引中';
+					const closedFlag = row['廃業 倒産'];
+					const declineFlag = row['撤退 衰退'];
+					const remarks = row['備考'] || '';
+
+					if (closedFlag === '○' || closedFlag === '〇') {
+						status = '廃業';
+					} else if (declineFlag === '○' || declineFlag === '〇') {
+						status = '休眠';
+					} else if (remarks.includes('有休状態')) {
+						status = '休眠';
+					}
+
+					const newCustomerData = {
+						name: customerName,
+						companyCode: row['No,'] || '',  // 得意先名リストでは No, がコードに相当
+						region: row['地域'] || '',
+						industry: row['業種'] || (row['商社'] === '○' ? '商社' : ''),
+						status: status,
+						assignee: row['担当者'] || CURRENT_USER.assignee,
+						notes: remarks,
+						// 履歴フラグ（分析用）
+						tradingHistory: {
+							trading2005: row['2005年時点'] === '○',
+							trading2022: row['2022年時点'] === '○',
+							trading2023Plus: row['2023年以降導入'] === '○',
+							isHealthy: row['健全'] === '○'
 						}
+					};
 
-						const existingCustomer = this.data.customers.find(c => 
-							c.name === customerName.trim()
-						);
-
-						// ステータス自動判定（添付Excelの実際の列に対応）
-						let status = '取引中';
-						const closedFlag = row['廃業 倒産'];
-						const declineFlag = row['撤退 衰退'];
-						const remarks = row['備考'] || '';
-
-						if (closedFlag === '○' || closedFlag === '〇' || closedFlag === 'ナシ') {
-							status = '廃業';
-						} else if (declineFlag === '○' || declineFlag === '〇') {
-							status = '休眠';
-						} else if (remarks.includes('有休状態') || remarks.includes('廃業')) {
-							status = '休眠';
+					if (existingCustomer) {
+						// 差分更新（mergeFillOnlyMissing関数を使用）
+						const merged = mergeFillOnlyMissing(existingCustomer, newCustomerData);
+						const hasChanges = JSON.stringify(existingCustomer) !== JSON.stringify(merged);
+						
+						if (hasChanges) {
+							Object.assign(existingCustomer, merged);
+							updateCount++;
+							console.log(`✏️ 更新: ${customerName}`);
 						}
-
-						// 新データの構築（添付Excelの実際の列名に対応）
-						const newCustomerData = {
-							name: customerName.trim(),
-							companyCode: row['得意先コード'] || row['No,'] || '',
-							region: row['地域'] || row['地域１'] || '',
-							industry: row['業種'] || (row['商社'] === '○' ? '商社' : ''),
-							status: status,
-							assignee: row['担当者'] || '',
-							notes: remarks,
-							// 履歴フラグ（分析用）
-							tradingHistory: {
-								trading2005: row['2005年時点'] === '○',
-								trading2022: row['2022年時点'] === '○',
-								trading2023Plus: row['2023年以降導入'] === '○',
-								isHealthy: row['健全'] === '○'
-							}
+					} else {
+						// 新規顧客の作成
+						const baseCustomer = {
+							id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+							rank: 'B',
+							staffs: [],
+							installedMachines: [],
+							orderHistory: [],
+							// 拡張フィールドの初期化
+							postalCode: '',
+							address: '',
+							phone: '',
+							fax: '',
+							email: '',
+							website: '',
+							establishedDate: '',
+							capital: 0,
+							employees: 0,
+							paymentTerms: '',
+							creditLimit: 0,
+							taxType: '外税'
 						};
 
-						if (existingCustomer) {
-							// 差分更新実行
-							const beforeUpdate = JSON.stringify(existingCustomer);
-							const merged = mergeFillOnlyMissing(existingCustomer, newCustomerData);
-							
-							// 実際に変更があったかチェック
-							if (beforeUpdate !== JSON.stringify(merged)) {
-								Object.assign(existingCustomer, merged);
-								updateCount++;
-								console.log(`更新: ${customerName} - 差分マージ完了`);
-							}
-						} else {
-							// 新規顧客作成
-							const baseCustomer = {
-								id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
-								rank: 'B',
-								assignee: newCustomerData.assignee || CURRENT_USER.assignee,
-								staffs: [],
-								installedMachines: [],
-								orderHistory: [],
-								// 拡張フィールドの初期化
-								postalCode: '',
-								address: '',
-								phone: '',
-								fax: '',
-								email: '',
-								website: '',
-								establishedDate: '',
-								capital: 0,
-								employees: 0,
-								paymentTerms: '',
-								creditLimit: 0,
-								taxType: '外税'
-							};
-
-							this.data.customers.push(mergeFillOnlyMissing(baseCustomer, newCustomerData));
-							importCount++;
-							console.log(`新規追加: ${customerName}`);
-						}
-
-					} catch (error) {
-						console.error(`行${index + 1}の処理エラー:`, error, row);
-						skipCount++;
+						this.data.customers.push(mergeFillOnlyMissing(baseCustomer, newCustomerData));
+						importCount++;
+						console.log(`➕ 新規追加: ${customerName}`);
 					}
 				});
 
 				this.saveData();
-				
-				return {
-					success: true,
+				return { 
+					success: true, 
 					count: importCount + updateCount,
-					message: `✅ 新規: ${importCount}件 | 差分更新: ${updateCount}件 | スキップ: ${skipCount}件`
+					message: `✅ 処理完了 - 新規: ${importCount}件, 更新: ${updateCount}件`
 				};
 			}
 
@@ -8913,42 +9665,130 @@
 			}
 
 			/**
-			 * 導入機械情報のインポート
-			 * 期待される列: 顧客名, 機種名, 型式, 導入日, シリアル番号, 設置場所, 稼働状況
+			 * 納入年 + 納入日から正しい導入日を構築
+			 */
+			parseInstallDateFromYearAndDay(row) {
+				const yearVal = this.findColumnValue(row, ['納入年', '導入年']);
+				const year = parseInt(yearVal, 10);
+				
+				// 年の妥当性チェック
+				if (!year || year < 1900 || year > 2100) return '';
+				
+				const dayStr = String(this.findColumnValue(row, ['納入日', '導入日']) || '').trim();
+				let month = 1;
+				let day = 1;
+				
+				// 「10.25」形式の解析
+				if (dayStr && dayStr.includes('.')) {
+					const [m, d] = dayStr.split('.').map(v => parseInt(v, 10));
+					if (!isNaN(m) && m >= 1 && m <= 12) month = m;
+					if (!isNaN(d) && d >= 1 && d <= 31) day = d;
+				}
+				
+				return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+			}
+
+			/**
+			 * 導入機械情報のインポート（差分更新・重複防止対応版）
+			 * 添付Excel「顧客+機械情報」の実際の列名に対応
 			 */
 			importMachineList(rows) {
-				let importCount = 0;
+				console.log('🔧 機械データ処理開始:', rows.length, '行');
 				
-				rows.forEach(row => {
-					if (!row['顧客名'] && !row['得意先名']) return;
-					if (!row['機種名']) return;
-					
-					const customerName = row['顧客名'] || row['得意先名'];
-					const customer = this.data.customers.find(c => c.name === customerName);
-					
-					if (!customer) {
-						console.warn(`顧客が見つかりません: ${customerName}`);
-						return;
+				let importCount = 0;
+				let updateCount = 0;
+				let skipCount = 0;
+				
+				rows.forEach((row, index) => {
+					try {
+						// 機械データ専用の列のみ参照
+						const customerName = this.findColumnValue(row, ['社名', '顧客名', '得意先名']);
+						const machineName = this.findColumnValue(row, ['機種名', '機械名']);
+						
+						if (!customerName || !machineName) {
+							skipCount++;
+							return;
+						}
+						
+						// 顧客の検索（住所・電話などには一切触れない）
+						let customer = this.data.customers.find(c => c.name === customerName);
+						
+						if (!customer) {
+							console.warn(`⚠️ 顧客が見つかりません: ${customerName}（機械: ${machineName}）`);
+							skipCount++;
+							return;
+						}
+						
+						if (!Array.isArray(customer.installedMachines)) {
+							customer.installedMachines = [];
+						}
+						
+						// 機械データのみを構築
+						const machineData = {
+							machineName: machineName,
+							machineCode: this.findColumnValue(row, ['メーカー', '型式']),
+							serialNumber: this.findColumnValue(row, ['製造番号', '機番Ｌ', '機番Ｒ']),
+							
+							// ★修正：納入年+納入日の正しい処理
+							installDate: (() => {
+								const yearCol = this.findColumnValue(row, ['納入年', '導入年']);
+								const dayCol = this.findColumnValue(row, ['納入日', '導入日']);
+								
+								if (yearCol && dayCol) {
+									const year = parseInt(yearCol, 10);
+									if (year >= 1900 && year <= 2100) {
+										const dayStr = String(dayCol).trim();
+										let month = 1, day = 1;
+										
+										if (dayStr.includes('.')) {
+											const [m, d] = dayStr.split('.').map(v => parseInt(v, 10));
+											if (!isNaN(m) && m >= 1 && m <= 12) month = m;
+											if (!isNaN(d) && d >= 1 && d <= 31) day = d;
+										}
+										
+										return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+									}
+								}
+								
+								// フォールバック：従来の処理
+								return this.parseDate(this.findColumnValue(row, ['導入日', '納入日']));
+							})(),
+							
+							deliveryYear: this.findColumnValue(row, ['納入年']) || '',
+							installLocation: this.findColumnValue(row, ['設置場所', '地域']),
+							status: this.findColumnValue(row, ['稼動状況', 'ステータス']) || '稼働中',
+							amount: this.parseNumber(this.findColumnValue(row, ['金額', '価格'])) || 0,
+							notes: this.findColumnValue(row, ['備考', '特記'])
+						};
+						
+						// 重複チェック
+						const existingIndex = customer.installedMachines.findIndex(m =>
+							m.machineName === machineData.machineName &&
+							m.serialNumber === machineData.serialNumber
+						);
+						
+						if (existingIndex !== -1) {
+							// 既存機械の更新
+							Object.assign(customer.installedMachines[existingIndex], machineData);
+							updateCount++;
+						} else {
+							// 新規機械の追加
+							customer.installedMachines.push(machineData);
+							importCount++;
+						}
+						
+					} catch (error) {
+						console.error(`行${index + 1} 機械処理エラー:`, error);
+						skipCount++;
 					}
-					
-					if (!customer.installedMachines) {
-						customer.installedMachines = [];
-					}
-					
-					customer.installedMachines.push({
-						machineName: row['機種名'],
-						machineCode: row['型式'] || row['機種コード'] || '',
-						installDate: this.parseDate(row['導入日']),
-						serialNumber: row['シリアル番号'] || row['製造番号'] || '',
-						installLocation: row['設置場所'] || '',
-						status: row['稼働状況'] || '稼働中'
-					});
-					
-					importCount++;
 				});
 				
 				this.saveData();
-				return { success: true, count: importCount };
+				return {
+					success: true,
+					count: importCount + updateCount,
+					message: `🔧 機械データ処理完了 - 新規: ${importCount}台, 更新: ${updateCount}台, スキップ: ${skipCount}行`
+				};
 			}
 
 			/**
@@ -9030,59 +9870,19 @@
 				this.saveData();
 				return { success: true, count: importCount };
 			}
+			
+			// ↓↓↓ Excel列名の柔軟なマッチング関数を追加 ↓↓↓
+            findColumnValue(row, patterns) {
+                for (const pattern of patterns) {
+                    if (row[pattern] !== undefined && row[pattern] !== '') {
+                        return row[pattern];
+                    }
+                }
+                return '';
+            }
+            // ↑↑↑ ヘルパー関数追加終了 ↑↑↑
 
-			/**
-			 * ヘルパー関数: 数値のパース
-			 */
-			parseNumber(value) {
-				if (!value) return 0;
-				if (typeof value === 'number') return value;
-				
-				// カンマ・円マークを除去して数値化
-				const cleaned = String(value).replace(/[,円¥]/g, '');
-				const parsed = parseFloat(cleaned);
-				return isNaN(parsed) ? 0 : parsed;
-			}
-
-			/**
-			 * ヘルパー関数: 日付のパース
-			 */
-			parseDate(value) {
-				if (!value) return '';
-				
-				// Excel日付（シリアル値）の場合
-				if (typeof value === 'number') {
-					const excelEpoch = new Date(1900, 0, 1);
-					const days = value - 2; // Excelのバグ補正
-					const date = new Date(excelEpoch.getTime() + days * 24 * 60 * 60 * 1000);
-					return date.toISOString().split('T')[0];
-				}
-				
-				// 文字列の場合
-				const dateStr = String(value);
-				
-				// YYYY-MM-DD形式
-				if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-					return dateStr;
-				}
-				
-				// YYYY/MM/DD形式
-				if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(dateStr)) {
-					const parts = dateStr.split('/');
-					return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-				}
-				
-				// その他の形式は Date オブジェクトでパース
-				try {
-					const date = new Date(dateStr);
-					if (!isNaN(date.getTime())) {
-						return date.toISOString().split('T')[0];
-					}
-				} catch (e) {
-					console.warn('日付パースエラー:', dateStr);
-				}
-				
-				return '';
+            formatCurrency(input) {
 			}		
 		}
 		
