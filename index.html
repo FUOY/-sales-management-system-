@@ -126,14 +126,14 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .card {
-            background: var(--card-bg);
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            overflow: hidden;
-        }
+		.card {
+			background: var(--card-bg);
+			border-radius: 8px;
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+			padding: 1.5rem;
+			margin-bottom: 1.5rem;
+			overflow: visible;   /* ← hiddenからvisibleに変更 */
+		}
 
         .card h2, .card h3 {
             color: var(--primary);
@@ -180,19 +180,64 @@
         .chart-wrapper { position: relative; height: 280px; width: 100%; }
         .funnel-wrapper { max-height: 300px; overflow-y: auto; }
 
-        /* Tables */
-        .table-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd; white-space: nowrap; }
-        th { background-color: #f8f9fa; font-weight: bold; color: var(--primary); cursor: pointer; }
-        tr:hover { background-color: #f5f5f5; }
+		/* ========================================
+		   テーブル表示の改善版
+		   ======================================== */
 
-        .customer-link {
-            color: var(--primary);
-            text-decoration: underline;
-            cursor: pointer;
-            font-weight: bold;
-        }
+		/* テーブルコンテナを自然スクロール対応に */
+		.table-container { 
+			overflow-x: auto;           /* 横スクロールのみ保持 */
+			max-height: none;           /* 高さ制限を解除 */
+			overflow-y: visible;        /* 縦方向は自然表示 */
+			border: 1px solid #ddd;
+			border-radius: 4px;
+			background: white;
+			position: relative;
+		}
+
+		/* テーブル本体 */
+		table { 
+			width: 100%; 
+			border-collapse: collapse; 
+			font-size: 0.9rem; 
+			min-width: 800px;
+		}
+
+		/* テーブルセル共通設定 */
+		th, td { 
+			padding: 0.75rem; 
+			text-align: left; 
+			border-bottom: 1px solid #ddd; 
+			white-space: nowrap; 
+		}
+
+		/* テーブルヘッダーを通常の状態に戻す */
+		th { 
+			background-color: #f8f9fa; 
+			font-weight: bold; 
+			color: var(--primary); 
+			cursor: pointer;
+			
+			/* ★ 固定関連の設定をすべて削除 */
+			position: static;        /* sticky から static に変更 */
+			top: auto;              /* top 設定を無効化 */
+			z-index: auto;          /* z-index を通常に戻す */
+			box-shadow: none;       /* 影効果を削除 */
+			
+			/* 通常のヘッダー装飾 */
+			border-bottom: 2px solid #dee2e6;
+			padding: 0.75rem;
+		}
+
+		/* データ行の背景設定 */
+		td {
+			background-color: white;       /* 背景色を明示的に設定 */
+		}
+
+		/* ホバー効果 */
+		tr:hover td { 
+			background-color: #f5f5f5; 
+		}
 
         /* Funnel */
         .funnel-container { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -2012,6 +2057,67 @@
 		#chartTimeline {
 			max-width: 100%;
 		}
+		
+		/* ========================================
+		   z-index階層の最適化
+		   ======================================== */
+
+		/* アプリヘッダー */
+		.app-header {
+			z-index: 1000;                 /* 最上位固定バー */
+		}
+
+		/* タブメニュー */
+		.tab-menu {
+			z-index: 999;                  /* ヘッダーの次に優先 */
+		}
+
+		/* テーブルヘッダー（既に上記で設定済み） */
+		th {
+			z-index: 100;                  /* テーブル内で最優先 */
+		}
+
+		/* 五十音索引ボタン */
+		.customer-index-filter {
+			position: relative;
+			z-index: 50;                   /* テーブルより上 */
+		}
+
+		/* カード要素 */
+		.card {
+			position: relative;
+			z-index: 10;                   /* 基本レイヤー */
+		}
+
+		/* モーダル */
+		.modal {
+			z-index: 10000;                /* 最優先 */
+		}
+
+		/* トースト通知 */
+		.toast {
+			z-index: 11000;                /* モーダルより上 */
+		}
+
+		/* ========================================
+		   モバイル対応
+		   ======================================== */
+		@media (max-width: 768px) {
+			.table-container {
+				max-height: 60vh;          /* モバイルでは60%に調整 */
+				font-size: 0.8rem;        /* 文字サイズを小さく */
+			}
+			
+			th, td {
+				padding: 0.5rem;          /* パディングを縮小 */
+			}
+			
+			th {
+				position: sticky;
+				top: 0;
+				z-index: 100;
+			}
+		}
 	</style>
 </head>
 <body>
@@ -2223,7 +2329,7 @@
 					</select>
 					
 					<!-- Excel一括インポート（修正版） -->
-					<div style="position: relative; display: inline-block;">
+					<div id="importDropdownContainer" style="position: relative; display: inline-block;">
 						<button class="btn btn-success" onclick="const d = document.getElementById('importDropdown'); d.style.display = d.style.display === 'block' ? 'none' : 'block';">
 							<i class="fas fa-file-excel"></i> Excel一括インポート
 						</button>
@@ -3298,6 +3404,8 @@
 				this.currentDate = new Date();
 				this.currentEditingCustomerId = null;
 				this.searchKeyword = '';
+				this.customerDisplayLimit = 50;  // 顧客表示件数の初期値
+				this.customerIndexFilter = 'all'; // 五十音フィルタの初期値
 				
 				// 3. ソート状態の初期化
 				this.customersSortField = null;
@@ -3377,6 +3485,15 @@
 				document.getElementById('appContainer').style.display = 'flex';
 				document.getElementById('userInfoDisplay').textContent = CURRENT_USER.displayName;
 				this.setupSelectOptions();
+				// ★★★ Admin権限制御を追加 ★★★
+				const importContainer = document.getElementById('importDropdownContainer');
+				if (importContainer) {
+					if (CURRENT_USER.role === 'admin') {
+						importContainer.style.display = 'inline-block';
+					} else {
+						importContainer.style.display = 'none';
+					}
+				}
 				
 				// ★ Phase 1: ダッシュボードクリック機能の初期化
 				this.setupDashboardClicks();
@@ -4795,33 +4912,90 @@
 			}
 			
             // --- Customer Management ---
-            renderCustomers() {
-                const filter = document.getElementById('customersFilter').value;
-                let list = this.data.customers;
-                if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
-                    list = list.filter(c => c.assignee === CURRENT_USER.assignee);
-                }
+			renderCustomers() {
+				const filter = document.getElementById('customersFilter').value;
+				let list = this.data.customers;
 				
-				// ★ Phase 3: 検索フィルタ追加
+				// 1. 個人/全体フィルタ
+				if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
+					list = list.filter(c => c.assignee === CURRENT_USER.assignee);
+				}
+				
+				// 2. 検索フィルタ
 				if (this.searchKeyword) {
 					list = list.filter(c => 
 						c.name.toLowerCase().includes(this.searchKeyword) || 
 						(c.industry && c.industry.toLowerCase().includes(this.searchKeyword)) ||
 						(c.assignee && c.assignee.toLowerCase().includes(this.searchKeyword))
 					);
-				}         
-                if (this.customersSortField) {
-                    list.sort((a, b) => {
-                        const va = a[this.customersSortField] || '';
-                        const vb = b[this.customersSortField] || '';
-                        return this.customersSortOrder === 'asc' ? va.localeCompare(vb, 'ja') : vb.localeCompare(va, 'ja');
-                    });
-                    document.getElementById('sortIconCustomerName').className = this.customersSortOrder === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
-                } else {
-                    document.getElementById('sortIconCustomerName').className = 'fas fa-sort';
-                }
+				}
 
-				document.querySelector('#customersTable tbody').innerHTML = list.map(c => {
+				// 3. ★★★ 五十音索引フィルタ ★★★
+				const selectedIndex = this.customerIndexFilter || 'all';
+				if (selectedIndex !== 'all') {
+					list = list.filter(c => {
+						const firstChar = c.name.charAt(0);
+						return this.getKanaIndex(firstChar) === selectedIndex;
+					});
+				}
+				
+				// 4. ★★★ 表示件数制限（パフォーマンス改善） ★★★
+				const maxDisplay = this.customerDisplayLimit || 50;
+				const displayList = list.slice(0, maxDisplay);
+				const hasMore = list.length > maxDisplay;
+				
+				// 5. ソート処理
+				if (this.customersSortField) {
+					displayList.sort((a, b) => {
+						const va = a[this.customersSortField] || '';
+						const vb = b[this.customersSortField] || '';
+						return this.customersSortOrder === 'asc' ? va.localeCompare(vb, 'ja') : vb.localeCompare(va, 'ja');
+					});
+					document.getElementById('sortIconCustomerName').className = this.customersSortOrder === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+				} else {
+					document.getElementById('sortIconCustomerName').className = 'fas fa-sort';
+				}
+
+				// 6. ★★★ 五十音索引ボタンの生成 ★★★
+				const indexButtons = ['全て', 'あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ'];
+				const indexHTML = `
+					<div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; padding: 1rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 8px; border: 2px solid #dee2e6;">
+						<span style="font-weight: bold; margin-right: 1rem; color: var(--primary); display: flex; align-items: center; gap: 0.5rem;">
+							<i class="fas fa-filter"></i> 五十音検索：
+						</span>
+						${indexButtons.map(idx => {
+							const value = idx === '全て' ? 'all' : idx;
+							const isActive = selectedIndex === value;
+							return `
+								<button class="btn btn-sm ${isActive ? 'btn-primary' : 'btn-secondary'}" 
+										onclick="app.filterByIndex('${value}')" 
+										style="min-width: 50px; font-weight: ${isActive ? 'bold' : 'normal'}; transition: all 0.2s;">
+									${idx}
+								</button>
+							`;
+						}).join('')}
+						${hasMore ? `<span style="color: #dc3545; font-weight: bold; margin-left: auto; background: white; padding: 0.5rem 1rem; border-radius: 4px; border: 2px solid #dc3545;">
+							<i class="fas fa-exclamation-triangle"></i> 表示中: ${displayList.length}件 / 該当: ${list.length}件
+						</span>` : `<span style="color: #28a745; margin-left: auto; background: white; padding: 0.5rem 1rem; border-radius: 4px; border: 2px solid #28a745;">
+							<i class="fas fa-check-circle"></i> 全${list.length}件を表示中
+						</span>`}
+					</div>
+				`;
+				
+				// テーブルの前に索引ボタンを挿入
+				const tableContainer = document.querySelector('#customersTable').closest('.card');
+				if (tableContainer) {
+					const existingIndex = tableContainer.querySelector('.customer-index-filter');
+					if (existingIndex) existingIndex.remove();
+					
+					const indexDiv = document.createElement('div');
+					indexDiv.className = 'customer-index-filter';
+					indexDiv.innerHTML = indexHTML;
+					tableContainer.insertBefore(indexDiv, tableContainer.firstChild);
+				}
+
+				// 7. テーブル描画（displayListを使用）
+				document.querySelector('#customersTable tbody').innerHTML = displayList.map(c => {
 					const machines = c.installedMachines || [];
 					const totalMachines = machines.length;
 					
@@ -4837,7 +5011,13 @@
 							</button>
 						</td>
 						<td>${c.industry || '-'}</td>
-						<td><strong>${totalMachines}</strong></td>
+						<td>
+							<a href="#" onclick="app.showMachinesByCustomer('${c.id}'); return false;" 
+							   style="color: var(--primary); font-weight: bold; text-decoration: underline;" 
+							   title="この顧客の機械一覧を表示">
+								<strong>${totalMachines}</strong>台
+							</a>
+						</td>
 						<td>${c.rank || '-'}</td>
 						<td>${c.status || '-'}</td>
 						<td>${c.assignee || '-'}</td>
@@ -4849,7 +5029,134 @@
 						</td>
 					</tr>`;
 				}).join('');
-            }
+				
+				// 8. ★★★ 「もっと表示」ボタンの制御 ★★★
+				const existingMoreBtn = tableContainer.querySelector('.more-customers-btn');
+				if (existingMoreBtn) existingMoreBtn.remove();
+				
+				if (hasMore) {
+					const moreBtnDiv = document.createElement('div');
+					moreBtnDiv.className = 'more-customers-btn';
+					moreBtnDiv.innerHTML = `
+						<div style="text-align: center; margin: 1.5rem 0; padding: 1rem; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-radius: 8px;">
+							<p style="margin: 0 0 1rem 0; color: #1565C0; font-weight: bold;">
+								<i class="fas fa-info-circle"></i> 表示中: ${displayList.length}件 / 該当: ${list.length}件
+							</p>
+							<button class="btn btn-primary" onclick="app.showMoreCustomers()" style="min-width: 200px; padding: 0.75rem 2rem;">
+								<i class="fas fa-chevron-down"></i> さらに表示（残り${list.length - maxDisplay}件）
+							</button>
+						</div>
+					`;
+					tableContainer.appendChild(moreBtnDiv);
+				} else if (list.length > 50) {
+					const allDisplayedDiv = document.createElement('div');
+					allDisplayedDiv.className = 'more-customers-btn';
+					allDisplayedDiv.innerHTML = `
+						<div style="text-align: center; margin: 1.5rem 0; padding: 0.75rem; background: #d4edda; border-radius: 8px; color: #155724;">
+							<i class="fas fa-check-circle"></i> 全${list.length}件を表示中
+							<button class="btn btn-sm btn-secondary" onclick="app.resetCustomerDisplay()" style="margin-left: 1rem;">
+								<i class="fas fa-redo"></i> 50件表示に戻す
+							</button>
+						</div>
+					`;
+					tableContainer.appendChild(allDisplayedDiv);
+				}
+			}
+			
+			/**
+			 * 文字を五十音索引に変換
+			 */
+			getKanaIndex(char) {
+				const kanaMap = {
+					'あいうえおぁぃぅぇぉアイウエオァィゥェォ': 'あ',
+					'かきくけこがぎぐげごカキクケコガギグゲゴ': 'か', 
+					'さしすせそざじずぜぞサシスセソザジズゼゾ': 'さ',
+					'たちつてとだぢづでどっッタチツテトダヂヅデド': 'た',
+					'なにぬねのナニヌネノ': 'な',
+					'はひふへほばびぶべぼぱぴぷぺぽハヒフヘホバビブベボパピプペポ': 'は',
+					'まみむめもマミムメモ': 'ま',
+					'やゆよゃゅょヤユヨャュョ': 'や',
+					'らりるれろラリルレロ': 'ら',
+					'わをんゎワヲンヮ': 'わ'
+				};
+				
+				for (const [chars, index] of Object.entries(kanaMap)) {
+					if (chars.includes(char)) return index;
+				}
+				return 'わ'; // 漢字・英数字等は「わ」行に分類
+			}
+
+			/**
+			 * 五十音索引でフィルタリング
+			 */
+			filterByIndex(index) {
+				this.customerIndexFilter = index;
+				this.customerDisplayLimit = 50; // フィルタ変更時は表示件数をリセット
+				this.renderCustomers();
+				
+				const indexName = index === 'all' ? '全て' : `「${index}」行`;
+				this.showToast(`${indexName}で絞り込みました`, 'success');
+			}
+
+			/**
+			 * さらに顧客を表示（50件ずつ追加）
+			 */
+			showMoreCustomers() {
+				this.customerDisplayLimit = (this.customerDisplayLimit || 50) + 50;
+				this.renderCustomers();
+				
+				// スクロール位置を調整（新しく表示された部分の先頭へ）
+				setTimeout(() => {
+					const tableContainer = document.querySelector('#customersTable').closest('.card');
+					if (tableContainer) {
+						const rect = tableContainer.getBoundingClientRect();
+						const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+						window.scrollTo({
+							top: scrollTop + rect.bottom - window.innerHeight + 100,
+							behavior: 'smooth'
+						});
+					}
+				}, 100);
+				
+				this.showToast(`さらに50件を表示しました`, 'success');
+			}
+
+			/**
+			 * 表示件数を初期値（50件）にリセット
+			 */
+			resetCustomerDisplay() {
+				this.customerDisplayLimit = 50;
+				this.customerIndexFilter = 'all';
+				this.renderCustomers();
+				
+				// ページトップにスクロール
+				window.scrollTo({
+					top: 0,
+					behavior: 'smooth'
+				});
+				
+				this.showToast('表示を50件にリセットしました', 'success');
+			}
+
+			/**
+			 * 顧客の機械一覧を表示
+			 */
+			showMachinesByCustomer(customerId) {
+				const customer = this.data.customers.find(c => c.id === customerId);
+				if (!customer) {
+					this.showToast('顧客が見つかりません', 'error');
+					return;
+				}
+				
+				// 機械情報ページに移動し、その顧客でフィルタ
+				this.searchKeyword = customer.name.toLowerCase();
+				const searchInput = document.getElementById('globalSearchInput');
+				if (searchInput) searchInput.value = customer.name;
+				
+				this.showPage('machines');
+				this.renderMachines();
+				this.showToast(`${customer.name}の機械情報（${customer.installedMachines?.length || 0}台）を表示中`, 'success');
+			}
 
             sortCustomers(field) {
                 if (this.customersSortField === field) {
@@ -6035,7 +6342,38 @@
 				this.renderCustomers();
 				this.showToast('顧客情報を保存しました', 'success');
 			}
-
+			
+			deleteCustomer(id) {
+				if (!confirm('この顧客を削除しますか？\n関連する活動記録や案件データも影響を受ける可能性があります。')) {
+					return;
+				}
+				
+				const customer = this.data.customers.find(c => c.id === id);
+				if (!customer) {
+					this.showToast('顧客が見つかりません', 'error');
+					return;
+				}
+				
+				// 関連データの確認
+				const relatedProjects = this.data.projects.filter(p => p.customer === customer.name);
+				const relatedActivities = this.data.activities.filter(a => a.customer === customer.name);
+				
+				if (relatedProjects.length > 0 || relatedActivities.length > 0) {
+					const confirmMsg = `この顧客には関連データがあります：\n` +
+						`・案件: ${relatedProjects.length}件\n` +
+						`・活動記録: ${relatedActivities.length}件\n\n` +
+						`本当に削除しますか？`;
+					
+					if (!confirm(confirmMsg)) return;
+				}
+				
+				// 削除実行
+				this.data.customers = this.data.customers.filter(c => c.id !== id);
+				this.saveData();
+				this.renderCustomers();
+				this.showToast('顧客を削除しました', 'success');
+			}
+			
             openCustomerStaffModal(customerId) {
                 this.currentEditingCustomerId = customerId;
                 const c = this.data.customers.find(x => x.id == customerId);
