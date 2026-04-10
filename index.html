@@ -2118,6 +2118,46 @@
 				z-index: 100;
 			}
 		}
+		
+		/* ========================================
+		   五十音検索ボタンのスマホ最適化
+		   ======================================== */
+
+		/* スマホ表示時の追加調整 */
+		@media (max-width: 768px) {
+			/* 五十音ボタンをより小さく */
+			.kana-filter button {
+				width: 2rem !important;
+				height: 2rem !important;
+				font-size: 0.75rem !important;
+			}
+			
+			/* 「全て」ボタンのみ少し横長を維持 */
+			.kana-filter button[onclick*="'all'"] {
+				width: 2.8rem !important;
+				font-size: 0.65rem !important;
+			}
+			
+			/* コンテナの余白を詰める */
+			.customer-index-filter > div:first-child {
+				padding: 0.5rem !important;
+				gap: 0.25rem !important;
+			}
+		}
+
+		/* 超小画面（iPhone SE等）用 */
+		@media (max-width: 480px) {
+			.kana-filter button {
+				width: 1.8rem !important;
+				height: 1.8rem !important;
+				font-size: 0.7rem !important;
+			}
+			
+			.kana-filter button[onclick*="'all'"] {
+				width: 2.4rem !important;
+				font-size: 0.6rem !important;
+			}
+		}
 	</style>
 </head>
 <body>
@@ -4930,12 +4970,19 @@
 					);
 				}
 
-				// 3. ★★★ 五十音索引フィルタ ★★★
+				// 3. ★★★ 五十音索引フィルタ（「他」対応版） ★★★
 				const selectedIndex = this.customerIndexFilter || 'all';
 				if (selectedIndex !== 'all') {
 					list = list.filter(c => {
 						const firstChar = c.name.charAt(0);
-						return this.getKanaIndex(firstChar) === selectedIndex;
+						const kanaIndex = this.getKanaIndex(firstChar);
+						
+						if (selectedIndex === '他') {
+							// 「他」タブ：ひらがな・カタカナ以外
+							return kanaIndex === '他';
+						}
+						
+						return kanaIndex === selectedIndex;
 					});
 				}
 				
@@ -4956,29 +5003,83 @@
 					document.getElementById('sortIconCustomerName').className = 'fas fa-sort';
 				}
 
-				// 6. ★★★ 五十音索引ボタンの生成 ★★★
-				const indexButtons = ['全て', 'あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ'];
+				// 6. ★★★ 五十音索引ボタンの生成（スマホ最適化 + 「他」追加版） ★★★
+				const indexButtons = ['全て', 'あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ', '他'];
 				const indexHTML = `
-					<div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; padding: 1rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 8px; border: 2px solid #dee2e6;">
-						<span style="font-weight: bold; margin-right: 1rem; color: var(--primary); display: flex; align-items: center; gap: 0.5rem;">
-							<i class="fas fa-filter"></i> 五十音検索：
-						</span>
-						${indexButtons.map(idx => {
-							const value = idx === '全て' ? 'all' : idx;
-							const isActive = selectedIndex === value;
-							return `
-								<button class="btn btn-sm ${isActive ? 'btn-primary' : 'btn-secondary'}" 
-										onclick="app.filterByIndex('${value}')" 
-										style="min-width: 50px; font-weight: ${isActive ? 'bold' : 'normal'}; transition: all 0.2s;">
-									${idx}
-								</button>
-							`;
-						}).join('')}
-						${hasMore ? `<span style="color: #dc3545; font-weight: bold; margin-left: auto; background: white; padding: 0.5rem 1rem; border-radius: 4px; border: 2px solid #dc3545;">
-							<i class="fas fa-exclamation-triangle"></i> 表示中: ${displayList.length}件 / 該当: ${list.length}件
-						</span>` : `<span style="color: #28a745; margin-left: auto; background: white; padding: 0.5rem 1rem; border-radius: 4px; border: 2px solid #28a745;">
-							<i class="fas fa-check-circle"></i> 全${list.length}件を表示中
-						</span>`}
+					<div style="margin-bottom: 1rem; padding: 0.75rem; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+						<div style="font-size: 0.85rem; color: var(--primary); font-weight: bold; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.4rem;">
+							<i class="fas fa-filter"></i> 五十音検索
+						</div>
+						
+						<div style="display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center;">
+							${indexButtons.map(idx => {
+								const value = idx === '全て' ? 'all' : idx;
+								const isActive = selectedIndex === value;
+								
+								// 「全て」だけ少し横長、他は正方形
+								const width = idx === '全て' ? '3.2rem' : '2.4rem';
+								
+								return `
+									<button 
+										onclick="app.filterByIndex('${value}')"
+										style="
+											width: ${width} !important;
+											height: 2.4rem !important;
+											min-width: 0 !important;
+											padding: 0 !important;
+											margin: 0 !important;
+											display: inline-flex !important;
+											justify-content: center !important;
+											align-items: center !important;
+											border: 2px solid ${isActive ? 'var(--primary)' : '#ccc'} !important;
+											background: ${isActive ? 'var(--primary)' : '#fff'} !important;
+											color: ${isActive ? 'white' : '#555'} !important;
+											border-radius: 6px !important;
+											font-size: ${idx === '全て' ? '0.7rem' : '0.85rem'} !important;
+											font-weight: ${isActive ? 'bold' : 'normal'} !important;
+											cursor: pointer;
+											line-height: 1 !important;
+											flex-shrink: 0;
+											transition: all 0.2s ease !important;
+											box-shadow: ${isActive ? '0 2px 6px rgba(44,90,160,0.4)' : '0 1px 3px rgba(0,0,0,0.1)'} !important;
+										"
+										onmouseover="
+											if (!${isActive}) {
+												this.style.transform = 'translateY(-2px)';
+												this.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+											}
+										"
+										onmouseout="
+											if (!${isActive}) {
+												this.style.transform = 'translateY(0)';
+												this.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+											}
+										"
+									>
+										${idx}
+									</button>
+								`;
+							}).join('')}
+							
+							<!-- 件数表示バッジ -->
+							<span style="
+								margin-left: auto;
+								font-size: 0.75rem;
+								color: ${hasMore ? '#dc3545' : '#28a745'};
+								font-weight: bold;
+								padding: 0.3rem 0.7rem;
+								background: white;
+								border: 1px solid ${hasMore ? '#dc3545' : '#28a745'};
+								border-radius: 12px;
+								white-space: nowrap;
+								flex-shrink: 0;
+							">
+								${hasMore
+									? `<i class="fas fa-exclamation-triangle"></i> ${displayList.length}件 / 全${list.length}件`
+									: `<i class="fas fa-check-circle"></i> 全${list.length}件`
+								}
+							</span>
+						</div>
 					</div>
 				`;
 				
@@ -5064,9 +5165,11 @@
 			}
 			
 			/**
-			 * 文字を五十音索引に変換
+			 * 文字を五十音索引に変換（「他」カテゴリ対応版）
 			 */
 			getKanaIndex(char) {
+				if (!char) return '他';
+				
 				const kanaMap = {
 					'あいうえおぁぃぅぇぉアイウエオァィゥェォ': 'あ',
 					'かきくけこがぎぐげごカキクケコガギグゲゴ': 'か', 
@@ -5080,10 +5183,15 @@
 					'わをんゎワヲンヮ': 'わ'
 				};
 				
+				const firstChar = char.charAt(0);
+				
+				// ひらがな・カタカナの判定
 				for (const [chars, index] of Object.entries(kanaMap)) {
-					if (chars.includes(char)) return index;
+					if (chars.includes(firstChar)) return index;
 				}
-				return 'わ'; // 漢字・英数字等は「わ」行に分類
+				
+				// ひらがな・カタカナ以外（漢字・アルファベット・数字・記号）は「他」
+				return '他';
 			}
 
 			/**
