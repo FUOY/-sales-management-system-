@@ -2398,6 +2398,35 @@
 								<i class="fas fa-file-invoice" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
 								受注履歴データ (一括/差分)
 							</button>
+							<!-- ★★★ ここから追加：データリセット機能 ★★★ -->
+							<hr style="margin: 8px 0; border-color: #eee;">
+
+							<div style="padding: 8px 16px; font-size: 0.75rem; color: #dc3545; font-weight: bold; background: #fff5f5;">
+								⚠️ データリセット（再インポート用）
+							</div>
+
+							<button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #dc3545; cursor: pointer; font-size: 0.9rem;" 
+									onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='white'"
+									onclick="app.resetImportData('customers'); document.getElementById('importDropdown').style.display = 'none';">
+								<i class="fas fa-trash-alt" style="color: #dc3545; width: 20px; margin-right: 8px;"></i>
+								顧客データを全削除
+							</button>
+
+							<button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #dc3545; cursor: pointer; font-size: 0.9rem;" 
+									onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='white'"
+									onclick="app.resetImportData('machines'); document.getElementById('importDropdown').style.display = 'none';">
+								<i class="fas fa-cogs" style="color: #dc3545; width: 20px; margin-right: 8px;"></i>
+								機械データのみ削除
+							</button>
+
+							<button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #dc3545; cursor: pointer; font-size: 0.9rem;" 
+									onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='white'"
+									onclick="app.resetImportData('all'); document.getElementById('importDropdown').style.display = 'none';">
+								<i class="fas fa-bomb" style="color: #dc3545; width: 20px; margin-right: 8px;"></i>
+								全データを削除（顧客・機械・受注履歴）
+							</button>
+							<!-- ★★★ 追加ここまで ★★★ -->
+
 						</div>
 					</div>
 					
@@ -2849,11 +2878,36 @@
 					<h4 style="margin-top: 0; color: var(--primary); border-bottom: 2px solid #ddd; padding-bottom: 0.5rem;">
 						<i class="fas fa-info-circle"></i> 基本情報
 					</h4>
-					<div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem;">
+					<!-- 1段目：顧客名とよみがな -->
+					<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
 						<div class="form-group">
 							<label>顧客名 *</label>
-							<input type="text" id="customerName" required placeholder="例：株式会社サンプル">
+							<input type="text" id="customerName" required 
+								   placeholder="例：株式会社サンプル"
+								   oninput="app.autoGenerateYomigana(this.value)">
 						</div>
+						<div class="form-group">
+							<label>
+								よみがな
+								<span style="font-size: 0.75rem; color: #28a745; font-weight: normal; margin-left: 0.5rem;">
+									（ひらがなで入力）
+								</span>
+							</label>
+							<input type="text" id="customerYomigana" 
+								   placeholder="例：かぶしきがいしゃさんぷる"
+								   style="border: 2px solid #4BC0C0; transition: all 0.3s;"
+								   oninput="app.handleYomiganaInput(this)"
+								   onfocus="this.style.backgroundColor='#f0fff4';"
+								   onblur="this.style.backgroundColor='';">
+							<small style="color: #666; font-size: 0.75rem; display: block; margin-top: 0.3rem;">
+								<i class="fas fa-info-circle" style="color: #4BC0C0;"></i> 
+								五十音検索で正確に分類されます
+							</small>
+						</div>
+					</div>
+
+					<!-- 2段目：顧客コードと業種 -->
+					<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
 						<div class="form-group">
 							<label>顧客コード (Smile)</label>
 							<input type="text" id="customerCompanyCode" placeholder="Smile連携用コード">
@@ -3558,22 +3612,42 @@
             }
 
 			showPage(pageId) {
+				// ★ 検索キーワードのみリセット
+				this.searchKeyword = '';
+				const searchInput = document.getElementById('globalSearchInput');
+				if (searchInput) searchInput.value = '';
+
+				// ★ 移動先ページのソート状態だけリセット
+				if (pageId === 'customers') {
+					this.customersSortField = null;
+					this.customersSortOrder = 'asc';
+					this.customerIndexFilter = 'all';
+					this.customerDisplayLimit = 50;
+				}
+				if (pageId === 'machines') {
+					this.machinesSortField = null;
+					this.machinesSortOrder = 'asc';
+				}
+				if (pageId === 'projects') {
+					this.projectsSortField = null;
+					this.projectsSortOrder = 'asc';
+					this.targetProbability = null;
+				}
+
 				document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
 				document.getElementById(pageId + 'Page').classList.add('active');
 				document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
-				// ↓↓↓ 'machines'を配列に追加 ↓↓↓
 				const idx = ['dashboard', 'customers', 'machines', 'projects', 'schedule', 'activities', 'kpi'].indexOf(pageId);
 				if (idx !== -1) document.querySelectorAll('.tab-button')[idx].classList.add('active');
 
 				if (pageId === 'dashboard') this.renderDashboard();
 				if (pageId === 'customers') this.renderCustomers();
-				// ↓↓↓ 機械情報ページの描画処理を追加 ↓↓↓
 				if (pageId === 'machines') this.renderMachines();
 				if (pageId === 'projects') this.renderProjects();
-                if (pageId === 'schedule') this.renderSchedule();
-                if (pageId === 'activities') this.renderActivities();
-                if (pageId === 'kpi') this.renderKPI();
-            }
+				if (pageId === 'schedule') this.renderSchedule();
+				if (pageId === 'activities') this.renderActivities();
+				if (pageId === 'kpi') this.renderKPI();
+			}
 
             // --- Dashboard Render ---
 			renderDashboard() {
@@ -4970,18 +5044,20 @@
 					);
 				}
 
-				// 3. ★★★ 五十音索引フィルタ（「他」対応版） ★★★
+				// 3. ★★★ 五十音索引フィルタ（よみがな優先版） ★★★
 				const selectedIndex = this.customerIndexFilter || 'all';
 				if (selectedIndex !== 'all') {
 					list = list.filter(c => {
-						const firstChar = c.name.charAt(0);
-						const kanaIndex = this.getKanaIndex(firstChar);
-						
+						// よみがながある場合はよみがなで判定、ない場合は顧客名
+						const kanaIndex = this.getKanaIndex(
+							c.name.charAt(0),
+							c.yomigana || ''
+						);
+
 						if (selectedIndex === '他') {
-							// 「他」タブ：ひらがな・カタカナ以外
 							return kanaIndex === '他';
 						}
-						
+
 						return kanaIndex === selectedIndex;
 					});
 				}
@@ -5103,9 +5179,24 @@
 					return `
 					<tr>
 						<td>
-							<span class="customer-link" onclick="app.editCustomer('${c.id}')" title="顧客情報を編集">
-								${c.name}
-							</span>
+							<div style="display: flex; flex-direction: column; gap: 2px;">
+								<span class="customer-link" onclick="app.editCustomer('${c.id}')" title="顧客情報を編集">
+									${c.name}
+								</span>
+								${c.yomigana ? `
+									<div style="font-size: 0.7rem; color: #28a745; font-weight: 500;">
+										<i class="fas fa-check-circle" style="margin-right: 3px;"></i>${c.yomigana}
+									</div>
+								` : `
+									<div style="font-size: 0.7rem; color: #ffc107; font-weight: 500;">
+										<i class="fas fa-exclamation-triangle" style="margin-right: 3px;"></i>よみがな未設定
+									</div>
+								`}
+							</div>
+							<button class="btn btn-sm btn-secondary" onclick="app.openCustomerStaffModal('${c.id}'); event.stopPropagation();" 
+									style="margin-left: 0.5rem; padding: 2px 6px; font-size: 0.7rem; width: auto;" title="担当者管理">
+								<i class="fas fa-users"></i>
+							</button>
 							<button class="btn btn-sm btn-secondary" onclick="app.openCustomerStaffModal('${c.id}'); event.stopPropagation();" 
 									style="margin-left: 0.5rem; padding: 2px 6px; font-size: 0.7rem; width: auto;" title="担当者管理">
 								<i class="fas fa-users"></i>
@@ -5165,34 +5256,107 @@
 			}
 			
 			/**
-			 * 文字を五十音索引に変換（「他」カテゴリ対応版）
+			 * よみがなベースの五十音索引判定（完全版）
 			 */
-			getKanaIndex(char) {
-				if (!char) return '他';
-				
+			getKanaIndex(char, yomigana) {
+				// よみがながある場合はそれを優先、ない場合は文字で判定
+				const targetChar = (yomigana && yomigana.trim())
+					? yomigana.trim().charAt(0)
+					: char;
+
+				if (!targetChar) return '他';
+
 				const kanaMap = {
-					'あいうえおぁぃぅぇぉアイウエオァィゥェォ': 'あ',
-					'かきくけこがぎぐげごカキクケコガギグゲゴ': 'か', 
-					'さしすせそざじずぜぞサシスセソザジズゼゾ': 'さ',
-					'たちつてとだぢづでどっッタチツテトダヂヅデド': 'た',
-					'なにぬねのナニヌネノ': 'な',
-					'はひふへほばびぶべぼぱぴぷぺぽハヒフヘホバビブベボパピプペポ': 'は',
-					'まみむめもマミムメモ': 'ま',
-					'やゆよゃゅょヤユヨャュョ': 'や',
-					'らりるれろラリルレロ': 'ら',
-					'わをんゎワヲンヮ': 'わ'
+					'あいうえおぁぃぅぇぉ': 'あ',
+					'かきくけこがぎぐげご': 'か',
+					'さしすせそざじずぜぞ': 'さ',
+					'たちつてとだぢづでどっ': 'た',
+					'なにぬねの': 'な',
+					'はひふへほばびぶべぼぱぴぷぺぽ': 'は',
+					'まみむめも': 'ま',
+					'やゆよゃゅょ': 'や',
+					'らりるれろ': 'ら',
+					'わをんゎ': 'わ'
 				};
-				
-				const firstChar = char.charAt(0);
-				
-				// ひらがな・カタカナの判定
+
+				// カタカナをひらがなに変換
+				const hiragana = targetChar.replace(
+					/[ァ-ン]/g,
+					s => String.fromCharCode(s.charCodeAt(0) - 0x60)
+				);
+
+				// ひらがな判定
 				for (const [chars, index] of Object.entries(kanaMap)) {
-					if (chars.includes(firstChar)) return index;
+					if (chars.includes(hiragana)) return index;
 				}
-				
-				// ひらがな・カタカナ以外（漢字・アルファベット・数字・記号）は「他」
+
+				// ひらがな・カタカナ以外は「他」
 				return '他';
 			}
+			
+			/**
+			 * よみがなの自動生成とバリデーション
+			 */
+			autoGenerateYomigana(name) {
+				const yomiganaInput = document.getElementById('customerYomigana');
+				if (!yomiganaInput) return;
+
+				// すでに手動入力されている場合は上書きしない
+				if (yomiganaInput.dataset.manualEdit === 'true') return;
+
+				const cleanName = name.trim();
+				if (!cleanName) {
+					yomiganaInput.value = '';
+					yomiganaInput.style.borderColor = '#4BC0C0';
+					yomiganaInput.style.backgroundColor = '';
+					return;
+				}
+
+				// カタカナ・ひらがなのみの会社名の場合は自動変換
+				const isKanaOnly = /^[ぁ-んァ-ンーｦ-ﾟ\s　()（）株式会社有限]+$/.test(cleanName);
+				
+				if (isKanaOnly) {
+					// カタカナをひらがなに変換し、不要な文字を除去
+					const hiragana = cleanName
+						.replace(/[ァ-ン]/g, s => String.fromCharCode(s.charCodeAt(0) - 0x60))
+						.replace(/[株式会社有限()（）\s　]/g, '')
+						.toLowerCase();
+					
+					if (hiragana) {
+						yomiganaInput.value = hiragana;
+						yomiganaInput.style.borderColor = '#28a745';
+						yomiganaInput.style.backgroundColor = '#f0fff4';
+					}
+				} else {
+					// 漢字混じりの場合は手動入力を促す
+					yomiganaInput.placeholder = '← 手動で入力してください（例：さんぷる）';
+					yomiganaInput.style.borderColor = '#ffc107';
+					yomiganaInput.style.backgroundColor = '#fff8e1';
+				}
+			}
+
+			/**
+			 * よみがな入力時の処理
+			 */
+			handleYomiganaInput(input) {
+				// カタカナを自動でひらがなに変換
+				input.value = input.value.replace(/[ァ-ン]/g, s => 
+					String.fromCharCode(s.charCodeAt(0) - 0x60)
+				);
+				
+				// 手動編集フラグを設定
+				input.dataset.manualEdit = 'true';
+				
+				// 視覚的フィードバック
+				if (input.value.trim()) {
+					input.style.borderColor = '#28a745';
+					input.style.backgroundColor = '#f0fff4';
+				} else {
+					input.style.borderColor = '#4BC0C0';
+					input.style.backgroundColor = '';
+				}
+			}
+
 
 			/**
 			 * 五十音索引でフィルタリング
@@ -6334,6 +6498,7 @@
 				// 基本情報
 				document.getElementById('customerId').value = '';
 				document.getElementById('customerName').value = '';
+				document.getElementById('customerYomigana').value = '';
 				document.getElementById('customerCompanyCode').value = '';
 				document.getElementById('customerIndustry').value = '';
 				document.getElementById('customerRank').value = 'A';
@@ -6368,6 +6533,7 @@
 				// 基本情報
 				document.getElementById('customerId').value = c.id;
 				document.getElementById('customerName').value = c.name;
+				document.getElementById('customerYomigana').value = c.yomigana || '';
 				document.getElementById('customerCompanyCode').value = c.companyCode || '';
 				document.getElementById('customerIndustry').value = c.industry || '';
 				document.getElementById('customerRank').value = c.rank || 'A';
@@ -6403,6 +6569,7 @@
 				const data = {
 					// 基本情報
 					name: document.getElementById('customerName').value,
+					yomigana: document.getElementById('customerYomigana').value.trim(),
 					companyCode: document.getElementById('customerCompanyCode').value,
 					industry: document.getElementById('customerIndustry').value,
 					rank: document.getElementById('customerRank').value,
@@ -8470,6 +8637,7 @@
 					// ★★★ 既存顧客データの拡張項目初期化 ★★★
 					(this.data.customers || []).forEach(customer => {
 						// 拡張項目が未定義の場合は初期値を設定
+						if (customer.yomigana === undefined) customer.yomigana = '';      // ★この1行を追加
 						if (customer.companyCode === undefined) customer.companyCode = '';
 						if (customer.postalCode === undefined) customer.postalCode = '';
 						if (customer.address === undefined) customer.address = '';
@@ -9648,7 +9816,8 @@
 						// 顧客データの初期化または取得
 						if (!customerMap[normalizedName]) {
 							customerMap[normalizedName] = {
-								name: customerName, // 表示用は元の名前を保持
+								name: customerName,
+								yomigana: '',  // ★よみがなフィールド追加
 								companyCode: customerCode,
 								region: '',
 								industry: '',
@@ -9802,6 +9971,7 @@
 						} else {
 							// 標準テーブル形式の処理（既存ロジック）
 							Object.assign(customer, {
+								yomigana: this.findColumnValue(row, ['よみがな', 'フリガナ', 'ふりがな', 'ヨミガナ', 'カナ']),
 								companyCode: this.findColumnValue(row, ['顧客コード', '得意先コード', 'コード']),
 								postalCode: this.findColumnValue(row, ['郵便番号', '〒']),
 								address: this.findColumnValue(row, ['住所', '住所1', '所在地']),
@@ -10317,6 +10487,111 @@
 				return { success: true, count: importCount };
 			}
 			
+			/**
+			 * ★★★ 追加：インポートデータリセット機能 ★★★
+			 */
+			resetImportData(type) {
+				// 管理者以外は実行不可
+				if (CURRENT_USER.role !== 'admin') {
+					alert('この機能は管理者のみ使用できます');
+					return;
+				}
+
+				let confirmMessage = '';
+				let successMessage = '';
+				let deletedCount = 0;
+
+				// リセット種別に応じてメッセージを設定
+				if (type === 'customers') {
+					confirmMessage = 
+						'【顧客データ全削除】\n\n' +
+						'登録されている全ての顧客情報を削除します。\n' +
+						'※ 案件・活動記録・スケジュールは残ります\n' +
+						'※ 削除後は修正済みExcelを再インポートしてください\n\n' +
+						'本当に実行しますか？（元に戻せません）';
+					successMessage = '顧客データを全削除しました';
+					deletedCount = this.data.customers.length;
+
+				} else if (type === 'machines') {
+					confirmMessage = 
+						'【機械データ全削除】\n\n' +
+						'全顧客の「導入機械情報」のみを削除します。\n' +
+						'※ 顧客の基本情報（名前・住所等）は残ります\n' +
+						'※ 削除後は機械情報Excelを再インポートしてください\n\n' +
+						'本当に実行しますか？（元に戻せません）';
+					successMessage = '機械データを全削除しました';
+					// 機械の総数を計算
+					deletedCount = this.data.customers.reduce((total, c) => 
+						total + (c.installedMachines ? c.installedMachines.length : 0), 0
+					);
+
+				} else if (type === 'all') {
+					confirmMessage = 
+						'【全データ削除】\n\n' +
+						'以下を全て削除します：\n' +
+						'・全顧客情報\n' +
+						'・全機械情報\n' +
+						'・全受注履歴\n\n' +
+						'※ 案件・活動記録・スケジュールは残ります\n\n' +
+						'本当に実行しますか？（元に戻せません）';
+					successMessage = '全データを削除しました';
+					deletedCount = this.data.customers.length;
+				}
+
+				// 1回目の確認
+				if (!confirm(confirmMessage)) {
+					this.showToast('キャンセルしました', 'success');
+					return;
+				}
+
+				// 2回目の確認（誤操作防止）
+				if (!confirm('最終確認：本当に削除しますか？\n\n削除件数: ' + deletedCount + '件\n\nこの操作は取り消せません。')) {
+					this.showToast('キャンセルしました', 'success');
+					return;
+				}
+
+				// 削除処理を実行
+				try {
+					if (type === 'customers') {
+						// 顧客データを全削除
+						this.data.customers = [];
+
+					} else if (type === 'machines') {
+						// 各顧客の機械データのみ削除
+						this.data.customers.forEach(customer => {
+							customer.installedMachines = [];
+						});
+
+					} else if (type === 'all') {
+						// 全データ削除
+						this.data.customers = [];
+					}
+
+					// データ保存と画面更新
+					this.saveData();
+					this.renderCustomers();
+					this.renderMachines();
+
+					// 完了通知
+					this.showToast(successMessage, 'success');
+					
+					setTimeout(() => {
+						alert(
+							'✅ 削除完了\n\n' +
+							successMessage + '\n' +
+							'削除件数: ' + deletedCount + '件\n\n' +
+							'現在の顧客数: ' + this.data.customers.length + '件\n\n' +
+							'修正済みExcelを再インポートしてください。'
+						);
+					}, 500);
+
+				} catch (error) {
+					console.error('リセットエラー:', error);
+					this.showToast('削除中にエラーが発生しました', 'error');
+					alert('エラー: ' + error.message);
+				}
+			}
+						
 			// ↓↓↓ Excel列名の柔軟なマッチング関数を追加 ↓↓↓
             findColumnValue(row, patterns) {
                 for (const pattern of patterns) {
@@ -10444,4 +10719,3 @@
     </script>
 </body>
 </html>
-
