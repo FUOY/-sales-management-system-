@@ -3584,6 +3584,7 @@
 				this.searchKeyword = '';
 				this.customerDisplayLimit = 50;  // 顧客表示件数の初期値
 				this.customerIndexFilter = 'all'; // 五十音フィルタの初期値
+				this.machineDisplayLimit = 50;   // ★追加: 機械表示件数の初期値
 				
 				// 3. ソート状態の初期化
 				this.customersSortField = null;
@@ -3711,6 +3712,7 @@
 				if (pageId === 'machines') {
 					this.machinesSortField = null;
 					this.machinesSortOrder = 'asc';
+					this.machineDisplayLimit = 50;  // ★追加: ページ移動時に表示件数をリセット
 				}
 				if (pageId === 'projects') {
 					this.projectsSortField = null;
@@ -5480,6 +5482,39 @@
 				window.scrollTo({ top: 0, behavior: 'smooth' });
 				this.showToast('表示を50件にリセットしました', 'success');
 			}
+			
+			/**
+			 * 機械情報の「さらに表示」機能
+			 */
+			showMoreMachines() {
+				this.machineDisplayLimit = (this.machineDisplayLimit || 50) + 50;
+				this.renderMachines();
+				
+				// スムーズスクロール（表示追加後に下部へ移動）
+				setTimeout(() => {
+					const tableContainer = document.querySelector('#machinesTable').closest('.card');
+					if (tableContainer) {
+						const rect = tableContainer.getBoundingClientRect();
+						const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+						window.scrollTo({
+							top: scrollTop + rect.bottom - window.innerHeight + 100,
+							behavior: 'smooth'
+						});
+					}
+				}, 100);
+				
+				this.showToast('さらに50台を表示しました', 'success');
+			}
+
+			/**
+			 * 機械情報の「50件表示に戻す」機能
+			 */
+			resetMachineDisplay() {
+				this.machineDisplayLimit = 50;
+				this.renderMachines();
+				window.scrollTo({ top: 0, behavior: 'smooth' });
+				this.showToast('表示を50台にリセットしました', 'success');
+			}
 
 			/**
 			 * 顧客詳細アコーディオンの開閉
@@ -5775,7 +5810,7 @@
 			renderMachines() {
 				const filter = document.getElementById('machinesFilter')?.value || 'all';
 				const machines = [];
-				
+
 				// 全顧客の機械情報を収集
 				(this.data.customers || []).forEach(customer => {
 					(customer.installedMachines || []).forEach((machine, index) => {
@@ -5789,44 +5824,49 @@
 						}
 					});
 				});
-				
+
 				// 検索フィルタ適用
 				let filteredMachines = machines;
 				if (this.searchKeyword) {
-					filteredMachines = machines.filter(m => 
+					filteredMachines = machines.filter(m =>
 						String(m.customerName || '').toLowerCase().includes(this.searchKeyword) ||
 						String(m.machineName || '').toLowerCase().includes(this.searchKeyword) ||
 						String(m.machineCode || '').toLowerCase().includes(this.searchKeyword) ||
 						String(m.serialNumber || '').toLowerCase().includes(this.searchKeyword)
 					);
 				}
-				
+
 				// ソート処理
 				if (this.machinesSortField) {
 					filteredMachines.sort((a, b) => {
 						let valA = (a[this.machinesSortField] || '').toString();
 						let valB = (b[this.machinesSortField] || '').toString();
-						
+
 						if (this.machinesSortField === 'installDate') {
 							valA = valA || '9999-12-31';
 							valB = valB || '9999-12-31';
 						}
-						
+
 						const order = this.machinesSortOrder === 'asc' ? 1 : -1;
 						return valA.localeCompare(valB, 'ja') * order;
 					});
 				}
+
+				// ★追加: 表示件数制限の適用
+				const maxDisplay = this.machineDisplayLimit || 50;
+				const displayMachines = filteredMachines.slice(0, maxDisplay);
+				const hasMore = filteredMachines.length > maxDisplay;
 
 				// ソートアイコンの生成
 				const getSortIcon = (field) => {
 					if (this.machinesSortField !== field) {
 						return '<i class="fas fa-sort" style="color: #ccc; margin-left: 4px;"></i>';
 					}
-					return this.machinesSortOrder === 'asc' ? 
-						'<i class="fas fa-sort-up" style="color: var(--primary); margin-left: 4px;"></i>' : 
+					return this.machinesSortOrder === 'asc' ?
+						'<i class="fas fa-sort-up" style="color: var(--primary); margin-left: 4px;"></i>' :
 						'<i class="fas fa-sort-down" style="color: var(--primary); margin-left: 4px;"></i>';
 				};
-				
+
 				// ヘッダーの更新
 				const thead = document.querySelector('#machinesTable thead');
 				if (thead) {
@@ -5843,11 +5883,12 @@
 						</tr>
 					`;
 				}
-				
+
 				const tbody = document.querySelector('#machinesTable tbody');
 				if (!tbody) return;
-				
-				if (filteredMachines.length === 0) {
+
+				// テーブル本体の描画
+				if (displayMachines.length === 0) {
 					tbody.innerHTML = `
 						<tr>
 							<td colspan="8" style="text-align: center; padding: 2rem; color: #999; font-style: italic;">
@@ -5856,39 +5897,87 @@
 							</td>
 						</tr>
 					`;
-					return;
+				} else {
+					tbody.innerHTML = displayMachines.map(machine => `
+						<tr>
+							<td>
+								<a href="#" onclick="app.showCustomerDetail('${machine.customerId}'); return false;"
+								   style="color: var(--primary); text-decoration: underline;">
+									${machine.customerName}
+								</a>
+							</td>
+							<td>
+								<a href="#" onclick="app.showMachineDetail('${machine.customerId}', ${machine.machineIndex}); return false;"
+								   style="color: var(--primary); text-decoration: underline; font-weight: bold;">
+									${machine.machineName || '-'}
+								</a>
+							</td>
+							<td>${machine.machineCode || '-'}</td>
+							<td>${machine.installDate || '-'}</td>
+							<td>${machine.serialNumber || '-'}</td>
+							<td>${machine.installLocation || '-'}</td>
+							<td>
+								<span style="padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;
+											 background: ${machine.status === '稼働中' ? '#28a745' : '#6c757d'};
+											 color: white;">
+									${machine.status || '不明'}
+								</span>
+							</td>
+							<td>
+								<button class="btn btn-sm btn-secondary"
+										onclick="app.showMachineDetail('${machine.customerId}', ${machine.machineIndex})">
+									<i class="fas fa-eye"></i> 詳細
+								</button>
+							</td>
+						</tr>
+					`).join('');
 				}
-				
-				tbody.innerHTML = filteredMachines.map(machine => `
-					<tr>
-						<td>
-							<a href="#" onclick="app.showCustomerDetail('${machine.customerId}'); return false;" 
-							   style="color: var(--primary); text-decoration: underline;">
-								${machine.customerName}
-							</a>
-						</td>
-						<td>
-							<a href="#" onclick="app.showMachineDetail('${machine.customerId}', ${machine.machineIndex}); return false;"
-							   style="color: var(--primary); text-decoration: underline; font-weight: bold;">
-								${machine.machineName || '-'}
-							</a>
-						</td>
-						<td>${machine.machineCode || '-'}</td>
-						<td>${machine.installDate || '-'}</td>
-						<td>${machine.serialNumber || '-'}</td>
-						<td>${machine.installLocation || '-'}</td>
-						<td>
-							<span style="padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; background: ${machine.status === '稼働中' ? '#28a745' : '#6c757d'}; color: white;">
-								${machine.status || '不明'}
-							</span>
-						</td>
-						<td>
-							<button class="btn btn-sm btn-secondary" onclick="app.showMachineDetail('${machine.customerId}', ${machine.machineIndex})">
-								<i class="fas fa-eye"></i> 詳細
-							</button>
-						</td>
-					</tr>
-				`).join('');
+
+				// ★追加: 「さらに表示」ボタンの制御
+				const tableContainer = document.querySelector('#machinesTable').closest('.card');
+				if (tableContainer) {
+					const existingMoreBtn = tableContainer.querySelector('.more-machines-btn');
+					if (existingMoreBtn) existingMoreBtn.remove();
+
+					if (hasMore) {
+						const moreBtnDiv = document.createElement('div');
+						moreBtnDiv.className = 'more-machines-btn';
+						moreBtnDiv.innerHTML = `
+							<div style="text-align: center; margin: 1.5rem 0; padding: 1rem;
+										background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+										border-radius: 8px;">
+								<p style="margin: 0 0 1rem 0; color: #1565C0; font-weight: bold;">
+									<i class="fas fa-info-circle"></i>
+									表示中: ${displayMachines.length}台 / 該当: ${filteredMachines.length}台
+								</p>
+								<button class="btn btn-primary"
+										onclick="app.showMoreMachines()"
+										style="min-width: 200px; padding: 0.75rem 2rem;">
+									<i class="fas fa-chevron-down"></i>
+									さらに表示（残り${filteredMachines.length - maxDisplay}台）
+								</button>
+							</div>
+						`;
+						tableContainer.appendChild(moreBtnDiv);
+
+					} else if (filteredMachines.length > 50) {
+						// 全件表示済みの場合は「戻す」ボタンを表示
+						const allDisplayedDiv = document.createElement('div');
+						allDisplayedDiv.className = 'more-machines-btn';
+						allDisplayedDiv.innerHTML = `
+							<div style="text-align: center; margin: 1.5rem 0; padding: 0.75rem;
+										background: #d4edda; border-radius: 8px; color: #155724;">
+								<i class="fas fa-check-circle"></i> 全${filteredMachines.length}台を表示中
+								<button class="btn btn-sm btn-secondary"
+										onclick="app.resetMachineDisplay()"
+										style="margin-left: 1rem;">
+									<i class="fas fa-redo"></i> 50件表示に戻す
+								</button>
+							</div>
+						`;
+						tableContainer.appendChild(allDisplayedDiv);
+					}
+				}
 			}
 
 			// ソート関数の追加
@@ -8915,7 +9004,23 @@
 				return '';
 			}
 			
-            formatCurrency(input) {
+			// ★追加：社名の表記ゆれを吸収する共通関数
+			normalizeCustomerName(name) {
+				return (name || '')
+					// 全角英数字→半角英数字
+					.replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+					// 各種ダッシュ・マイナス・長音符を「ー」に統一（最重要）
+					.replace(/[－−‐‑‒–—―]/g, 'ー')
+					// 全角・半角スペースを削除
+					.replace(/[　\s]+/g, '')
+					// 法人格を除去（比較用）
+					.replace(/株式会社|（株）|\(株\)/g, '')
+					.replace(/有限会社|（有）|\(有\)/g, '')
+					.replace(/合同会社|（合）|\(合\)/g, '')
+					.trim();
+			}
+
+		    formatCurrency(input) {
                 let val = input.value.replace(/,/g, '');
                 if (!isNaN(val) && val !== '') {
                     input.value = Number(val).toLocaleString();
@@ -10012,7 +10117,15 @@
 										range: 0
 									});
 
-									raw.forEach(row => {
+									raw.forEach((row, rowIndex) => {
+										// ★修正: 先頭シートの1行目だけヘッダーとして採用
+										if (idx === 0 && rowIndex === 0) {
+											allRows.push(row); // ヘッダー行
+											return;
+										}
+										// ★修正: 2枚目以降のシートの1行目（ヘッダー行）はスキップ
+										if (idx > 0 && rowIndex === 0) return;
+
 										// 完全な空行は除外
 										if (row.some(c => c !== "" && c !== null && c !== undefined)) {
 											allRows.push(row);
@@ -10136,30 +10249,22 @@
 			 */
 			importCustomerList(rows) {
 				console.log('📊 顧客データ処理開始:', rows.length, '行');
-				
+
 				let importCount = 0;
 				let updateCount = 0;
 				let skipCount = 0;
 
-				// ★ヘッダー行の自動検出
-				let headerRowIndex = 0;
-				for (let i = 0; i < Math.min(5, rows.length); i++) {
-					const row = rows[i];
-					if (row && row.some && row.some(cell => 
-						typeof cell === 'string' && 
-						(cell.includes('社名') || cell.includes('顧客名') || cell.includes('得意先名'))
-					)) {
-						headerRowIndex = i;
-						console.log('✅ ヘッダー行を発見:', i + 1, '行目');
-						break;
-					}
+				if (!rows || rows.length < 2) {
+					return { success: false, error: '有効なデータ行がありません' };
 				}
 
-				// ★列インデックスマッピング（柔軟な列名対応）
-				const headerRow = rows[headerRowIndex];
+				// ★修正: ヘッダー行から列インデックスを動的取得
+				const headerRow = rows[0];
+				
+				// 安全な列インデックス取得関数
 				const getColumnIndex = (row, ...names) => {
 					for (const name of names) {
-						const index = headerRow.findIndex(cell => 
+						const index = row.findIndex(cell => 
 							typeof cell === 'string' && cell.includes(name)
 						);
 						if (index !== -1) return index;
@@ -10167,45 +10272,82 @@
 					return -1;
 				};
 
+				// 列インデックスの事前計算
+				const colCode = getColumnIndex(headerRow, 'コード');
+				const colRegion = getColumnIndex(headerRow, '地域');
+				const colCategory = getColumnIndex(headerRow, '区分');
+				const colName = getColumnIndex(headerRow, '社名', '顧客名', '得意先名');
+
+				const colHqAddress = getColumnIndex(headerRow, '本社住所');
+				const colHqPhone = getColumnIndex(headerRow, '本社電話');
+				const colHqFax = getColumnIndex(headerRow, '本社FAX');
+				const colHqContact = getColumnIndex(headerRow, '本社担当者');
+
+				const colEmail = getColumnIndex(headerRow, 'Email');
+				const colPresident = getColumnIndex(headerRow, '社長');
+				const colPayment = getColumnIndex(headerRow, '支払条件');
+				const colCapital = getColumnIndex(headerRow, '資本金');
+				const colUrl = getColumnIndex(headerRow, 'URL');
+				const colEmployees = getColumnIndex(headerRow, '従業員');
+				const colNotes = getColumnIndex(headerRow, 'その他');
+
 				// 住所から郵便番号を分離するヘルパー
 				const parseAddress = (addressRaw) => {
 					if (!addressRaw) return { postalCode: '', address: '' };
-					const postalMatch = String(addressRaw).match(/〒?\s*(\d{3}-\d{4})\s*/);
-					if (postalMatch) {
+					const str = String(addressRaw);
+					const match = str.match(/〒?\s*(\d{3}-\d{4})\s*/);
+					if (match) {
 						return {
-							postalCode: '〒' + postalMatch[1],
-							address: String(addressRaw).replace(/〒?\s*\d{3}-\d{4}\s*/, '').trim()
+							postalCode: '〒' + match[1],
+							address: str.replace(/〒?\s*\d{3}-\d{4}\s*/, '').trim()
 						};
 					}
-					return { postalCode: '', address: String(addressRaw).trim() };
+					return { postalCode: '', address: str.trim() };
 				};
 
-				// ★データ行の処理
-				for (let i = headerRowIndex + 1; i < rows.length; i++) {
+				// 安全な文字列取得関数
+				const safeGetString = (row, colIndex) => {
+					if (colIndex === -1 || !row[colIndex]) return '';
+					return String(row[colIndex]).trim();
+				};
+
+				// ★修正: 顧客名正規化関数（重複検出の精度向上）
+				const normalizeCustomerName = (name) => {
+					return (name || '')
+						.replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)) // 全角→半角
+						.replace(/[－−‐‑‒–—―]/g, '-')   // 各種ダッシュ統一
+						.replace(/[　\s]+/g, '')          // スペース削除
+						.replace(/株式会社|（株）|\(株\)/g, '') // 法人格除去
+						.replace(/有限会社|（有）|\(有\)/g, '')
+						.trim();
+				};
+
+				// データ行の処理（1行目以降）
+				for (let i = 1; i < rows.length; i++) {
 					const row = rows[i];
 					if (!row || !Array.isArray(row)) continue;
 					if (row.every(cell => !cell || cell === '')) continue;
 
 					try {
-						// ★基本情報の抽出（列位置ベース + 動的検出）
-						const customerCode = String(row[0] || '').trim();
-						const region = String(row[1] || '').trim();
-						const category = String(row[2] || '').trim();
-						const rawName = String(row[3] || '').trim();
+						// ★修正: 動的列インデックスでデータ取得
+						const customerCode = safeGetString(row, colCode);
+						const region = safeGetString(row, colRegion);
+						const category = safeGetString(row, colCategory);
+						const rawName = safeGetString(row, colName);
 
 						if (!rawName) { skipCount++; continue; }
 
-						// ★本社情報の抽出（列4〜7）
-						const hqAddressRaw = String(row[4] || '').trim();
-						const hqPhone = String(row[5] || '').trim();
-						const hqFax = String(row[6] || '').trim();
-						const hqContact = String(row[7] || '').trim();
+						// 本社情報
+						const hqAddressRaw = safeGetString(row, colHqAddress);
+						const hqPhone = safeGetString(row, colHqPhone);
+						const hqFax = safeGetString(row, colHqFax);
+						const hqContact = safeGetString(row, colHqContact);
 						const { postalCode: hqPostal, address: hqAddress } = parseAddress(hqAddressRaw);
 
-						// ★拠点情報配列の構築
+						// ★修正: 工場1〜4の動的取得
 						const locations = [];
 
-						// 本社情報を追加（住所または電話があれば）
+						// 本社拠点の追加
 						if (hqAddressRaw || hqPhone) {
 							locations.push({
 								type: 'headquarters',
@@ -10218,16 +10360,20 @@
 							});
 						}
 
-						// ★工場1〜4の情報を抽出（列8〜23）
+						// 工場1〜4の処理
 						for (let factoryNum = 1; factoryNum <= 4; factoryNum++) {
-							const baseCol = 8 + (factoryNum - 1) * 4; // 工場1=列8-11, 工場2=列12-15...
-							const fAddressRaw = String(row[baseCol] || '').trim();
-							const fPhone = String(row[baseCol + 1] || '').trim();
-							const fFax = String(row[baseCol + 2] || '').trim();
-							const fContact = String(row[baseCol + 3] || '').trim();
+							const colFAddress = getColumnIndex(headerRow, `工場${factoryNum}住所`);
+							const colFPhone = getColumnIndex(headerRow, `工場${factoryNum}電話`);
+							const colFFax = getColumnIndex(headerRow, `工場${factoryNum}FAX`);
+							const colFContact = getColumnIndex(headerRow, `工場${factoryNum}担当者`);
 
-							// 住所または電話があれば工場として追加
-							if (fAddressRaw || fPhone) {
+							const fAddressRaw = safeGetString(row, colFAddress);
+							const fPhone = safeGetString(row, colFPhone);
+							const fFax = safeGetString(row, colFFax);
+							const fContact = safeGetString(row, colFContact);
+
+							// 住所・電話・FAX・担当者のいずれかがあれば工場として登録
+							if (fAddressRaw || fPhone || fFax || fContact) {
 								const { postalCode: fPostal, address: fAddress } = parseAddress(fAddressRaw);
 								locations.push({
 									type: 'factory',
@@ -10241,61 +10387,55 @@
 							}
 						}
 
-						// ★企業・その他情報の抽出（列24以降）
-						const email = String(row[24] || '').trim();
-						const president = String(row[25] || '').trim();
-						const paymentTerms = String(row[26] || '').trim();
-						const capitalRaw = String(row[27] || '').trim();
-						const website = String(row[28] || '').trim();
-						const employeesRaw = String(row[29] || '').trim();
-						const otherNotes = String(row[30] || '').trim();
+						// その他企業情報
+						const email = safeGetString(row, colEmail);
+						const president = safeGetString(row, colPresident);
+						const paymentTerms = safeGetString(row, colPayment);
+						const capital = this.parseNumber(safeGetString(row, colCapital)) || 0;
+						const website = safeGetString(row, colUrl);
+						const employees = this.parseNumber(safeGetString(row, colEmployees)) || 0;
+						const otherNotes = safeGetString(row, colNotes);
 
-						// 数値の解析
-						const capital = this.parseNumber(capitalRaw) || 0;
-						const employees = this.parseNumber(employeesRaw) || 0;
-
-						// ★既存顧客の検索（名前正規化で比較）
-						const normalizedName = rawName.replace(/[－−‐-ー]/g, 'ー').replace(/[　\s]+/g, '').trim();
+						// ★修正: 既存顧客の厳密な検索（共通関数を使用）
+						const normalizedName = this.normalizeCustomerName(rawName);
 						const existingCustomer = this.data.customers.find(c => {
-							const existingNormalized = (c.name || '')
-								.replace(/[－−‐-ー]/g, 'ー')
-								.replace(/[　\s]+/g, '');
+							const existingNormalized = this.normalizeCustomerName(c.name);
 							return existingNormalized === normalizedName;
 						});
 
 						if (existingCustomer) {
-							// ★既存顧客の更新（空欄補完 + 拠点情報更新）
+							// 既存顧客の更新（空欄補完）
 							if (!existingCustomer.companyCode && customerCode) existingCustomer.companyCode = customerCode;
 							if (!existingCustomer.region && region) existingCustomer.region = region;
 							if (!existingCustomer.industry && category) existingCustomer.industry = category;
-							
-							// 本社情報の更新（互換性維持）
-							if (!existingCustomer.postalCode && hqPostal) existingCustomer.postalCode = hqPostal;
-							if (!existingCustomer.address && hqAddress) existingCustomer.address = hqAddress;
-							if (!existingCustomer.phone && hqPhone) existingCustomer.phone = hqPhone;
-							if (!existingCustomer.fax && hqFax) existingCustomer.fax = hqFax;
-							
-							// 企業情報の更新
-							if (!existingCustomer.email && email) existingCustomer.email = email;
-							if (!existingCustomer.website && website) existingCustomer.website = website;
-							if (!existingCustomer.president && president) existingCustomer.president = president;
-							if (!existingCustomer.capital && capital) existingCustomer.capital = capital;
-							if (!existingCustomer.employees && employees) existingCustomer.employees = employees;
-							if (!existingCustomer.paymentTerms && paymentTerms) existingCustomer.paymentTerms = paymentTerms;
-							
-							// 拠点情報の更新（上書き）
-							if (locations.length > 0) existingCustomer.locations = locations;
-							
-							// 備考の追加
-							if (otherNotes && !existingCustomer.notes?.includes(otherNotes)) {
-								existingCustomer.notes = (existingCustomer.notes ? existingCustomer.notes + '\n' : '') + otherNotes;
+
+							// ★修正: 拠点情報は常に最新データで上書き
+							if (locations.length > 0) {
+								existingCustomer.locations = locations;
+								
+								// 本社情報の同期（互換性維持）
+								const hqLocation = locations.find(l => l.type === 'headquarters');
+								if (hqLocation) {
+									existingCustomer.postalCode = hqLocation.postalCode || existingCustomer.postalCode;
+									existingCustomer.address = hqLocation.address || existingCustomer.address;
+									existingCustomer.phone = hqLocation.phone || existingCustomer.phone;
+									existingCustomer.fax = hqLocation.fax || existingCustomer.fax;
+								}
 							}
-							
+
+							// 企業情報の更新
+							if (email) existingCustomer.email = email;
+							if (website) existingCustomer.website = website;
+							if (president) existingCustomer.president = president;
+							if (capital > 0) existingCustomer.capital = capital;
+							if (employees > 0) existingCustomer.employees = employees;
+							if (paymentTerms) existingCustomer.paymentTerms = paymentTerms;
+
 							updateCount++;
 							console.log(`✏️ 更新: ${rawName}`);
-							
+
 						} else {
-							// ★新規顧客の作成
+							// 新規顧客作成
 							const newCustomer = {
 								id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
 								name: rawName,
@@ -10306,43 +10446,43 @@
 								rank: 'B',
 								status: '取引中',
 								assignee: CURRENT_USER.assignee,
-								
-								// 本社連絡先（互換性維持）
+
+								// 本社情報（互換性維持）
 								postalCode: hqPostal,
 								address: hqAddress,
 								phone: hqPhone,
 								fax: hqFax,
 								email: email,
 								website: website,
-								
+
 								// 企業情報
 								president: president,
 								establishedDate: '',
 								capital: capital,
 								employees: employees,
-								
+
 								// 取引条件
 								paymentTerms: paymentTerms,
 								creditLimit: 0,
 								taxType: '外税',
-								
+
 								// 拠点情報
 								locations: locations,
-								
+
 								// その他
 								notes: otherNotes,
 								staffs: [],
 								installedMachines: [],
 								orderHistory: []
 							};
-							
+
 							this.data.customers.push(newCustomer);
 							importCount++;
 							console.log(`➕ 新規: ${rawName}`);
 						}
 
 					} catch (error) {
-						console.error(`行${i + 1}処理エラー:`, error);
+						console.error(`行${i + 1} 処理エラー:`, error);
 						skipCount++;
 					}
 				}
@@ -10352,7 +10492,7 @@
 				console.log(message);
 				return { success: true, count: importCount + updateCount, message };
 			}
-7			
+		
 			/**
 			 * 納入年 + 納入日から正しい導入日を構築
 			 */
@@ -10638,8 +10778,25 @@
 							return;
 						}
 						
-						// 顧客の検索（住所・電話などには一切触れない）
-						let customer = this.data.customers.find(c => c.name === customerName);
+						// ★修正：表記ゆれを吸収して既存顧客を検索
+						const normalizedImportName = this.normalizeCustomerName(customerName);
+						let customer = this.data.customers.find(c => this.normalizeCustomerName(c.name) === normalizedImportName);
+						
+						// ★追加：デバッグ用ログ（顧客が見つからない場合）
+						if (!customer) {
+							console.warn(`⚠️ 顧客が見つかりません: 「${customerName}」(正規化後: 「${normalizedImportName}」)`);
+							
+							// 類似顧客の候補表示
+							const similarCustomers = this.data.customers.filter(c => {
+								const normalized = this.normalizeCustomerName(c.name);
+								return normalized.includes(normalizedImportName.substring(0, 3)) || 
+									   normalizedImportName.includes(normalized.substring(0, 3));
+							});
+							
+							if (similarCustomers.length > 0) {
+								console.log('類似顧客候補:', similarCustomers.map(c => c.name));
+							}
+						}
 						
 						if (!customer) {
 							// ★修正：顧客が存在しない場合は自動で新規作成
