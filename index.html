@@ -2158,6 +2158,87 @@
 				font-size: 0.6rem !important;
 			}
 		}
+		
+		/* ========================================
+		   顧客アコーディオン展開スタイル
+		   ======================================== */
+
+		/* 社名をクリック可能に */
+		.customer-row-clickable {
+			cursor: pointer;
+			transition: background-color 0.2s;
+		}
+		.customer-row-clickable:hover {
+			background-color: #f0f7ff;
+		}
+
+		.customer-name-link {
+			color: var(--primary);
+			font-weight: bold;
+			text-decoration: none;
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+		}
+		.customer-name-link:hover {
+			text-decoration: underline;
+		}
+
+		/* アコーディオン展開エリア */
+		.customer-detail-row {
+			display: none;
+			background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+			border-left: 4px solid var(--primary);
+		}
+
+		.customer-detail-row.open {
+			display: table-row;
+			animation: fadeIn 0.3s ease-out;
+		}
+
+		@keyframes fadeIn {
+			from { opacity: 0; }
+			to { opacity: 1; }
+		}
+
+		/* 展開アイコン */
+		.accordion-icon {
+			font-size: 0.75rem;
+			transition: transform 0.3s ease;
+			color: var(--primary);
+		}
+		.accordion-icon.rotated {
+			transform: rotate(90deg);
+		}
+
+		/* 拠点情報カード */
+		.location-info-card {
+			background: white;
+			border-radius: 6px;
+			padding: 1rem;
+			border: 1px solid #dee2e6;
+			margin-bottom: 0.75rem;
+		}
+
+		.location-info-card h5 {
+			margin: 0 0 0.75rem 0;
+			color: var(--primary);
+			font-size: 0.95rem;
+			border-bottom: 1px solid #eee;
+			padding-bottom: 0.5rem;
+		}
+
+		.info-row {
+			display: flex;
+			margin-bottom: 0.4rem;
+			font-size: 0.85rem;
+		}
+
+		.info-row .label {
+			font-weight: bold;
+			min-width: 60px;
+			color: #666;
+		}
 	</style>
 </head>
 <body>
@@ -3354,6 +3435,9 @@
 			paymentTerms: '',          // 支払条件
 			creditLimit: 0,            // 与信限度額
 			taxType: '外税',           // 消費税区分
+			
+			// ★ 拠点情報（本社＋工場など）
+			locations: [],             // { type, label, postalCode, address, phone, fax, contact } の配列
 			
 			// ★ 導入機械情報（新規追加）
 			installedMachines: [],     // 導入機械リスト
@@ -5177,12 +5261,14 @@
 					const totalMachines = machines.length;
 					
 					return `
-					<tr>
+					<!-- メイン行 -->
+					<tr class="customer-row-clickable" onclick="app.toggleCustomerAccordion('${c.id}')">
 						<td>
 							<div style="display: flex; flex-direction: column; gap: 2px;">
-								<span class="customer-link" onclick="app.editCustomer('${c.id}')" title="顧客情報を編集">
-									${c.name}
-								</span>
+								<div class="customer-name-link">
+									<i class="fas fa-chevron-right accordion-icon" id="accordion-icon-${c.id}"></i>
+									<span>${c.name}</span>
+								</div>
 								${c.yomigana ? `
 									<div style="font-size: 0.7rem; color: #28a745; font-weight: 500;">
 										<i class="fas fa-check-circle" style="margin-right: 3px;"></i>${c.yomigana}
@@ -5193,18 +5279,10 @@
 									</div>
 								`}
 							</div>
-							<button class="btn btn-sm btn-secondary" onclick="app.openCustomerStaffModal('${c.id}'); event.stopPropagation();" 
-									style="margin-left: 0.5rem; padding: 2px 6px; font-size: 0.7rem; width: auto;" title="担当者管理">
-								<i class="fas fa-users"></i>
-							</button>
-							<button class="btn btn-sm btn-secondary" onclick="app.openCustomerStaffModal('${c.id}'); event.stopPropagation();" 
-									style="margin-left: 0.5rem; padding: 2px 6px; font-size: 0.7rem; width: auto;" title="担当者管理">
-								<i class="fas fa-users"></i>
-							</button>
 						</td>
 						<td>${c.industry || '-'}</td>
 						<td>
-							<a href="#" onclick="app.showMachinesByCustomer('${c.id}'); return false;" 
+							<a href="#" onclick="event.stopPropagation(); app.showMachinesByCustomer('${c.id}'); return false;" 
 							   style="color: var(--primary); font-weight: bold; text-decoration: underline;" 
 							   title="この顧客の機械一覧を表示">
 								<strong>${totalMachines}</strong>台
@@ -5213,15 +5291,23 @@
 						<td>${c.rank || '-'}</td>
 						<td>${c.status || '-'}</td>
 						<td>${c.assignee || '-'}</td>
-						<td>
+						<td onclick="event.stopPropagation();">
 							<div class="btn-group">
 								<button class="btn btn-secondary btn-sm" onclick="app.editCustomer('${c.id}')">編集</button>
 								<button class="btn btn-danger btn-sm" onclick="app.deleteCustomer('${c.id}')">削除</button>
 							</div>
 						</td>
-					</tr>`;
+					</tr>
+					
+					<!-- 詳細展開行 -->
+					<tr id="customer-detail-${c.id}" class="customer-detail-row">
+						<td colspan="7" style="padding: 1.5rem;">
+							${this.buildCustomerDetailContent(c)}
+						</td>
+					</tr>
+					`;
 				}).join('');
-				
+						
 				// 8. ★★★ 「もっと表示」ボタンの制御 ★★★
 				const existingMoreBtn = tableContainer.querySelector('.more-customers-btn');
 				if (existingMoreBtn) existingMoreBtn.remove();
@@ -5370,14 +5456,9 @@
 				this.showToast(`${indexName}で絞り込みました`, 'success');
 			}
 
-			/**
-			 * さらに顧客を表示（50件ずつ追加）
-			 */
 			showMoreCustomers() {
 				this.customerDisplayLimit = (this.customerDisplayLimit || 50) + 50;
 				this.renderCustomers();
-				
-				// スクロール位置を調整（新しく表示された部分の先頭へ）
 				setTimeout(() => {
 					const tableContainer = document.querySelector('#customersTable').closest('.card');
 					if (tableContainer) {
@@ -5389,25 +5470,272 @@
 						});
 					}
 				}, 100);
-				
-				this.showToast(`さらに50件を表示しました`, 'success');
+				this.showToast('さらに50件を表示しました', 'success');
 			}
 
-			/**
-			 * 表示件数を初期値（50件）にリセット
-			 */
 			resetCustomerDisplay() {
 				this.customerDisplayLimit = 50;
 				this.customerIndexFilter = 'all';
 				this.renderCustomers();
+				window.scrollTo({ top: 0, behavior: 'smooth' });
+				this.showToast('表示を50件にリセットしました', 'success');
+			}
+
+			/**
+			 * 顧客詳細アコーディオンの開閉
+			 */
+			toggleCustomerAccordion(customerId) {
+				const detailRow = document.getElementById('customer-detail-' + customerId);
+				const icon = document.getElementById('accordion-icon-' + customerId);
 				
-				// ページトップにスクロール
-				window.scrollTo({
-					top: 0,
-					behavior: 'smooth'
+				if (!detailRow || !icon) return;
+				
+				// 他の開いているアコーディオンを閉じる
+				document.querySelectorAll('.customer-detail-row.open').forEach(row => {
+					if (row.id !== 'customer-detail-' + customerId) {
+						row.classList.remove('open');
+					}
+				});
+				document.querySelectorAll('.accordion-icon.rotated').forEach(ic => {
+					if (ic.id !== 'accordion-icon-' + customerId) {
+						ic.classList.remove('rotated');
+					}
 				});
 				
-				this.showToast('表示を50件にリセットしました', 'success');
+				// クリックした行の開閉切り替え
+				const isOpen = detailRow.classList.contains('open');
+				if (isOpen) {
+					detailRow.classList.remove('open');
+					icon.classList.remove('rotated');
+				} else {
+					detailRow.classList.add('open');
+					icon.classList.add('rotated');
+				}
+			}
+
+			/**
+			 * 顧客の拠点情報を解析
+			 */
+			parseCustomerLocations(customer) {
+				const locations = [];
+				
+				// 本社情報
+				if (customer.address || customer.phone || customer.postalCode) {
+					locations.push({
+						type: 'headquarters',
+						label: '本社',
+						postalCode: customer.postalCode || '',
+						address: customer.address || '',
+						phone: customer.phone || '',
+						fax: customer.fax || ''
+					});
+				}
+				
+				// 備考から工場情報を解析
+				if (customer.notes) {
+					const lines = customer.notes.split('\n');
+					lines.forEach(line => {
+						if (line.includes('[工場情報]')) {
+							const info = line.replace('[工場情報]', '').trim();
+							const parts = info.split(' / ');
+							
+							const location = {
+								type: 'factory',
+								label: '工場・拠点',
+								postalCode: '',
+								address: '',
+								phone: '',
+								fax: '',
+								contact: ''
+							};
+							
+							parts.forEach(part => {
+								if (part.startsWith('住所:')) {
+									const addr = part.replace('住所:', '').trim();
+									const postalMatch = addr.match(/〒?\s*(\d{3}-\d{4})/);
+									if (postalMatch) {
+										location.postalCode = '〒' + postalMatch[1];
+										location.address = addr.replace(/〒?\s*\d{3}-\d{4}\s*/, '').trim();
+									} else {
+										location.address = addr;
+									}
+								} else if (part.startsWith('TEL:')) {
+									location.phone = part.replace('TEL:', '').trim();
+								} else if (part.startsWith('FAX:')) {
+									location.fax = part.replace('FAX:', '').trim();
+								} else if (part.startsWith('担当:')) {
+									location.contact += (location.contact ? ' / ' : '') + part.replace('担当:', '').trim();
+								}
+							});
+							
+							if (location.address || location.phone) {
+								locations.push(location);
+							}
+						}
+					});
+				}
+				
+				return locations;
+			}
+
+			/**
+			 * 顧客詳細コンテンツのHTML生成（安全な文字列連結版）
+			 */
+			buildCustomerDetailContent(customer) {
+				// ========== ① 基本情報セクション ==========
+				let basicInfoHtml = `
+					<div class="card" style="margin-bottom: 1.25rem; padding: 1rem; box-shadow: none; border: 1px solid #dee2e6;">
+						<h4 style="margin-top: 0; color: var(--primary); border-bottom: 2px solid #eee; padding-bottom: 0.5rem; font-size: 1rem;">
+							<i class="fas fa-info-circle"></i> 基本情報
+						</h4>
+						<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-size: 0.85rem;">
+							<div><strong>顧客コード:</strong> ${customer.companyCode || '-'}</div>
+							<div><strong>地域:</strong> ${customer.region || '-'}</div>
+							<div><strong>業種・区分:</strong> ${customer.industry || '-'}</div>
+							<div><strong>ランク:</strong> ${customer.rank || '-'}</div>
+							<div><strong>ステータス:</strong> ${customer.status || '-'}</div>
+							<div><strong>主担当者:</strong> ${customer.assignee || '-'}</div>
+						</div>
+					</div>
+				`;
+
+				// ========== ② 企業情報セクション ==========
+				let companyInfoHtml = '';
+				const hasCompanyInfo = customer.president || customer.capital || customer.employees || customer.establishedDate;
+				
+				if (hasCompanyInfo) {
+					companyInfoHtml = `
+						<div class="card" style="margin-bottom: 1.25rem; padding: 1rem; box-shadow: none; border: 1px solid #dee2e6;">
+							<h4 style="margin-top: 0; color: var(--primary); border-bottom: 2px solid #eee; padding-bottom: 0.5rem; font-size: 1rem;">
+								<i class="fas fa-building"></i> 企業情報
+							</h4>
+							<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; font-size: 0.85rem;">
+								${customer.president ? `<div><strong>代表者:</strong> ${customer.president}</div>` : ''}
+								${customer.capital ? `<div><strong>資本金:</strong> ¥${Number(customer.capital).toLocaleString()}</div>` : ''}
+								${customer.employees ? `<div><strong>従業員数:</strong> ${customer.employees}名</div>` : ''}
+								${customer.establishedDate ? `<div><strong>設立年月日:</strong> ${customer.establishedDate}</div>` : ''}
+							</div>
+						</div>
+					`;
+				}
+
+				// ========== ③ 取引条件セクション ==========
+				let tradeInfoHtml = '';
+				const hasTradeInfo = customer.paymentTerms || customer.creditLimit || customer.taxType;
+				
+				if (hasTradeInfo) {
+					tradeInfoHtml = `
+						<div class="card" style="margin-bottom: 1.25rem; padding: 1rem; box-shadow: none; border: 1px solid #dee2e6;">
+							<h4 style="margin-top: 0; color: var(--primary); border-bottom: 2px solid #eee; padding-bottom: 0.5rem; font-size: 1rem;">
+								<i class="fas fa-file-contract"></i> 取引条件
+							</h4>
+							<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; font-size: 0.85rem;">
+								${customer.paymentTerms ? `<div><strong>支払条件:</strong> ${customer.paymentTerms}</div>` : ''}
+								${customer.creditLimit ? `<div><strong>与信限度額:</strong> ¥${Number(customer.creditLimit).toLocaleString()}</div>` : ''}
+								<div><strong>消費税区分:</strong> ${customer.taxType || '外税'}</div>
+							</div>
+						</div>
+					`;
+				}
+
+				// ========== ④ 拠点情報セクション ==========
+				let locationsHtml = '';
+				const locations = customer.locations || [];
+
+				if (locations.length > 0) {
+					locationsHtml = `
+						<div class="card" style="margin-bottom: 1.25rem; padding: 1rem; box-shadow: none; border: 1px solid #dee2e6;">
+							<h4 style="margin-top: 0; color: var(--primary); border-bottom: 2px solid #eee; padding-bottom: 0.5rem; font-size: 1rem;">
+								<i class="fas fa-map-marker-alt"></i> 拠点・連絡先情報（${locations.length}拠点）
+							</h4>
+							<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem;">
+					`;
+					
+					locations.forEach(location => {
+						const iconName = location.type === 'headquarters' ? 'building' : 'industry';
+						const borderColor = location.type === 'headquarters' ? '#2c5aa0' : '#17a2b8';
+						
+						locationsHtml += `
+							<div style="background: white; border: 1px solid #dee2e6; border-radius: 6px; padding: 0.75rem; border-top: 3px solid ${borderColor};">
+								<h5 style="margin: 0 0 0.75rem 0; color: ${borderColor}; font-size: 0.95rem;">
+									<i class="fas fa-${iconName}"></i> ${location.label}
+								</h5>
+								${location.postalCode || location.address ? `
+									<div class="info-row" style="margin-bottom: 0.4rem; display: flex; font-size: 0.85rem;">
+										<span class="label" style="min-width: 50px; color: #666; font-weight: 600;">住所:</span>
+										<span>${(location.postalCode || '') + ' ' + (location.address || '')}</span>
+									</div>
+								` : ''}
+								${location.phone ? `
+									<div class="info-row" style="margin-bottom: 0.4rem; display: flex; font-size: 0.85rem;">
+										<span class="label" style="min-width: 50px; color: #666; font-weight: 600;">TEL:</span>
+										<span><a href="tel:${location.phone}" onclick="event.stopPropagation();" style="color: var(--primary);">${location.phone}</a></span>
+									</div>
+								` : ''}
+								${location.fax ? `
+									<div class="info-row" style="margin-bottom: 0.4rem; display: flex; font-size: 0.85rem;">
+										<span class="label" style="min-width: 50px; color: #666; font-weight: 600;">FAX:</span>
+										<span>${location.fax}</span>
+									</div>
+								` : ''}
+								${location.contact ? `
+									<div class="info-row" style="margin-bottom: 0.4rem; display: flex; font-size: 0.85rem;">
+										<span class="label" style="min-width: 50px; color: #666; font-weight: 600;">担当:</span>
+										<span style="color: var(--primary); font-weight: 500;">${location.contact}</span>
+									</div>
+								` : ''}
+							</div>
+						`;
+					});
+					
+					locationsHtml += '</div></div>';
+				} else {
+					// 拠点情報未登録の警告
+					locationsHtml = `
+						<div class="card" style="margin-bottom: 1.25rem; padding: 1rem; background: #fff3cd; border-left: 4px solid #ffc107;">
+							<i class="fas fa-exclamation-triangle" style="color: #856404;"></i>
+							<strong style="color: #856404; margin-left: 0.5rem;"> 拠点・連絡先情報が未登録です</strong>
+							<p style="margin: 0.5rem 0 0 0; color: #856404; font-size: 0.85rem;">
+								「編集」ボタンから入力するか、得意先リストを再インポートしてください。
+							</p>
+						</div>
+					`;
+				}
+
+				// ========== ⑤ 備考セクション ==========
+				let notesHtml = '';
+				if (customer.notes) {
+					notesHtml = `
+						<div class="card" style="margin-bottom: 1.25rem; padding: 1rem; box-shadow: none; border: 1px solid #dee2e6;">
+							<h4 style="margin-top: 0; color: var(--primary); border-bottom: 2px solid #eee; padding-bottom: 0.5rem; font-size: 1rem;">
+								<i class="fas fa-sticky-note"></i> その他・備考
+							</h4>
+							<div style="background: #fffde7; border-left: 4px solid #ffc107; padding: 0.75rem; border-radius: 4px; font-size: 0.85rem; white-space: pre-wrap;">
+								${customer.notes}
+							</div>
+						</div>
+					`;
+				}
+
+				// ========== ⑥ アクションボタン ==========
+				const machineCount = (customer.installedMachines || []).length;
+				let actionsHtml = `
+					<div style="display: flex; gap: 0.75rem; flex-wrap: wrap; padding-top: 1rem; border-top: 1px solid #ddd;">
+						<button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); app.editCustomer('${customer.id}');">
+							<i class="fas fa-edit"></i> 編集
+						</button>
+						<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); app.openCustomerStaffModal('${customer.id}');">
+							<i class="fas fa-users"></i> 担当者管理
+						</button>
+						${machineCount > 0 ? `
+							<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); app.showMachinesByCustomer('${customer.id}');">
+								<i class="fas fa-cogs"></i> 機械情報（${machineCount}台）
+							</button>
+						` : ''}
+					</div>
+				`;
+
+				return basicInfoHtml + companyInfoHtml + tradeInfoHtml + locationsHtml + notesHtml + actionsHtml;
 			}
 
 			/**
@@ -5420,12 +5748,15 @@
 					return;
 				}
 				
-				// 機械情報ページに移動し、その顧客でフィルタ
+				// ★修正：先にページ切り替えを実行（リセットを先に終わらせる）
+				this.showPage('machines');
+				
+				// ★修正：リセット後に検索条件を再設定
 				this.searchKeyword = customer.name.toLowerCase();
 				const searchInput = document.getElementById('globalSearchInput');
 				if (searchInput) searchInput.value = customer.name;
 				
-				this.showPage('machines');
+				// 絞り込んだ状態で機械リストを再描画
 				this.renderMachines();
 				this.showToast(`${customer.name}の機械情報（${customer.installedMachines?.length || 0}台）を表示中`, 'success');
 			}
@@ -5463,10 +5794,10 @@
 				let filteredMachines = machines;
 				if (this.searchKeyword) {
 					filteredMachines = machines.filter(m => 
-						m.customerName.toLowerCase().includes(this.searchKeyword) ||
-						(m.machineName && m.machineName.toLowerCase().includes(this.searchKeyword)) ||
-						(m.machineCode && m.machineCode.toLowerCase().includes(this.searchKeyword)) ||
-						(m.serialNumber && String(m.serialNumber ?? '').toLowerCase().includes(this.searchKeyword))
+						String(m.customerName || '').toLowerCase().includes(this.searchKeyword) ||
+						String(m.machineName || '').toLowerCase().includes(this.searchKeyword) ||
+						String(m.machineCode || '').toLowerCase().includes(this.searchKeyword) ||
+						String(m.serialNumber || '').toLowerCase().includes(this.searchKeyword)
 					);
 				}
 				
@@ -6599,6 +6930,26 @@
 					orderHistory: existingCustomer?.orderHistory || [],
 					staffs: existingCustomer?.staffs || []
 				};
+				
+				// ★拠点情報の同期（本社情報をlocations[0]に反映）
+				let locations = existingCustomer?.locations || [];
+				if (locations.length === 0) {
+					locations = [{ type: 'headquarters', label: '本社' }];
+				}
+
+				// 本社情報の更新
+				locations[0] = {
+					...(locations[0] || {}),
+					type: 'headquarters',
+					label: '本社',
+					postalCode: data.postalCode,
+					address: data.address,
+					phone: data.phone,
+					fax: data.fax,
+					contact: locations[0]?.contact || ''
+				};
+
+				data.locations = locations;
 				
 				if (id) {
 					const idx = this.data.customers.findIndex(x => x.id == id);
@@ -8653,6 +9004,7 @@
 						if (customer.taxType === undefined) customer.taxType = '外税';
 						if (!Array.isArray(customer.installedMachines)) customer.installedMachines = [];
 						if (!Array.isArray(customer.orderHistory)) customer.orderHistory = [];
+						if (!Array.isArray(customer.locations)) customer.locations = [];
 					});
 					// ★★★ 初期化処理ここまで ★★★
 					
@@ -9787,260 +10139,220 @@
 				
 				let importCount = 0;
 				let updateCount = 0;
-				const customerMap = {};
+				let skipCount = 0;
 
-				rows.forEach((row, index) => {
+				// ★ヘッダー行の自動検出
+				let headerRowIndex = 0;
+				for (let i = 0; i < Math.min(5, rows.length); i++) {
+					const row = rows[i];
+					if (row && row.some && row.some(cell => 
+						typeof cell === 'string' && 
+						(cell.includes('社名') || cell.includes('顧客名') || cell.includes('得意先名'))
+					)) {
+						headerRowIndex = i;
+						console.log('✅ ヘッダー行を発見:', i + 1, '行目');
+						break;
+					}
+				}
+
+				// ★列インデックスマッピング（柔軟な列名対応）
+				const headerRow = rows[headerRowIndex];
+				const getColumnIndex = (row, ...names) => {
+					for (const name of names) {
+						const index = headerRow.findIndex(cell => 
+							typeof cell === 'string' && cell.includes(name)
+						);
+						if (index !== -1) return index;
+					}
+					return -1;
+				};
+
+				// 住所から郵便番号を分離するヘルパー
+				const parseAddress = (addressRaw) => {
+					if (!addressRaw) return { postalCode: '', address: '' };
+					const postalMatch = String(addressRaw).match(/〒?\s*(\d{3}-\d{4})\s*/);
+					if (postalMatch) {
+						return {
+							postalCode: '〒' + postalMatch[1],
+							address: String(addressRaw).replace(/〒?\s*\d{3}-\d{4}\s*/, '').trim()
+						};
+					}
+					return { postalCode: '', address: String(addressRaw).trim() };
+				};
+
+				// ★データ行の処理
+				for (let i = headerRowIndex + 1; i < rows.length; i++) {
+					const row = rows[i];
+					if (!row || !Array.isArray(row)) continue;
+					if (row.every(cell => !cell || cell === '')) continue;
+
 					try {
-						let customerName = '';
-						let customerCode = '';
-						
-						// データ形式の判定と基本情報抽出
-						if (Array.isArray(row)) {
-							// 帳票形式（二次元配列）の場合
-							customerCode = row[0] || '';
-							customerName = (row[3] || '').toString().trim();
-						} else {
-							// 標準テーブル形式（オブジェクト）の場合
-							customerName = this.findColumnValue(row, ['顧客名', '得意先名', '社名']);
-							customerCode = this.findColumnValue(row, ['顧客コード', 'コード']);
-						}
-						
-						if (!customerName) return;
+						// ★基本情報の抽出（列位置ベース + 動的検出）
+						const customerCode = String(row[0] || '').trim();
+						const region = String(row[1] || '').trim();
+						const category = String(row[2] || '').trim();
+						const rawName = String(row[3] || '').trim();
 
-						// ★ 表記ゆれの正規化（ハート vs ハ－ト等）
-						const normalizedName = customerName
-							.replace(/[－−‐-ー]/g, 'ー')  // 各種ハイフンを長音符に統一
-							.replace(/[　\s]+/g, '')      // 全角・半角スペースを削除
-							.trim();
-						
-						// 顧客データの初期化または取得
-						if (!customerMap[normalizedName]) {
-							customerMap[normalizedName] = {
-								name: customerName,
-								yomigana: '',  // ★よみがなフィールド追加
+						if (!rawName) { skipCount++; continue; }
+
+						// ★本社情報の抽出（列4〜7）
+						const hqAddressRaw = String(row[4] || '').trim();
+						const hqPhone = String(row[5] || '').trim();
+						const hqFax = String(row[6] || '').trim();
+						const hqContact = String(row[7] || '').trim();
+						const { postalCode: hqPostal, address: hqAddress } = parseAddress(hqAddressRaw);
+
+						// ★拠点情報配列の構築
+						const locations = [];
+
+						// 本社情報を追加（住所または電話があれば）
+						if (hqAddressRaw || hqPhone) {
+							locations.push({
+								type: 'headquarters',
+								label: '本社',
+								postalCode: hqPostal,
+								address: hqAddress,
+								phone: hqPhone,
+								fax: hqFax,
+								contact: hqContact
+							});
+						}
+
+						// ★工場1〜4の情報を抽出（列8〜23）
+						for (let factoryNum = 1; factoryNum <= 4; factoryNum++) {
+							const baseCol = 8 + (factoryNum - 1) * 4; // 工場1=列8-11, 工場2=列12-15...
+							const fAddressRaw = String(row[baseCol] || '').trim();
+							const fPhone = String(row[baseCol + 1] || '').trim();
+							const fFax = String(row[baseCol + 2] || '').trim();
+							const fContact = String(row[baseCol + 3] || '').trim();
+
+							// 住所または電話があれば工場として追加
+							if (fAddressRaw || fPhone) {
+								const { postalCode: fPostal, address: fAddress } = parseAddress(fAddressRaw);
+								locations.push({
+									type: 'factory',
+									label: `工場${factoryNum}`,
+									postalCode: fPostal,
+									address: fAddress,
+									phone: fPhone,
+									fax: fFax,
+									contact: fContact
+								});
+							}
+						}
+
+						// ★企業・その他情報の抽出（列24以降）
+						const email = String(row[24] || '').trim();
+						const president = String(row[25] || '').trim();
+						const paymentTerms = String(row[26] || '').trim();
+						const capitalRaw = String(row[27] || '').trim();
+						const website = String(row[28] || '').trim();
+						const employeesRaw = String(row[29] || '').trim();
+						const otherNotes = String(row[30] || '').trim();
+
+						// 数値の解析
+						const capital = this.parseNumber(capitalRaw) || 0;
+						const employees = this.parseNumber(employeesRaw) || 0;
+
+						// ★既存顧客の検索（名前正規化で比較）
+						const normalizedName = rawName.replace(/[－−‐-ー]/g, 'ー').replace(/[　\s]+/g, '').trim();
+						const existingCustomer = this.data.customers.find(c => {
+							const existingNormalized = (c.name || '')
+								.replace(/[－−‐-ー]/g, 'ー')
+								.replace(/[　\s]+/g, '');
+							return existingNormalized === normalizedName;
+						});
+
+						if (existingCustomer) {
+							// ★既存顧客の更新（空欄補完 + 拠点情報更新）
+							if (!existingCustomer.companyCode && customerCode) existingCustomer.companyCode = customerCode;
+							if (!existingCustomer.region && region) existingCustomer.region = region;
+							if (!existingCustomer.industry && category) existingCustomer.industry = category;
+							
+							// 本社情報の更新（互換性維持）
+							if (!existingCustomer.postalCode && hqPostal) existingCustomer.postalCode = hqPostal;
+							if (!existingCustomer.address && hqAddress) existingCustomer.address = hqAddress;
+							if (!existingCustomer.phone && hqPhone) existingCustomer.phone = hqPhone;
+							if (!existingCustomer.fax && hqFax) existingCustomer.fax = hqFax;
+							
+							// 企業情報の更新
+							if (!existingCustomer.email && email) existingCustomer.email = email;
+							if (!existingCustomer.website && website) existingCustomer.website = website;
+							if (!existingCustomer.president && president) existingCustomer.president = president;
+							if (!existingCustomer.capital && capital) existingCustomer.capital = capital;
+							if (!existingCustomer.employees && employees) existingCustomer.employees = employees;
+							if (!existingCustomer.paymentTerms && paymentTerms) existingCustomer.paymentTerms = paymentTerms;
+							
+							// 拠点情報の更新（上書き）
+							if (locations.length > 0) existingCustomer.locations = locations;
+							
+							// 備考の追加
+							if (otherNotes && !existingCustomer.notes?.includes(otherNotes)) {
+								existingCustomer.notes = (existingCustomer.notes ? existingCustomer.notes + '\n' : '') + otherNotes;
+							}
+							
+							updateCount++;
+							console.log(`✏️ 更新: ${rawName}`);
+							
+						} else {
+							// ★新規顧客の作成
+							const newCustomer = {
+								id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+								name: rawName,
+								yomigana: '',
 								companyCode: customerCode,
-								region: '',
-								industry: '',
+								region: region,
+								industry: category,
 								rank: 'B',
 								status: '取引中',
 								assignee: CURRENT_USER.assignee,
-								// 連絡先情報
-								postalCode: '',
-								address: '',
-								phone: '',
-								fax: '',
-								email: '',
-								website: '',
+								
+								// 本社連絡先（互換性維持）
+								postalCode: hqPostal,
+								address: hqAddress,
+								phone: hqPhone,
+								fax: hqFax,
+								email: email,
+								website: website,
+								
 								// 企業情報
+								president: president,
 								establishedDate: '',
-								capital: 0,
-								employees: 0,
-								representative: '',
+								capital: capital,
+								employees: employees,
+								
 								// 取引条件
-								paymentTerms: '',
+								paymentTerms: paymentTerms,
 								creditLimit: 0,
 								taxType: '外税',
+								
+								// 拠点情報
+								locations: locations,
+								
 								// その他
-								notes: ''
+								notes: otherNotes,
+								staffs: [],
+								installedMachines: [],
+								orderHistory: []
 							};
+							
+							this.data.customers.push(newCustomer);
+							importCount++;
+							console.log(`➕ 新規: ${rawName}`);
 						}
-						
-						const customer = customerMap[normalizedName];
-						
-						if (Array.isArray(row)) {
-							// 帳票形式の特殊処理
-							customer.region = customer.region || (row[1] || '').toString().trim();
-							// 行種別の判定（E列から本社/工場を識別）
-							const rowType = (row[4] || '').toString().trim();
-							const isHeadOfficeRow = rowType === '本社住所';
-							
-							// 行内の各セルをスキャンしてキーワードマッチング
-							for (let i = 0; i < row.length - 1; i++) {
-								const cellValue = (row[i] || '').toString().trim();
-								const nextValue = (row[i + 1] || '').toString().trim();
-								
-								// 住所情報の抽出
-								if (cellValue === '本社住所' || cellValue === '住所') {
-									// 郵便番号（〒マーク付き）の検出
-									for (let j = i + 1; j < Math.min(i + 5, row.length); j++) {
-										const postalCandidate = (row[j] || '').toString().trim();
-										if (postalCandidate.includes('〒')) {
-											customer.postalCode = customer.postalCode || postalCandidate;
-											// 郵便番号の次の列を住所として取得
-											const addressCandidate = (row[j + 1] || '').toString().trim();
-											if (addressCandidate && !customer.address) {
-												customer.address = addressCandidate;
-											}
-											break;
-										}
-									}
-								}
-								
-								// 電話番号の抽出（本社住所行を優先）
-								else if (cellValue === '電話番号' || cellValue === 'TEL') {
-									if (nextValue && nextValue.match(/[\d-]{10,13}/)) {
-										if (isHeadOfficeRow) {
-											customer.phone = nextValue; // 本社行なら強制上書き
-										} else if (!customer.phone || customer.phone === '03-1234-5678') {
-											customer.phone = nextValue; // 空またはダミーデータの場合のみ補完
-										}
-									}
-								}
 
-								else if (cellValue === 'ＦＡＸ' || cellValue === 'FAX') {
-									if (nextValue && nextValue.match(/[\d-]{10,13}/)) {
-										if (isHeadOfficeRow) {
-											customer.fax = nextValue; // 本社行なら強制上書き
-										} else if (!customer.fax || customer.fax === '03-1234-5679') {
-											customer.fax = nextValue; // 空またはダミーデータの場合のみ補完
-										}
-									}
-								}
-
-								// FAX番号の抽出（本社住所行を優先）
-								else if (cellValue === 'ＦＡＸ' || cellValue === 'FAX') {
-									if (nextValue && nextValue.match(/[\d-]{10,13}/)) {
-										if (isHeadOfficeRow) {
-											customer.fax = nextValue; // 本社行なら強制上書き
-										} else if (!customer.fax || customer.fax === '03-1234-5679') {
-											customer.fax = nextValue; // 空またはダミーデータの場合のみ補完
-										}
-									}
-								}
-							
-								// メールアドレスの抽出
-								else if (cellValue === 'E-mail' || cellValue === 'Ｅ-mail' || cellValue === 'メール') {
-									if (nextValue && nextValue.includes('@')) {
-										customer.email = customer.email || nextValue;
-									}
-								}
-								
-								// ホームページURLの抽出
-								else if (cellValue === 'URL' || cellValue === 'ホームページ') {
-									if (nextValue && (nextValue.startsWith('http') || nextValue.includes('www'))) {
-										customer.website = customer.website || nextValue;
-									}
-								}
-								
-								// 代表者情報の抽出
-								else if (cellValue === '社長' || cellValue === '代表者') {
-									if (nextValue) {
-										customer.representative = customer.representative || nextValue;
-									}
-								}
-								
-								// 支払条件の抽出
-								else if (cellValue === '支払条件') {
-									if (nextValue) {
-										customer.paymentTerms = customer.paymentTerms || nextValue;
-									}
-								}
-								
-								// 資本金の抽出
-								else if (cellValue === '資本金') {
-									const capitalValue = this.parseNumber(nextValue);
-									if (capitalValue > 0) {
-										customer.capital = customer.capital || capitalValue;
-									}
-								}
-								
-								// 従業員数の抽出
-								else if (cellValue === '従業員') {
-									const employeeValue = this.parseNumber(nextValue);
-									if (employeeValue > 0) {
-										customer.employees = customer.employees || employeeValue;
-									}
-								}
-							}
-							
-							// 工場住所は備考に追記（本社住所と区別）
-							if (row.includes('工場住所')) {
-								const factoryIndex = row.indexOf('工場住所');
-								for (let j = factoryIndex + 1; j < Math.min(factoryIndex + 5, row.length); j++) {
-									const postalCandidate = (row[j] || '').toString().trim();
-									if (postalCandidate.includes('〒')) {
-										const factoryAddress = `${postalCandidate} ${row[j + 1] || ''}`.trim();
-										if (!customer.notes.includes('工場住所')) {
-											customer.notes += `\n[工場住所] ${factoryAddress}`;
-										}
-										break;
-									}
-								}
-							}
-							
-						} else {
-							// 標準テーブル形式の処理（既存ロジック）
-							Object.assign(customer, {
-								yomigana: this.findColumnValue(row, ['よみがな', 'フリガナ', 'ふりがな', 'ヨミガナ', 'カナ']),
-								companyCode: this.findColumnValue(row, ['顧客コード', '得意先コード', 'コード']),
-								postalCode: this.findColumnValue(row, ['郵便番号', '〒']),
-								address: this.findColumnValue(row, ['住所', '住所1', '所在地']),
-								phone: this.findColumnValue(row, ['電話番号', 'TEL', '電話']),
-								fax: this.findColumnValue(row, ['FAX', 'FAX番号']),
-								email: this.findColumnValue(row, ['メールアドレス', 'Email']),
-								website: this.findColumnValue(row, ['ホームページ', 'URL']),
-								industry: this.findColumnValue(row, ['業種']),
-								paymentTerms: this.findColumnValue(row, ['支払条件']),
-								capital: this.parseNumber(this.findColumnValue(row, ['資本金'])),
-								employees: this.parseNumber(this.findColumnValue(row, ['従業員数']))
-							});
-						}
-						
 					} catch (error) {
-						console.error(`行${index + 1}処理エラー:`, error);
+						console.error(`行${i + 1}処理エラー:`, error);
+						skipCount++;
 					}
-				});
+				}
 
-				// 抽出したデータを既存の顧客データとマージ
-				Object.values(customerMap).forEach(customerData => {
-					// ★ 既存顧客検索時も名前正規化で比較
-					const existingCustomer = this.data.customers.find(c => {
-						const existingName = (c.name || '').replace(/[－−‐-ー]/g, 'ー').replace(/[　\s]+/g, '');
-						const searchName = (customerData.name || '').replace(/[－−‐-ー]/g, 'ー').replace(/[　\s]+/g, '');
-						return existingName === searchName;
-					});
-					
-					if (existingCustomer) {
-						// 既存顧客の更新（空欄のみ補完）
-						Object.keys(customerData).forEach(key => {
-							if (key === 'notes' && customerData[key]) {
-								// 備考は追記モード
-								if (!existingCustomer[key]) existingCustomer[key] = '';
-								if (!existingCustomer[key].includes(customerData[key].trim())) {
-									existingCustomer[key] += customerData[key];
-								}
-							} else if (customerData[key]) {
-								// 連絡先関連の項目はExcelデータで上書き（ダミーデータを置換）
-								const overwriteFields = ['postalCode', 'address', 'phone', 'fax', 'email', 'website', 'representative', 'capital', 'employees', 'paymentTerms', 'companyCode'];
-								if (!existingCustomer[key] || overwriteFields.includes(key)) {
-									existingCustomer[key] = customerData[key];
-								}
-							}
-						});
-						updateCount++;
-						console.log(`✏️ 更新: ${customerData.name}`);
-					} else {
-						// 新規顧客の作成
-						this.data.customers.push({
-							id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
-							...customerData,
-							staffs: [],
-							installedMachines: [],
-							orderHistory: []
-						});
-						importCount++;
-						console.log(`➕ 新規: ${customerData.name}`);
-					}
-				});
-				
 				this.saveData();
-				return { 
-					success: true, 
-					count: importCount + updateCount,
-					message: `✅ 顧客データ処理完了 - 新規: ${importCount}件, 更新: ${updateCount}件`
-				};
+				const message = `✅ 顧客データ処理完了 - 新規: ${importCount}件, 更新: ${updateCount}件, スキップ: ${skipCount}件`;
+				console.log(message);
+				return { success: true, count: importCount + updateCount, message };
 			}
-			
+7			
 			/**
 			 * 納入年 + 納入日から正しい導入日を構築
 			 */
@@ -10330,11 +10642,40 @@
 						let customer = this.data.customers.find(c => c.name === customerName);
 						
 						if (!customer) {
-							console.warn(`⚠️ 顧客が見つかりません: ${customerName}（機械: ${machineName}）`);
-							skipCount++;
-							return;
+							// ★修正：顧客が存在しない場合は自動で新規作成
+							customer = {
+								id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+								name: customerName,
+								yomigana: '',
+								companyCode: '',
+								industry: '',
+								status: '取引中',
+								rank: 'B',
+								assignee: CURRENT_USER.assignee,
+								// 連絡先情報の初期化
+								postalCode: '',
+								address: '',
+								phone: '',
+								fax: '',
+								email: '',
+								website: '',
+								// 企業情報の初期化
+								establishedDate: '',
+								capital: 0,
+								employees: 0,
+								// 取引条件の初期化
+								paymentTerms: '',
+								creditLimit: 0,
+								taxType: '外税',
+								// 配列の初期化
+								staffs: [],
+								installedMachines: [],
+								orderHistory: []
+							};
+							this.data.customers.push(customer);
+							console.log(`✅ 顧客を自動作成: ${customerName}`);
 						}
-						
+
 						if (!Array.isArray(customer.installedMachines)) {
 							customer.installedMachines = [];
 						}
