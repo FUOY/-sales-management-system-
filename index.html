@@ -2239,6 +2239,30 @@
 			min-width: 60px;
 			color: #666;
 		}
+		
+		/* 営業アシスタント専用スタイル */
+		#salesAssistantCard select:hover {
+			border-color: var(--primary) !important;
+			box-shadow: 0 2px 8px rgba(44, 90, 160, 0.15) !important;
+		}
+
+		#salesAssistantCard select:focus {
+			border-color: var(--primary) !important;
+			box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.2) !important;
+			outline: none !important;
+		}
+
+		/* 詳細フィルタパネルのアニメーション */
+		@keyframes slideDown {
+			from { opacity: 0; transform: translateY(-10px); }
+			to { opacity: 1; transform: translateY(0); }
+		}
+
+		/* チェックボックスのホバー効果 */
+		#segmentFilterPanel label:hover {
+			background: #f0f7ff !important;
+			border-color: var(--primary) !important;
+		}		
 	</style>
 </head>
 <body>
@@ -2401,6 +2425,7 @@
 						<h3><i class="fas fa-handshake"></i> 顧客接触状況（30日）</h3>
 						<div id="engagementContent" style="min-height: 150px;"></div>
 					</div>
+
                     <div class="card" style="grid-column: 1 / -1;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
 							<!-- 左側: タイトル + 年度選択ドロップダウン -->
@@ -2434,8 +2459,313 @@
 							</div>
 						</div>
                         <div class="chart-wrapper" style="height: 350px;"><canvas id="chartTimeline"></canvas></div>
-                    </div>
-                </div>
+                    </div>	
+					
+										<!-- ★営業アシスタント機能 -->
+					<div class="card" id="salesAssistantCard" style="grid-column: 1 / -1; margin-top: 1.5rem;">
+						<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+							<h3 style="margin: 0; color: var(--primary); border: none;">
+								<i class="fas fa-robot"></i> 営業アシスタント
+								<span style="font-size: 0.75rem; background: #28a745; color: white; padding: 2px 8px; border-radius: 10px; margin-left: 0.5rem;">AI分析</span>
+							</h3>
+							
+							<!-- 条件設定コントロール（完全改善版） -->
+							<div style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
+								
+								<!-- 基本設定行 -->
+								<div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+									
+									<div style="display: flex; align-items: center; gap: 0.5rem;">
+										<label style="font-size: 0.85rem; color: #666; white-space: nowrap; font-weight: 600;">
+											<i class="fas fa-calendar-alt" style="color: var(--primary);"></i> 分析条件:
+										</label>
+										<div style="position: relative; display: inline-block;">
+											<select id="assistantYears" 
+													onchange="app.renderSalesAssistant()"
+													style="appearance: none; -webkit-appearance: none; -moz-appearance: none;
+														   padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+														   border-radius: 6px; border: 2px solid #dee2e6;
+														   font-size: 0.85rem; font-weight: 600;
+														   background: white; cursor: pointer;
+														   min-width: 140px; color: #333;
+														   transition: all 0.2s ease;">
+												<option value="3">3年以上未導入</option>
+												<option value="5">5年以上未導入</option>
+												<option value="10" selected>10年以上未導入</option>
+												<option value="15">15年以上未導入</option>
+											</select>
+											<i class="fas fa-chevron-down"
+											   style="position: absolute; right: 0.75rem; top: 50%;
+													  transform: translateY(-50%); pointer-events: none;
+													  font-size: 0.75rem; color: var(--primary);"></i>
+										</div>
+									</div>
+									
+									<div style="display: flex; align-items: center; gap: 0.5rem;">
+										<label style="font-size: 0.85rem; color: #666; white-space: nowrap; font-weight: 600;">
+											<i class="fas fa-sort-amount-down" style="color: var(--primary);"></i> ソート:
+										</label>
+										<div style="position: relative; display: inline-block;">
+											<select id="assistantSort" 
+													onchange="app.renderSalesAssistant()"
+													style="appearance: none; -webkit-appearance: none; -moz-appearance: none;
+														   padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+														   border-radius: 6px; border: 2px solid #dee2e6;
+														   font-size: 0.85rem; font-weight: 600;
+														   background: white; cursor: pointer;
+														   min-width: 120px; color: #333;
+														   transition: all 0.2s ease;">
+												<option value="machines">導入台数順</option>
+												<option value="amount">累計金額順</option>
+												<option value="years">未導入期間順</option>
+												<option value="priority">優先度スコア順</option>
+											</select>
+											<i class="fas fa-chevron-down"
+											   style="position: absolute; right: 0.75rem; top: 50%;
+													  transform: translateY(-50%); pointer-events: none;
+													  font-size: 0.75rem; color: var(--primary);"></i>
+										</div>
+									</div>
+									
+									<div style="display: flex; align-items: center; gap: 0.5rem;">
+										<label style="font-size: 0.85rem; color: #666; white-space: nowrap; font-weight: 600;">
+											<i class="fas fa-list-ol" style="color: var(--primary);"></i> 表示:
+										</label>
+										<div style="position: relative; display: inline-block;">
+											<select id="assistantLimit" 
+													onchange="app.renderSalesAssistant()"
+													style="appearance: none; -webkit-appearance: none; -moz-appearance: none;
+														   padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+														   border-radius: 6px; border: 2px solid #dee2e6;
+														   font-size: 0.85rem; font-weight: 600;
+														   background: white; cursor: pointer;
+														   min-width: 100px; color: #333;
+														   transition: all 0.2s ease;">
+												<option value="5">上位5社</option>
+												<option value="10" selected>上位10社</option>
+												<option value="20">上位20社</option>
+												<option value="50">上位50社</option>
+												<option value="9999">全件表示</option>
+											</select>
+											<i class="fas fa-chevron-down"
+											   style="position: absolute; right: 0.75rem; top: 50%;
+													  transform: translateY(-50%); pointer-events: none;
+													  font-size: 0.75rem; color: var(--primary);"></i>
+										</div>
+									</div>
+									
+									<!-- 詳細フィルタ展開ボタン -->
+									<button id="segmentFilterToggle"
+											onclick="app.toggleSegmentFilters()"
+											style="padding: 0.5rem 1rem; border-radius: 6px;
+												   border: 2px solid #dee2e6; background: white;
+												   font-size: 0.85rem; font-weight: 600; cursor: pointer;
+												   color: #555; display: flex; align-items: center; gap: 0.5rem;
+												   transition: all 0.2s ease;">
+										<i class="fas fa-sliders-h" style="color: var(--primary);"></i>
+										詳細フィルタ
+										<i class="fas fa-chevron-down" id="segmentToggleIcon"
+										   style="font-size: 0.7rem; color: #888; transition: transform 0.3s ease;"></i>
+									</button>
+									
+									<button class="btn btn-success"
+											onclick="app.exportTargetCustomers()"
+											style="white-space: nowrap; margin-left: auto;">
+										<i class="fas fa-file-csv"></i> ターゲットリスト出力
+									</button>
+								</div>
+
+								<!-- 詳細セグメントフィルタパネル（初期非表示） -->
+								<div id="segmentFilterPanel"
+									 style="display: none; padding: 1.25rem;
+											background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+											border-radius: 8px; border: 1px solid #dee2e6;">
+
+									<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+										<h4 style="margin: 0; color: var(--primary); font-size: 1rem;">
+											<i class="fas fa-filter"></i> セグメント詳細条件
+										</h4>
+										<button onclick="app.resetSegmentFilters()"
+												style="padding: 0.3rem 0.8rem; font-size: 0.75rem;
+													   border: 1px solid #ccc; border-radius: 4px; background: white;
+													   cursor: pointer; color: #666; transition: all 0.2s;">
+											<i class="fas fa-redo"></i> 全リセット
+										</button>
+									</div>
+
+									<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+
+										<!-- 業種フィルタ -->
+										<div>
+											<label style="font-size: 0.8rem; font-weight: 600; color: #555; display: block; margin-bottom: 0.4rem;">
+												<i class="fas fa-industry" style="color: var(--primary);"></i> 業種・区分
+											</label>
+											<div style="position: relative;">
+												<select id="filterIndustry"
+														onchange="app.renderSalesAssistant()"
+														style="appearance: none; -webkit-appearance: none; -moz-appearance: none;
+															   width: 100%; padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+															   border-radius: 6px; border: 1px solid #ccc;
+															   font-size: 0.85rem; background: white; cursor: pointer;">
+													<option value="all">全業種</option>
+												</select>
+												<i class="fas fa-chevron-down"
+												   style="position: absolute; right: 0.75rem; top: 50%;
+														  transform: translateY(-50%); pointer-events: none;
+														  font-size: 0.7rem; color: #888;"></i>
+											</div>
+										</div>
+
+										<!-- 地域フィルタ -->
+										<div>
+											<label style="font-size: 0.8rem; font-weight: 600; color: #555; display: block; margin-bottom: 0.4rem;">
+												<i class="fas fa-map-marker-alt" style="color: var(--primary);"></i> 地域
+											</label>
+											<div style="position: relative;">
+												<select id="filterRegion"
+														onchange="app.renderSalesAssistant()"
+														style="appearance: none; -webkit-appearance: none; -moz-appearance: none;
+															   width: 100%; padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+															   border-radius: 6px; border: 1px solid #ccc;
+															   font-size: 0.85rem; background: white; cursor: pointer;">
+													<option value="all">全地域</option>
+												</select>
+												<i class="fas fa-chevron-down"
+												   style="position: absolute; right: 0.75rem; top: 50%;
+														  transform: translateY(-50%); pointer-events: none;
+														  font-size: 0.7rem; color: #888;"></i>
+											</div>
+										</div>
+
+										<!-- 導入台数範囲 -->
+										<div>
+											<label style="font-size: 0.8rem; font-weight: 600; color: #555; display: block; margin-bottom: 0.4rem;">
+												<i class="fas fa-cogs" style="color: var(--primary);"></i>
+												導入台数: <span id="machineRangeLabel" style="color: var(--primary);">1台 〜 上限なし</span>
+											</label>
+											<div style="display: flex; gap: 0.5rem; align-items: center;">
+												<input type="number" id="filterMachineMin"
+													   min="0" value="1" placeholder="最小"
+													   onchange="app.updateMachineRangeLabel(); app.renderSalesAssistant()"
+													   style="width: 70px; padding: 0.4rem; border-radius: 4px;
+															  border: 1px solid #ccc; font-size: 0.85rem; text-align: center;">
+												<span style="color: #888; font-size: 0.9rem;">〜</span>
+												<input type="number" id="filterMachineMax"
+													   min="0" placeholder="上限なし"
+													   onchange="app.updateMachineRangeLabel(); app.renderSalesAssistant()"
+													   style="width: 70px; padding: 0.4rem; border-radius: 4px;
+															  border: 1px solid #ccc; font-size: 0.85rem; text-align: center;">
+											</div>
+										</div>
+
+										<!-- メール登録状況フィルタ -->
+										<div>
+											<label style="font-size: 0.8rem; font-weight: 600; color: #555; display: block; margin-bottom: 0.4rem;">
+												<i class="fas fa-envelope" style="color: var(--primary);"></i> メール状況
+											</label>
+											<div style="position: relative;">
+												<select id="filterEmail"
+														onchange="app.renderSalesAssistant()"
+														style="appearance: none; -webkit-appearance: none; -moz-appearance: none;
+															   width: 100%; padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+															   border-radius: 6px; border: 1px solid #ccc;
+															   font-size: 0.85rem; background: white; cursor: pointer;">
+													<option value="all">全て表示</option>
+													<option value="registered">メール登録済みのみ</option>
+													<option value="unregistered">メール未登録のみ</option>
+												</select>
+												<i class="fas fa-chevron-down"
+												   style="position: absolute; right: 0.75rem; top: 50%;
+														  transform: translateY(-50%); pointer-events: none;
+														  font-size: 0.7rem; color: #888;"></i>
+											</div>
+										</div>
+
+										<!-- 顧客ランクフィルタ -->
+										<div>
+											<label style="font-size: 0.8rem; font-weight: 600; color: #555; display: block; margin-bottom: 0.4rem;">
+												<i class="fas fa-star" style="color: var(--primary);"></i> 顧客ランク
+											</label>
+											<div style="display: flex; gap: 0.4rem;">
+												<label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;
+															   background: white; padding: 0.3rem 0.6rem; border-radius: 4px;
+															   border: 1px solid #ccc; font-size: 0.8rem; font-weight: 600;
+															   transition: all 0.2s;">
+													<input type="checkbox" id="filterRankA" checked
+														   onchange="app.renderSalesAssistant()"
+														   style="width: auto; margin: 0; accent-color: #28a745;">
+													<span style="color: #28a745;">A</span>
+												</label>
+												<label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;
+															   background: white; padding: 0.3rem 0.6rem; border-radius: 4px;
+															   border: 1px solid #ccc; font-size: 0.8rem; font-weight: 600;
+															   transition: all 0.2s;">
+													<input type="checkbox" id="filterRankB" checked
+														   onchange="app.renderSalesAssistant()"
+														   style="width: auto; margin: 0; accent-color: #ffc107;">
+													<span style="color: #856404;">B</span>
+												</label>
+												<label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer;
+															   background: white; padding: 0.3rem 0.6rem; border-radius: 4px;
+															   border: 1px solid #ccc; font-size: 0.8rem; font-weight: 600;
+															   transition: all 0.2s;">
+													<input type="checkbox" id="filterRankC" checked
+														   onchange="app.renderSalesAssistant()"
+														   style="width: auto; margin: 0; accent-color: #6c757d;">
+													<span style="color: #6c757d;">C</span>
+												</label>
+											</div>
+										</div>
+									</div>
+
+									<!-- 適用中フィルタ表示 -->
+									<div id="activeFiltersDisplay" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+										<!-- JavaScriptで動的生成 -->
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- 分析結果サマリー -->
+						<div id="assistantSummary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+							<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem; border-radius: 8px; text-align: center;">
+								<div style="font-size: 1.8rem; font-weight: bold;" id="summaryTargetCount">0</div>
+								<div style="font-size: 0.85rem; opacity: 0.9;">対象顧客数</div>
+							</div>
+							<div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 1rem; border-radius: 8px; text-align: center;">
+								<div style="font-size: 1.8rem; font-weight: bold;" id="summaryEmailCount">0</div>
+								<div style="font-size: 0.85rem; opacity: 0.9;">メール登録済み</div>
+							</div>
+							<div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 1rem; border-radius: 8px; text-align: center;">
+								<div style="font-size: 1.5rem; font-weight: bold;" id="summaryTotalMachines">0</div>
+								<div style="font-size: 0.85rem; opacity: 0.9;">総導入台数</div>
+							</div>
+							<div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; padding: 1rem; border-radius: 8px; text-align: center;">
+								<div style="font-size: 1.2rem; font-weight: bold;" id="summaryTotalAmount">¥0</div>
+								<div style="font-size: 0.85rem; opacity: 0.9;">総購入金額</div>
+							</div>
+						</div>
+
+						<!-- 分析結果テーブル -->
+						<div class="table-container">
+							<table id="assistantTable">
+								<thead>
+									<tr>
+										<th style="width: 20%;">顧客名</th>
+										<th style="width: 12%;">最終導入日</th>
+										<th style="width: 10%;">未導入期間</th>
+										<th style="width: 10%;">導入台数</th>
+										<th style="width: 12%;">累計金額</th>
+										<th style="width: 15%;">メール</th>
+										<th style="width: 8%;">担当者</th>
+										<th style="width: 13%;">アクション</th>
+									</tr>
+								</thead>
+								<tbody id="assistantTableBody"></tbody>
+							</table>
+						</div>
+					</div>					
+                </div>			
             </section>
 
             <!-- Customer Management Section -->
@@ -3943,6 +4273,9 @@
 				 // ★ Phase 2: ファネルクリック機能の初期化
 				this.setupFunnelClickEvents();
 				
+				// ★営業アシスタント機能の初期化
+				this.renderSalesAssistant();
+				
 				// 週次リマインダーチェック
 				this.checkWeeklyReminders();
 				
@@ -5109,6 +5442,619 @@
 					document.getElementById('activityContent').value = `${customerName}様への定期フォローアップ`;
 					document.getElementById('activityContent').focus();
 				}, 200);
+			}
+			
+			/**
+			 * ========================================
+			 * 営業アシスタント機能
+			 * ========================================
+			 */
+
+			/**
+			 * 営業ターゲット分析・表示のメイン関数（修正版）
+			 */
+			renderSalesAssistant() {
+				// ★修正1: 毎回フィルタ選択肢を最新データで生成
+				this.populateSegmentFilterOptions();
+
+				// ★修正2: 基本設定値の取得
+				const yearsThreshold = parseInt(document.getElementById('assistantYears')?.value || 10);
+				const sortBy = document.getElementById('assistantSort')?.value || 'machines';
+				const limitCount = parseInt(document.getElementById('assistantLimit')?.value || 10);
+
+				// ★修正3: セグメントフィルタ値を安全に取得（null/undefined対応）
+				const segmentFilters = {
+					industry: document.getElementById('filterIndustry')?.value || 'all',
+					region: document.getElementById('filterRegion')?.value || 'all',
+					machineMin: parseInt(document.getElementById('filterMachineMin')?.value || 1),
+					machineMax: parseInt(document.getElementById('filterMachineMax')?.value || 0) || Infinity,
+					email: document.getElementById('filterEmail')?.value || 'all',
+					rankA: document.getElementById('filterRankA')?.checked ?? true,
+					rankB: document.getElementById('filterRankB')?.checked ?? true,
+					rankC: document.getElementById('filterRankC')?.checked ?? true
+				};
+
+				// デバッグ用（動作確認後に削除可能）
+				console.log('🔍 適用中フィルタ:', segmentFilters);
+
+				// 基準日の計算
+				const cutoffDate = new Date();
+				cutoffDate.setFullYear(cutoffDate.getFullYear() - yearsThreshold);
+
+				// ★修正4: セグメントフィルタを引数として渡す
+				const targetCustomers = this.analyzeCustomerTargetsWithSegments(
+					cutoffDate, sortBy, limitCount, segmentFilters
+				);
+
+				// サマリー統計の更新
+				this.updateAssistantSummary(targetCustomers);
+
+				// テーブルの描画
+				this.renderAssistantTable(targetCustomers, yearsThreshold);
+
+				// 適用中フィルタバッジの表示
+				this.renderActiveFilters();
+			}
+
+			/**
+			 * 顧客ターゲット分析（コアロジック）
+			 */
+			analyzeCustomerTargets(cutoffDate, sortBy, limitCount) {
+				const today = new Date();
+				
+				// 全顧客を分析対象として処理
+				const analyzed = this.data.customers.map(customer => {
+					const machines = customer.installedMachines || [];
+					
+					// 導入機械がない顧客は除外
+					if (machines.length === 0) return null;
+					
+					// 最終導入日の計算
+					let lastInstallDate = null;
+					let totalAmount = 0;
+					
+					machines.forEach(machine => {
+						// 導入金額の累計
+						totalAmount += Number(machine.amount) || 0;
+						
+						// 最終導入日の更新
+						if (machine.installDate) {
+							const installDate = new Date(machine.installDate);
+							if (!isNaN(installDate) && (!lastInstallDate || installDate > lastInstallDate)) {
+								lastInstallDate = installDate;
+							}
+						}
+					});
+					
+					// 導入実績があり、かつ最終導入が基準日より前の顧客のみ対象
+					if (!lastInstallDate || lastInstallDate >= cutoffDate) return null;
+					
+					// 未導入期間の計算
+					const daysSinceInstall = Math.ceil((today - lastInstallDate) / (1000 * 60 * 60 * 24));
+					const yearsSinceInstall = (daysSinceInstall / 365.25).toFixed(1);
+					
+					return {
+						id: customer.id,
+						name: customer.name,
+						region: customer.region || '-',
+						industry: customer.industry || '-',
+						rank: customer.rank || 'B',
+						assignee: customer.assignee || '-',
+						email: customer.email || '',
+						phone: customer.phone || '',
+						lastInstallDate: lastInstallDate.toISOString().split('T')[0],
+						yearsSinceInstall: parseFloat(yearsSinceInstall),
+						machineCount: machines.length,
+						totalAmount: totalAmount,
+						// 営業優先度スコア（複合指標）
+						priorityScore: this.calculatePriorityScore(customer, machines.length, totalAmount, parseFloat(yearsSinceInstall))
+					};
+				}).filter(customer => customer !== null);
+				
+				// 指定条件でソート
+				analyzed.sort((a, b) => {
+					switch (sortBy) {
+						case 'machines':
+							return b.machineCount - a.machineCount;
+						case 'amount':
+							return b.totalAmount - a.totalAmount;
+						case 'years':
+							return b.yearsSinceInstall - a.yearsSinceInstall;
+						default:
+							return b.priorityScore - a.priorityScore;
+					}
+				});
+				
+				// 上位N件を返す
+				return analyzed.slice(0, limitCount);
+			}
+			
+			/**
+			 * セグメントフィルタ対応版の顧客ターゲット分析
+			 */
+			analyzeCustomerTargetsWithSegments(cutoffDate, sortBy, limitCount, filters) {
+				const today = new Date();
+
+				console.log('📊 分析開始 - 全顧客数:', this.data.customers.length);
+
+				const analyzed = this.data.customers.map(customer => {
+					const machines = customer.installedMachines || [];
+					if (machines.length === 0) return null;
+
+					let lastInstallDate = null;
+					let totalAmount = 0;
+
+					machines.forEach(machine => {
+						totalAmount += Number(machine.amount) || 0;
+						if (machine.installDate) {
+							const installDate = new Date(machine.installDate);
+							if (!isNaN(installDate) && (!lastInstallDate || installDate > lastInstallDate)) {
+								lastInstallDate = installDate;
+							}
+						}
+					});
+
+					// 基準日チェック
+					if (!lastInstallDate || lastInstallDate >= cutoffDate) return null;
+
+					const daysSinceInstall = Math.ceil((today - lastInstallDate) / (1000 * 60 * 60 * 24));
+					const yearsSinceInstall = parseFloat((daysSinceInstall / 365.25).toFixed(1));
+
+					return {
+						id: customer.id,
+						name: customer.name,
+						region: customer.region || '',
+						industry: customer.industry || '',
+						rank: customer.rank || 'B',
+						assignee: customer.assignee || '-',
+						email: customer.email || '',
+						phone: customer.phone || '',
+						lastInstallDate: lastInstallDate.toISOString().split('T')[0],
+						yearsSinceInstall,
+						machineCount: machines.length,
+						totalAmount,
+						priorityScore: this.calculatePriorityScore(customer, machines.length, totalAmount, yearsSinceInstall)
+					};
+				}).filter(c => {
+					if (c === null) return false;
+
+					// ★セグメントフィルタの適用
+					console.log(`🔍 ${c.name}: 業種=${c.industry}, 地域=${c.region}, 台数=${c.machineCount}, ランク=${c.rank}`);
+
+					// 業種フィルタ
+					if (filters.industry !== 'all' && c.industry !== filters.industry) {
+						console.log(`❌ ${c.name}: 業種フィルタで除外 (${c.industry} ≠ ${filters.industry})`);
+						return false;
+					}
+
+					// 地域フィルタ
+					if (filters.region !== 'all' && c.region !== filters.region) {
+						console.log(`❌ ${c.name}: 地域フィルタで除外 (${c.region} ≠ ${filters.region})`);
+						return false;
+					}
+
+					// 導入台数範囲フィルタ
+					if (c.machineCount < filters.machineMin) {
+						console.log(`❌ ${c.name}: 最小台数フィルタで除外 (${c.machineCount} < ${filters.machineMin})`);
+						return false;
+					}
+					if (filters.machineMax !== Infinity && c.machineCount > filters.machineMax) {
+						console.log(`❌ ${c.name}: 最大台数フィルタで除外 (${c.machineCount} > ${filters.machineMax})`);
+						return false;
+					}
+
+					// メール登録状況フィルタ
+					if (filters.email === 'registered' && !c.email) {
+						console.log(`❌ ${c.name}: メール未登録で除外`);
+						return false;
+					}
+					if (filters.email === 'unregistered' && c.email) {
+						console.log(`❌ ${c.name}: メール登録済みで除外`);
+						return false;
+					}
+
+					// ランクフィルタ
+					if (c.rank === 'A' && !filters.rankA) return false;
+					if (c.rank === 'B' && !filters.rankB) return false;
+					if (c.rank === 'C' && !filters.rankC) return false;
+
+					console.log(`✅ ${c.name}: フィルタ通過`);
+					return true;
+				});
+
+				console.log('✅ フィルタ後の件数:', analyzed.length);
+
+				// ソート処理
+				analyzed.sort((a, b) => {
+					switch (sortBy) {
+						case 'machines':  return b.machineCount - a.machineCount;
+						case 'amount':    return b.totalAmount - a.totalAmount;
+						case 'years':     return b.yearsSinceInstall - a.yearsSinceInstall;
+						case 'priority':  return b.priorityScore - a.priorityScore;
+						default:          return b.machineCount - a.machineCount;
+					}
+				});
+
+				return limitCount === 9999 ? analyzed : analyzed.slice(0, limitCount);
+			}
+
+			/**
+			 * 営業優先度スコアの計算（独自ロジック）
+			 */
+			calculatePriorityScore(customer, machineCount, totalAmount, yearsSinceInstall) {
+				let score = 0;
+				
+				// 導入台数による加点（多いほど高スコア）
+				score += Math.min(machineCount * 5, 50);
+				
+				// 累計金額による加点（1000万円で50点満点）
+				score += Math.min((totalAmount / 10000000) * 50, 50);
+				
+				// 未導入期間による加点（長いほど高スコア、15年で上限）
+				score += Math.min((yearsSinceInstall / 15) * 30, 30);
+				
+				// 顧客ランクによる加点
+				if (customer.rank === 'A') score += 20;
+				else if (customer.rank === 'B') score += 10;
+				
+				// メールアドレス登録済みは加点（プロモーション可能）
+				if (customer.email) score += 15;
+				
+				return Math.round(score);
+			}
+
+			/**
+			 * サマリー統計の更新
+			 */
+			updateAssistantSummary(targetCustomers) {
+				const totalCount = targetCustomers.length;
+				const emailCount = targetCustomers.filter(c => c.email).length;
+				const totalMachines = targetCustomers.reduce((sum, c) => sum + c.machineCount, 0);
+				const totalAmount = targetCustomers.reduce((sum, c) => sum + c.totalAmount, 0);
+				
+				document.getElementById('summaryTargetCount').textContent = totalCount;
+				document.getElementById('summaryEmailCount').textContent = emailCount;
+				document.getElementById('summaryTotalMachines').textContent = totalMachines.toLocaleString() + '台';
+				document.getElementById('summaryTotalAmount').textContent = '¥' + (totalAmount / 10000).toFixed(0) + '万';
+			}
+
+			/**
+			 * 分析結果テーブルの描画
+			 */
+			renderAssistantTable(targetCustomers, yearsThreshold) {
+				const tbody = document.getElementById('assistantTableBody');
+				if (!tbody) return;
+				
+				if (targetCustomers.length === 0) {
+					tbody.innerHTML = `
+						<tr>
+							<td colspan="8" style="text-align: center; padding: 2rem; color: #999; font-style: italic;">
+								<i class="fas fa-search" style="font-size: 2rem; display: block; margin-bottom: 0.5rem;"></i>
+								${yearsThreshold}年以上未導入の対象顧客は見つかりませんでした
+							</td>
+						</tr>
+					`;
+					return;
+				}
+				
+				tbody.innerHTML = targetCustomers.map((customer, index) => {
+					// 優先度による行の色分け
+					const priorityClass = index < 3 ? 'style="background-color: #fff3cd;"' : 
+										 index < 7 ? 'style="background-color: #f8f9fa;"' : '';
+					
+					// メールアドレスの表示
+					const emailDisplay = customer.email 
+						? `<span style="color: #28a745; font-weight: bold;"><i class="fas fa-check-circle"></i> 登録済み</span>
+						   <div style="font-size: 0.75rem; color: #666; margin-top: 2px;">${customer.email}</div>`
+						: `<span style="color: #dc3545;"><i class="fas fa-times-circle"></i> 未登録</span>`;
+					
+					// 未導入期間の色分け
+					const yearsColor = customer.yearsSinceInstall >= 15 ? '#dc3545' : 
+									  customer.yearsSinceInstall >= 10 ? '#ffc107' : '#28a745';
+					
+					return `
+						<tr ${priorityClass}>
+							<td>
+								<div>
+									<a href="#" onclick="app.showCustomerDetail('${customer.id}'); return false;" 
+									   style="font-weight: bold; color: var(--primary); text-decoration: underline;">
+										${customer.name}
+									</a>
+								</div>
+								<div style="font-size: 0.75rem; color: #666; margin-top: 2px;">
+									${customer.region} | ${customer.industry} | ${customer.rank}ランク
+								</div>
+							</td>
+							<td>${customer.lastInstallDate}</td>
+							<td style="color: ${yearsColor}; font-weight: bold; font-size: 1.1rem;">
+								${customer.yearsSinceInstall}年
+							</td>
+							<td style="font-weight: bold; color: var(--primary);">
+								${customer.machineCount}台
+							</td>
+							<td style="font-weight: bold; color: #28a745;">
+								¥${(customer.totalAmount / 10000).toFixed(0)}万
+							</td>
+							<td>${emailDisplay}</td>
+							<td>${customer.assignee}</td>
+							<td>
+								<div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+									<button class="btn btn-sm btn-primary" 
+											onclick="app.createTargetFollowUp('${customer.name}')" 
+											title="フォローアップ活動を作成">
+										<i class="fas fa-phone"></i>
+									</button>
+									${customer.email ? `
+										<a href="mailto:${customer.email}?subject=新製品のご案内&body=${customer.name}様%0A%0Aいつもお世話になっております。" 
+										   class="btn btn-sm btn-success" 
+										   title="メール作成">
+											<i class="fas fa-envelope"></i>
+										</a>
+									` : ''}
+									<button class="btn btn-sm btn-secondary" 
+											onclick="app.showCustomerDetail('${customer.id}')" 
+											title="詳細確認">
+										<i class="fas fa-eye"></i>
+									</button>
+								</div>
+							</td>
+						</tr>
+					`;
+				}).join('');
+			}
+
+			/**
+			 * ターゲット顧客向けフォローアップ活動の作成
+			 */
+			createTargetFollowUp(customerName) {
+				this.openActivityModal();
+				
+				setTimeout(() => {
+					// フォームに初期値を設定
+					document.getElementById('activityCustomer').value = customerName;
+					document.getElementById('activityPurpose').value = 'A'; // 新規事業活動
+					document.getElementById('activityContent').value = `${customerName}様への長期未導入フォローアップ\n新製品・サービスのご提案`;
+					document.getElementById('activityStage').value = 'アプローチ';
+					document.getElementById('activityProbability').value = 'C';
+					
+					// コンテンツフィールドにフォーカス
+					document.getElementById('activityContent').focus();
+					document.getElementById('activityContent').setSelectionRange(0, 0);
+				}, 200);
+			}		
+						
+			/**
+			 * 詳細セグメントフィルタの開閉
+			 */
+			toggleSegmentFilters() {
+				const panel = document.getElementById('segmentFilterPanel');
+				const icon = document.getElementById('segmentToggleIcon');
+				const btn = document.getElementById('segmentFilterToggle');
+
+				if (!panel) return;
+
+				const isOpen = panel.style.display !== 'none';
+
+				if (isOpen) {
+					panel.style.display = 'none';
+					if (icon) icon.style.transform = 'rotate(0deg)';
+					if (btn) {
+						btn.style.background = 'white';
+						btn.style.borderColor = '#dee2e6';
+					}
+				} else {
+					panel.style.display = 'block';
+					if (icon) icon.style.transform = 'rotate(180deg)';
+					if (btn) {
+						btn.style.background = '#e3f2fd';
+						btn.style.borderColor = 'var(--primary)';
+					}
+
+					// パネル表示時に選択肢を再生成
+					this.populateSegmentFilterOptions();
+				}
+			}
+
+			/**
+			 * セグメントフィルタの選択肢を顧客データから動的生成
+			 */
+			populateSegmentFilterOptions() {
+				// 業種リストの生成
+				const industries = [...new Set(
+					this.data.customers
+						.map(c => c.industry)
+						.filter(v => v && v.trim())
+				)].sort();
+
+				const industrySelect = document.getElementById('filterIndustry');
+				if (industrySelect) {
+					const currentVal = industrySelect.value || 'all';
+					industrySelect.innerHTML = '<option value="all">全業種</option>' +
+						industries.map(i => `<option value="${i}" ${i === currentVal ? 'selected' : ''}>${i}</option>`).join('');
+				}
+
+				// 地域リストの生成
+				const regions = [...new Set(
+					this.data.customers
+						.map(c => c.region)
+						.filter(v => v && v.trim())
+				)].sort();
+
+				const regionSelect = document.getElementById('filterRegion');
+				if (regionSelect) {
+					const currentVal = regionSelect.value || 'all';
+					regionSelect.innerHTML = '<option value="all">全地域</option>' +
+						regions.map(r => `<option value="${r}" ${r === currentVal ? 'selected' : ''}>${r}</option>`).join('');
+				}
+			}
+
+			/**
+			 * 台数範囲ラベルの更新
+			 */
+			updateMachineRangeLabel() {
+				const min = document.getElementById('filterMachineMin')?.value || '1';
+				const max = document.getElementById('filterMachineMax')?.value || '';
+				const label = document.getElementById('machineRangeLabel');
+				if (label) {
+					label.textContent = `${min}台 〜 ${max ? max + '台' : '上限なし'}`;
+					label.style.color = (min !== '1' || max !== '') ? '#dc3545' : 'var(--primary)';
+				}
+			}
+
+			/**
+			 * セグメントフィルタのリセット
+			 */
+			resetSegmentFilters() {
+				// プルダウンのリセット
+				const resetElements = [
+					{ id: 'filterIndustry', value: 'all' },
+					{ id: 'filterRegion', value: 'all' },
+					{ id: 'filterMachineMin', value: '1' },
+					{ id: 'filterMachineMax', value: '' },
+					{ id: 'filterEmail', value: 'all' }
+				];
+
+				resetElements.forEach(({ id, value }) => {
+					const el = document.getElementById(id);
+					if (el) el.value = value;
+				});
+
+				// チェックボックスのリセット
+				['filterRankA', 'filterRankB', 'filterRankC'].forEach(id => {
+					const el = document.getElementById(id);
+					if (el) el.checked = true;
+				});
+
+				this.updateMachineRangeLabel();
+				this.renderSalesAssistant();
+				this.showToast('フィルタをリセットしました', 'success');
+			}
+
+			/**
+			 * 適用中フィルタのバッジ表示
+			 */
+			renderActiveFilters() {
+				const container = document.getElementById('activeFiltersDisplay');
+				if (!container) return;
+
+				const badges = [];
+				const industry = document.getElementById('filterIndustry')?.value;
+				const region = document.getElementById('filterRegion')?.value;
+				const minMachines = document.getElementById('filterMachineMin')?.value;
+				const maxMachines = document.getElementById('filterMachineMax')?.value;
+				const email = document.getElementById('filterEmail')?.value;
+
+				if (industry && industry !== 'all') {
+					badges.push(`業種: ${industry}`);
+				}
+				if (region && region !== 'all') {
+					badges.push(`地域: ${region}`);
+				}
+				if (minMachines && minMachines !== '1' || maxMachines) {
+					const maxLabel = maxMachines ? maxMachines + '台' : '上限なし';
+					badges.push(`台数: ${minMachines || '1'}〜${maxLabel}`);
+				}
+				if (email && email !== 'all') {
+					const emailLabel = email === 'registered' ? 'メール登録済み' : 'メール未登録';
+					badges.push(emailLabel);
+				}
+
+				const rankA = document.getElementById('filterRankA')?.checked;
+				const rankB = document.getElementById('filterRankB')?.checked;
+				const rankC = document.getElementById('filterRankC')?.checked;
+				if (!rankA || !rankB || !rankC) {
+					const ranks = [rankA && 'A', rankB && 'B', rankC && 'C'].filter(Boolean);
+					badges.push(`ランク: ${ranks.join('/')}`);
+				}
+
+				if (badges.length === 0) {
+					container.innerHTML = '<span style="font-size: 0.8rem; color: #999; font-style: italic;">フィルタ未適用</span>';
+					return;
+				}
+
+				container.innerHTML = badges.map(badge => `
+					<span style="background: var(--primary); color: white; padding: 0.25rem 0.6rem;
+								 border-radius: 12px; font-size: 0.78rem; font-weight: 600;
+								 display: inline-flex; align-items: center; gap: 0.3rem;">
+						<i class="fas fa-filter" style="font-size: 0.65rem;"></i>
+						${badge}
+					</span>
+				`).join('');
+			}
+
+			/**
+			 * ターゲット顧客リストのCSV出力
+			 */
+			exportTargetCustomers() {
+				const yearsThreshold = parseInt(document.getElementById('assistantYears')?.value || 10);
+				const sortBy = document.getElementById('assistantSort')?.value || 'machines';
+				const limitCount = parseInt(document.getElementById('assistantLimit')?.value || 10);
+				
+				// 現在の条件で再分析
+				const cutoffDate = new Date();
+				cutoffDate.setFullYear(cutoffDate.getFullYear() - yearsThreshold);
+				// ★修正: セグメントフィルタ値も含めて分析
+				const segmentFilters = {
+					industry: document.getElementById('filterIndustry')?.value || 'all',
+					region: document.getElementById('filterRegion')?.value || 'all',
+					machineMin: parseInt(document.getElementById('filterMachineMin')?.value || 1),
+					machineMax: parseInt(document.getElementById('filterMachineMax')?.value || 0) || Infinity,
+					email: document.getElementById('filterEmail')?.value || 'all',
+					rankA: document.getElementById('filterRankA')?.checked ?? true,
+					rankB: document.getElementById('filterRankB')?.checked ?? true,
+					rankC: document.getElementById('filterRankC')?.checked ?? true
+				};
+
+				const targetCustomers = this.analyzeCustomerTargetsWithSegments(
+					cutoffDate, sortBy, limitCount, segmentFilters
+				);
+			
+				if (targetCustomers.length === 0) {
+					this.showToast('出力対象のデータがありません', 'error');
+					return;
+				}
+				
+				// CSV形式でデータを整形
+				const BOM = '\uFEFF'; // Excel用BOM
+				const headers = [
+					'順位', '会社名', '地域', '業種', 'ランク', '担当者',
+					'最終導入日', '未導入期間（年）', '導入台数', '累計金額',
+					'メールアドレス', '電話番号', '優先度スコア'
+				];
+				
+				const csvRows = targetCustomers.map((customer, index) => {
+					return [
+						index + 1,
+						customer.name,
+						customer.region,
+						customer.industry,
+						customer.rank,
+						customer.assignee,
+						customer.lastInstallDate,
+						customer.yearsSinceInstall,
+						customer.machineCount,
+						customer.totalAmount,
+						customer.email || '未登録',
+						customer.phone || '未登録',
+						customer.priorityScore
+					].map(field => `"${String(field).replace(/"/g, '""')}"`).join(',');
+				});
+				
+				const csvContent = BOM + headers.join(',') + '\n' + csvRows.join('\n');
+				
+				// ファイルダウンロード
+				const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+				const link = document.createElement('a');
+				link.href = URL.createObjectURL(blob);
+				link.download = `営業ターゲット_${yearsThreshold}年未導入_${new Date().toISOString().split('T')[0]}.csv`;
+				link.click();
+				
+				// 成功メッセージ
+				const emailCount = targetCustomers.filter(c => c.email).length;
+				this.showToast(
+					`${targetCustomers.length}社のターゲットリストを出力しました（メール登録済み: ${emailCount}社）`, 
+					'success'
+				);
 			}
 			
             // --- Customer Management ---
