@@ -2460,7 +2460,18 @@
 						</div>
                         <div class="chart-wrapper" style="height: 350px;"><canvas id="chartTimeline"></canvas></div>
                     </div>	
-					
+										<!-- ★★★ ここから追加：受注見込みランキング ★★★ -->
+										<div class="card" id="winProbabilityRankingCard" style="grid-column: 1 / -1; margin-top: 1.5rem;">
+											<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+												<h3 style="margin: 0; border: none; color: var(--primary);">
+													🎯 今月受注見込みランキング
+													<span style="font-size: 0.75rem; background: #667eea; color: white; padding: 2px 8px; border-radius: 10px; margin-left: 0.5rem;">AI予測</span>
+												</h3>
+												<span style="font-size: 0.85rem; color: #666;">受注確率スコア順</span>
+											</div>
+											<div id="winProbabilityRankingList"></div>
+										</div>
+										<!-- ★★★ ここまで追加 ★★★ -->					
 										<!-- ★営業アシスタント機能 -->
 					<div class="card" id="salesAssistantCard" style="grid-column: 1 / -1; margin-top: 1.5rem;">
 						<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
@@ -3690,6 +3701,18 @@
 					</div>
 					<div id="fileList" style="margin-top: 1rem;"></div>
 				</div>
+				<!-- ★★★ ここから追加：AI営業アシスタント表示エリア ★★★ -->
+				<div id="aiAdviceSection" style="display: none; background: linear-gradient(135deg, #e8f5e9 0%, #e1f5fe 100%); padding: 1.25rem; border-radius: 8px; margin: 1.5rem 0; border-left: 5px solid #4caf50; box-shadow: 0 3px 8px rgba(76,175,80,0.2);">
+					<h4 style="margin-top: 0; color: #2e7d32; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+						<i class="fas fa-robot" style="font-size: 1.2rem;"></i>
+						<span>AI営業アシスタントからの提案</span>
+						<span style="background: #4caf50; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem;">無料AI</span>
+					</h4>
+					<div id="aiAdviceContent" style="font-size: 0.9rem; color: #1b5e20; line-height: 1.6; background: rgba(255,255,255,0.7); padding: 1rem; border-radius: 6px;">
+						<!-- ここにAIからのアドバイスが表示されます -->
+					</div>
+				</div>
+				<!-- ★★★ ここまで追加 ★★★ -->
 				<!-- Phase 1: 商談履歴セクション (修正版) -->
 				<div id="projectHistorySection" class="history-section" style="display: none;">
 					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: nowrap; gap: 1rem;">
@@ -4274,6 +4297,7 @@
 				this.setupFunnelClickEvents();
 				
 				// ★営業アシスタント機能の初期化
+				this.renderWinProbabilityRanking();  // ← この1行を追加
 				this.renderSalesAssistant();
 				
 				// 週次リマインダーチェック
@@ -5449,6 +5473,95 @@
 			 * 営業アシスタント機能
 			 * ========================================
 			 */
+			 
+			/**
+			 * ========================================
+			 * Phase 2: 受注見込みランキング表示
+			 * ========================================
+			 */
+			renderWinProbabilityRanking() {
+				const container = document.getElementById('winProbabilityRankingList');
+				if (!container) return;
+
+				const filter = document.getElementById('dashboardFilter')?.value || 'all';
+				const isPersonal = filter === 'personal' && CURRENT_USER.role !== 'admin';
+
+				// 進行中案件で受注見込みがある案件を抽出
+				let projects = this.data.projects.filter(p =>
+					p.status === '進行中' &&
+					p.stage !== '受注' &&
+					p.status !== '失注'
+				);
+
+				if (isPersonal) {
+					projects = projects.filter(p => p.assignee === CURRENT_USER.assignee);
+				}
+
+				// 受注確率スコアでランキング作成
+				const ranked = projects
+					.map(p => ({
+						...p,
+						winScore: this.calculateWinProbability(p)
+					}))
+					.filter(p => p.winScore >= 40) // 40%以上のみ表示
+					.sort((a, b) => b.winScore - a.winScore)
+					.slice(0, 5); // TOP5
+
+				if (ranked.length === 0) {
+					container.innerHTML = `
+						<p style="text-align: center; color: #999; padding: 2rem; font-style: italic;">
+							受注見込み案件（スコア40%以上）はありません
+						</p>
+					`;
+					return;
+				}
+
+				container.innerHTML = `
+					<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+						${ranked.map((p, index) => {
+							const scoreColor = p.winScore >= 70 ? '#28a745' :
+											   p.winScore >= 50 ? '#ffc107' : '#dc3545';
+							const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}位`;
+
+							return `
+								<div style="
+									background: white;
+									border: 1px solid #ddd;
+									border-radius: 8px;
+									padding: 1rem;
+									border-left: 5px solid ${scoreColor};
+									cursor: pointer;
+									transition: all 0.2s;
+								"
+								onclick="app.editProject('${p.id}')"
+								onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'"
+								onmouseout="this.style.transform=''; this.style.boxShadow=''">
+									<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+										<span style="font-weight: bold; font-size: 1.1rem;">${medal}</span>
+										<div style="
+											background: ${scoreColor};
+											color: white;
+											padding: 4px 12px;
+											border-radius: 20px;
+											font-size: 1rem;
+											font-weight: bold;
+										">
+											${p.winScore}%
+										</div>
+									</div>
+									<div style="font-weight: bold; margin-bottom: 0.3rem; font-size: 0.95rem;">${p.projectName}</div>
+									<div style="font-size: 0.85rem; color: #666; margin-bottom: 0.5rem;">
+										${p.customer} | ${p.assignee} | ${p.stage}
+									</div>
+									<div style="font-size: 1rem; font-weight: bold; color: #28a745;">
+										¥${Number(p.estimatedAmount || 0).toLocaleString()}
+									</div>
+								</div>
+							`;
+						}).join('')}
+					</div>
+				`;
+			}
 
 			/**
 			 * 営業ターゲット分析・表示のメイン関数（修正版）
@@ -8893,6 +9006,106 @@
 			// Project Management Functions
 			// ========================================
 
+			/**
+			 * ========================================
+			 * Phase 1: AI営業アシスタント（ルールベース判定）
+			 * ========================================
+			 */
+			generateAIAdvice(project) {
+				if (!project || project.status !== '進行中') return null;
+
+				let adviceHtml = "";
+				const today = new Date();
+				const stagnantDays = this.calculateStagnantDays(project);
+				const amount = Number(project.estimatedAmount) || 0;
+
+				// 1. 緊急度判定（滞留アラート）
+				if (stagnantDays >= 60) {
+					adviceHtml += `<div style="background: #ffebee; border-left: 4px solid #f44336; padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px;">
+						<strong style="color: #c62828;"><i class="fas fa-exclamation-triangle"></i> 緊急アラート：</strong>
+						${stagnantDays}日間ステージが停滞しています。今日中に電話連絡を入れ、現在の状況と課題を確認してください。
+					</div>`;
+				} else if (stagnantDays >= 30) {
+					adviceHtml += `<div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px;">
+						<strong style="color: #ef6c00;"><i class="fas fa-clock"></i> 要注意：</strong>
+						${stagnantDays}日間動きがありません。訪問またはオンライン商談でフォローを行いましょう。
+					</div>`;
+				}
+
+				// 2. 受注予定日チェック
+				if (project.expectedOrderDate) {
+					const expectedDate = new Date(project.expectedOrderDate);
+					const daysUntil = Math.ceil((expectedDate - today) / (1000 * 60 * 60 * 24));
+					
+					if (daysUntil < 0) {
+						adviceHtml += `<div style="background: #ffebee; border-left: 4px solid #f44336; padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px;">
+							<strong style="color: #c62828;"><i class="fas fa-calendar-times"></i> 予定日超過：</strong>
+							受注予定日を${Math.abs(daysUntil)}日過ぎています。お客様の社内状況と今後のスケジュールを確認し、見込み度の見直しを行ってください。
+						</div>`;
+					} else if (daysUntil <= 7) {
+						adviceHtml += `<div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px;">
+							<strong style="color: #2e7d32;"><i class="fas fa-target"></i> クロージング期間：</strong>
+							受注予定まであと${daysUntil}日です。最終確認と押し込みのタイミングです。
+						</div>`;
+					}
+				}
+
+				// 3. ステージ別の具体的アクション提案
+				adviceHtml += `<div style="background: #f3e5f5; border-left: 4px solid #9c27b0; padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px;">
+					<strong style="color: #7b1fa2;"><i class="fas fa-lightbulb"></i> 今すべきこと：</strong><br>`;
+
+				switch (project.stage) {
+					case 'アプローチ':
+						adviceHtml += `• お客様の現状の課題と理想の姿をヒアリング<br>
+						• 次回の商談アポイントを確実に取り付ける<br>
+						• 競合他社の動向があれば情報収集`;
+						break;
+					case 'ヒアリング':
+						adviceHtml += `• BANT条件の確認（予算・決裁権者・必要性・導入時期）<br>
+						• 課題の優先順位と解決への期待値をヒアリング<br>
+						• 提案に向けた要件定義と仮説立て`;
+						break;
+					case '提案':
+						if (project.probability === 'C' || project.probability === 'D') {
+							adviceHtml += `• 確度が低めです。提案内容の見直しが必要かもしれません<br>
+							• お客様の反応と懸念点を率直にヒアリング<br>
+							• 競合他社との比較ポイントを確認`;
+						} else {
+							adviceHtml += `• 提案に対するフィードバックの収集<br>
+							• 見積作成に必要な詳細要件の確定<br>
+							• 社内稟議に必要な資料の準備`;
+						}
+						break;
+					case '見積提出':
+						adviceHtml += `• 見積書の内容説明と質疑応答<br>
+						• 社内稟議のスケジュールと必要資料の確認<br>
+						• 決裁に向けた追加支援の申し出`;
+						break;
+					case 'クロージング':
+						if (!project.expectedOrderDate) {
+							adviceHtml += `• 受注予定日の合意形成が最優先<br>`;
+						}
+						adviceHtml += `• 最終的な不安要素の払拭<br>
+						• 導入後サポート体制の説明<br>
+						• 発注手続きの具体的な進め方を確認`;
+						break;
+					default:
+						adviceHtml += `現在のステージに応じた適切なアクションを計画してください。`;
+				}
+
+				adviceHtml += `</div>`;
+
+				// 4. 確度と金額による特別アドバイス
+				if (project.probability === 'A' && amount >= 5000000) {
+					adviceHtml += `<div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 0.75rem; margin-bottom: 1rem; border-radius: 4px;">
+						<strong style="color: #1565c0;"><i class="fas fa-star"></i> 重要案件：</strong>
+						確度A・高額案件です。上長への報告と組織的なバックアップ体制を検討してください。
+					</div>`;
+				}
+
+				return adviceHtml;
+			}
+		
 			generateProjectNumber() {
 				const year = new Date().getFullYear();
 				const existingProjects = this.data.projects.filter(p => p.projectNumber && p.projectNumber.startsWith(`PRJ-${year}`));
@@ -9446,6 +9659,11 @@
 				
 				// ★ Phase 1: 新規案件なので履歴は非表示
 				this.renderProjectHistory(null);
+				
+				// ★★★ ここから追加：新規作成時はAIアドバイスを非表示 ★★★
+				const aiSection = document.getElementById('aiAdviceSection');
+				if (aiSection) aiSection.style.display = 'none';
+				// ★★★ ここまで追加 ★★★				
 						
 				this.openModal('projectModal');
 			}
@@ -9485,6 +9703,24 @@
 				
 				// ★ Phase 1: 商談履歴の表示
 				this.renderProjectHistory(p.id);
+				// ★★★ ここから追加：AIアドバイスの生成と表示 ★★★
+				try {
+					const advice = this.generateAIAdvice(p);
+					const aiSection = document.getElementById('aiAdviceSection');
+					const aiContent = document.getElementById('aiAdviceContent');
+					
+					if (advice && aiSection && aiContent) {
+						aiContent.innerHTML = advice;
+						aiSection.style.display = 'block';
+					} else if (aiSection) {
+						aiSection.style.display = 'none';
+					}
+				} catch (error) {
+					console.error('AI助言生成エラー:', error);
+					const aiSection = document.getElementById('aiAdviceSection');
+					if (aiSection) aiSection.style.display = 'none';
+				}
+				// ★★★ ここまで追加 ★★★						
 				
 				this.openModal('projectModal');
 			}
