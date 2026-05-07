@@ -5299,8 +5299,14 @@
 						<strong>失注総額: ¥${(totalAmount / 10000).toFixed(0)}万円</strong> （${lostProjects.length}件）
 					</div>
 					${sortedReasons.map(([reason, stats]) => `
-						<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; margin-bottom: 0.5rem; background: #f8f9fa; border-radius: 4px;">
-							<span style="font-weight: 500;">${reason}</span>
+						<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; margin-bottom: 0.5rem; background: #f8f9fa; border-radius: 4px; cursor: pointer; transition: all 0.2s;"
+							 onclick="app.showLostProjectsByReason('${reason.replace(/'/g, "\\'")}')"
+							 onmouseover="this.style.background='#ffe6e6'; this.style.transform='translateY(-1px)'"
+							 onmouseout="this.style.background='#f8f9fa'; this.style.transform=''"
+							 title="クリックで「${reason}」の失注案件を表示">
+							<span style="font-weight: 500; color: var(--primary);">
+								<i class="fas fa-search" style="font-size: 0.8rem; margin-right: 4px;"></i>${reason}
+							</span>
 							<div style="text-align: right;">
 								<div style="font-weight: bold; color: #dc3545;">${stats.count}件</div>
 								<div style="font-size: 0.8rem; color: #666;">¥${(stats.amount / 10000).toFixed(0)}万</div>
@@ -5309,6 +5315,47 @@
 					`).join('')}
 				`;
 			}
+			
+			/**
+			 * 失注理由別の案件表示機能
+			 */
+			showLostProjectsByReason(reason) {
+				try {
+					// フィルタ条件を保持
+					this.lostReasonFilter = reason;
+					
+					// 案件管理ページに移動
+					this.showPage('projects');
+					
+					// テーブルビューに切り替え（カンバンの場合）
+					if (this.projectViewMode === 'kanban') {
+						this.switchProjectView('table');
+					}
+					
+					// ステータスフィルタを「失注」に設定
+					const statusFilter = document.getElementById('projectsStatusFilter');
+					if (statusFilter) statusFilter.value = '失注';
+					
+					// 案件一覧を再描画
+					this.renderProjects();
+					
+					// ユーザーへの通知
+					this.showToast(`失注理由「${reason}」の案件を表示しています`, 'success');
+					
+				} catch (error) {
+					console.error('失注理由表示エラー:', error);
+					this.showToast('表示中にエラーが発生しました', 'error');
+				}
+			}
+
+			/**
+			 * 失注理由フィルタの解除
+			 */
+			clearLostReasonFilter() {
+				this.lostReasonFilter = null;
+				this.renderProjects();
+				this.showToast('失注理由フィルタを解除しました', 'success');
+			}	
 			
 			/**
 			 * 受注予測スコアの算出
@@ -9163,7 +9210,17 @@
 				let list = this.data.projects || [];
 				
 				// ★★★ 【重要修正】進行中案件のみを抽出（完了案件を除外） ★★★
+				// ただし、特定の条件下では完了案件も表示する
 				list = list.filter(p => {
+					// ★追加: 失注理由フィルタが有効な場合は、失注案件を除外しない
+					if (this.lostReasonFilter && p.status === '失注') {
+						return true;
+					}
+					
+					// ★追加: ステータスフィルタで「失注」「完了」が明示的に選ばれている場合も除外しない
+					if (statusFilter === '失注' && p.status === '失注') return true;
+					if (statusFilter === '完了' && p.status === '完了') return true;
+					
 					// 完了状態の判定
 					const isCompleted = p.stage === '受注' || 
 									   p.probability === '受注済' || 
@@ -9201,6 +9258,15 @@
 				// ステータスフィルター
 				if (statusFilter !== 'all') {
 					list = list.filter(p => p.status === statusFilter);
+				}
+				
+				// ★ 失注理由フィルタ（ダッシュボードからの遷移用）
+				if (this.lostReasonFilter) {
+					list = list.filter(p => 
+						p.status === '失注' &&
+						p.lostReason &&
+						p.lostReason.category === this.lostReasonFilter
+					);
 				}
 
 				// ★ 新規追加：リスク案件フィルタ（重要度フィルタの代替）
@@ -9424,12 +9490,28 @@
 						return days >= 30;
 					}).length;
 					
-					activeSummary.innerHTML = `
+					let summaryHtml = `
 						進行中: <strong>${list.length}件</strong>
 						${stagnantCount > 0 ? `<span style="color: #dc3545; font-weight: bold; margin-left: 0.5rem;">
 							<i class="fas fa-exclamation-triangle"></i> 滞留: ${stagnantCount}件
 						</span>` : '<span style="color: #28a745; margin-left: 0.5rem;"><i class="fas fa-check"></i> 滞留なし</span>'}
 					`;
+					
+					// 失注理由フィルタが適用されている場合の表示
+					if (this.lostReasonFilter) {
+						summaryHtml += `
+							<div style="margin-top: 0.5rem; font-size: 0.9rem;">
+								<span style="background: #f8d7da; color: #721c24; padding: 4px 12px; border-radius: 12px; font-weight: bold;">
+									<i class="fas fa-filter"></i> 失注理由「${this.lostReasonFilter}」で絞り込み中
+								</span>
+								<button class="btn btn-sm btn-secondary" onclick="app.clearLostReasonFilter()" style="margin-left: 0.5rem;">
+									<i class="fas fa-times"></i> フィルタ解除
+								</button>
+							</div>
+						`;
+					}
+					
+					activeSummary.innerHTML = summaryHtml;
 				}
 				
 				// ★★★ 受注済案件の分離表示 ★★★
@@ -9492,7 +9574,7 @@
 									<td>${p.product || '-'}</td>
 									<td>${p.assignee}</td>
 									<td>
-										<span style="padding: 3px 8px; background: #28a745; color: white; border-radius: 12px; font-size: 0.8rem;">
+										<span style="padding: 3px 8px; background: ${p.stage === '失注' ? '#dc3545' : '#28a745'}; color: white; border-radius: 12px; font-size: 0.8rem;">
 											${p.stage}
 										</span>
 									</td>
