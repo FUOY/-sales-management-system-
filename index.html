@@ -8746,20 +8746,25 @@
 			}
 
 			// ===== 部品受注履歴機能 =====
-
+			
 			// 部品受注履歴の表示
 			renderParts() {
 			    this.filterParts();
-			},
+			}
 			
 			// フィルター処理
 			filterParts() {
-			    const customerFilter = (document.getElementById('partsSearchCustomer')?.value || '').toLowerCase();
-			    const machineFilter = (document.getElementById('partsSearchMachine')?.value || '').toLowerCase();
-			    const partFilter = (document.getElementById('partsSearchPart')?.value || '').toLowerCase();
+			    // 互換性を考慮した要素取得
+			    const customerInput = document.getElementById('partsSearchCustomer');
+			    const machineInput = document.getElementById('partsSearchMachine');
+			    const partInput = document.getElementById('partsSearchPart');
+			    
+			    const customerFilter = (customerInput ? customerInput.value : '').toLowerCase();
+			    const machineFilter = (machineInput ? machineInput.value : '').toLowerCase();
+			    const partFilter = (partInput ? partInput.value : '').toLowerCase();
 			    
 			    this.fetchAndDisplayParts(customerFilter, machineFilter, partFilter);
-			},
+			}
 			
 			// Supabaseからデータ取得・表示
 			async fetchAndDisplayParts(customerFilter = '', machineFilter = '', partFilter = '') {
@@ -8828,7 +8833,7 @@
 			        console.error('部品データ取得エラー:', error);
 			        tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; padding:20px; color:red;">エラー: ${error.message}</td></tr>`;
 			    }
-			},
+			}
 			
 			// 統計情報の更新
 			updatePartsStats(data) {
@@ -8838,22 +8843,30 @@
 			    const pending = total - shipped;
 			    const amount = data.reduce((sum, r) => sum + (Number(r.unit_price) || 0) * (Number(r.quantity) || 0), 0);
 			    
-			    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+			    const set = (id, val) => { 
+			        const el = document.getElementById(id); 
+			        if (el) el.textContent = val; 
+			    };
+			    
 			    set('statsTotalOrders', total);
 			    set('statsReorderCount', reorder);
 			    set('statsShippedCount', shipped);
 			    set('statsPendingCount', pending);
 			    set('statsTotalAmount', '¥' + amount.toLocaleString());
-			},
+			}
 			
 			// フィルタークリア
 			clearPartsFilters() {
-			    const clear = (id) => { const el = document.getElementById(id); if (el) el.value = ''; };
+			    const clear = (id) => { 
+			        const el = document.getElementById(id); 
+			        if (el) el.value = ''; 
+			    };
+			    
 			    clear('partsSearchCustomer');
 			    clear('partsSearchMachine');
 			    clear('partsSearchPart');
 			    this.filterParts();
-			},
+			}
 			
 			// ===== 部品受注履歴機能 ここまで =====
 
