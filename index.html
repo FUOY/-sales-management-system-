@@ -8745,6 +8745,118 @@
 				}
 			}
 
+			// ===== 部品受注履歴機能 =====
+
+			// 部品受注履歴の表示
+			renderParts() {
+			    this.filterParts();
+			},
+			
+			// フィルター処理
+			filterParts() {
+			    const customerFilter = (document.getElementById('partsSearchCustomer')?.value || '').toLowerCase();
+			    const machineFilter = (document.getElementById('partsSearchMachine')?.value || '').toLowerCase();
+			    const partFilter = (document.getElementById('partsSearchPart')?.value || '').toLowerCase();
+			    
+			    this.fetchAndDisplayParts(customerFilter, machineFilter, partFilter);
+			},
+			
+			// Supabaseからデータ取得・表示
+			async fetchAndDisplayParts(customerFilter = '', machineFilter = '', partFilter = '') {
+			    const tbody = document.getElementById('partsTableBody');
+			    if (!tbody) return;
+			    
+			    try {
+			        tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; padding:20px;">読み込み中...</td></tr>';
+			        
+			        // Supabaseからデータ取得（既存のsupabaseクライアントを使用）
+			        const { data, error } = await this.supabase
+			            .from('parts_order_history')
+			            .select('*')
+			            .order('created_at', { ascending: false });
+			        
+			        if (error) throw error;
+			        
+			        // フィルター適用
+			        let filtered = (data || []).filter(row => {
+			            const customerMatch = !customerFilter ||
+			                (row.customer_name || '').toLowerCase().includes(customerFilter);
+			            const machineMatch = !machineFilter ||
+			                (row.machine_no || '').toLowerCase().includes(machineFilter) ||
+			                (row.machine_type || '').toLowerCase().includes(machineFilter);
+			            const partMatch = !partFilter ||
+			                (row.part_no || '').toLowerCase().includes(partFilter) ||
+			                (row.part_name || '').toLowerCase().includes(partFilter);
+			            return customerMatch && machineMatch && partMatch;
+			        });
+			        
+			        // 統計更新
+			        this.updatePartsStats(filtered);
+			        
+			        // テーブル表示
+			        if (filtered.length === 0) {
+			            tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; padding:40px; color:#999;">データがありません</td></tr>';
+			            return;
+			        }
+			        
+			        tbody.innerHTML = filtered.map(row => `
+			            <tr style="${!row.ship_date ? 'background-color: #fff3cd;' : ''}"
+			                onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.order_slip_no || '-'}</td>
+			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.machine_no || ''}</td>
+			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.machine_type || ''}</td>
+			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.part_no || ''}</td>
+			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.part_name || ''}</td>
+			                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center; color: #dc3545; font-weight: bold;">
+			                    ${row.is_reorder ? '●' : ''}
+			                </td>
+			                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${row.quantity || 0}</td>
+			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.customer_name || ''}</td>
+			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.order_date || ''}</td>
+			                <td style="padding: 8px; border-bottom: 1px solid #eee;">
+			                    ${row.ship_date || '<span style="color:#fd7e14; font-weight:bold;">未出荷</span>'}
+			                </td>
+			                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">
+			                    ¥${Number(row.unit_price || 0).toLocaleString()}
+			                </td>
+			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.customer_order_no || ''}</td>
+			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.internal_slip_no || ''}</td>
+			            </tr>
+			        `).join('');
+			        
+			    } catch (error) {
+			        console.error('部品データ取得エラー:', error);
+			        tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; padding:20px; color:red;">エラー: ${error.message}</td></tr>`;
+			    }
+			},
+			
+			// 統計情報の更新
+			updatePartsStats(data) {
+			    const total = data.length;
+			    const reorder = data.filter(r => r.is_reorder).length;
+			    const shipped = data.filter(r => r.ship_date).length;
+			    const pending = total - shipped;
+			    const amount = data.reduce((sum, r) => sum + (Number(r.unit_price) || 0) * (Number(r.quantity) || 0), 0);
+			    
+			    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+			    set('statsTotalOrders', total);
+			    set('statsReorderCount', reorder);
+			    set('statsShippedCount', shipped);
+			    set('statsPendingCount', pending);
+			    set('statsTotalAmount', '¥' + amount.toLocaleString());
+			},
+			
+			// フィルタークリア
+			clearPartsFilters() {
+			    const clear = (id) => { const el = document.getElementById(id); if (el) el.value = ''; };
+			    clear('partsSearchCustomer');
+			    clear('partsSearchMachine');
+			    clear('partsSearchPart');
+			    this.filterParts();
+			},
+			
+			// ===== 部品受注履歴機能 ここまで =====
+
             /**
              * 顧客詳細情報の表示
              */
