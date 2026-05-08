@@ -4077,7 +4077,7 @@
 				document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
 				document.getElementById(pageId + 'Page').classList.add('active');
 				document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
-				const idx = ['dashboard', 'customers', 'machines', 'projects', 'schedule', 'activities', 'kpi'].indexOf(pageId);
+				const idx = ['dashboard', 'customers', 'machines', 'projects', 'parts', 'schedule', 'activities', 'kpi'].indexOf(pageId);
 				if (idx !== -1) document.querySelectorAll('.tab-button')[idx].classList.add('active');
 
 				if (pageId === 'dashboard') this.renderDashboard();
