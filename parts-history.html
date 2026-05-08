@@ -4,81 +4,585 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>部品受注履歴 - 販売管理システム</title>
-    <link rel="stylesheet" href="css/style.css">
+    <!-- 必要なライブラリの読み込み -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        .parts-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .admin-controls { background: #f0f8ff; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #4CAF50; }
-        .parts-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        .parts-table th, .parts-table td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
-        .parts-table th { background-color: #f2f2f2; font-weight: bold; }
-        .parts-table tr:nth-child(even) { background-color: #f9f9f9; }
-        .status-message { margin: 10px 0; padding: 10px; border-radius: 4px; }
-        .status-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .status-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .status-info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f7fa;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .nav-link {
+            display: inline-block;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .nav-link:hover {
+            color: white;
+        }
+        .content {
+            padding: 20px;
+        }
+        .admin-section {
+            background: #e8f5e9;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .admin-section h3 {
+            margin-top: 0;
+            color: #2e7d32;
+        }
+        .filter-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .filter-grid input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.2s;
+        }
+        .btn-primary {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #45a049;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th, td {
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            position: sticky;
+            top: 0;
+        }
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        .status-message {
+            margin-top: 10px;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .reorder-mark {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .pending-row {
+            background-color: #fff3cd !important;
+        }
     </style>
 </head>
 <body>
-    <div class="parts-container">
-        <nav style="margin-bottom: 20px;">
-            <a href="index.html" style="text-decoration: none; color: #007bff;">← ホームに戻る</a>
-        </nav>
-
-        <h1>部品受注履歴管理</h1>
-
-        <!-- Admin用インポート領域 -->
-        <div class="admin-controls">
-            <h3>📊 Excelデータインポート（Admin権限）</h3>
-            <p>受注票番号、機番、機種、部品番号、部品名、再、数量、客先名、発注日、発送日、単価、注番、伝番の列を含むExcelファイルを選択してください。</p>
-            <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="margin-bottom: 10px;">
-            <button onclick="importExcelData()" style="background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">📁 インポート実行</button>
-            <div id="importStatus"></div>
+    <div class="container">
+        <div class="header">
+            <a href="index.html" class="nav-link">← ホームに戻る</a>
+            <h1>📦 部品受注履歴管理</h1>
         </div>
+        
+        <div class="content">
+            <!-- Admin用インポート機能 -->
+            <div class="admin-section">
+                <h3>📊 Excelデータインポート（Admin権限）</h3>
+                <p>受注票番号、機番、機種、部品番号、部品名、再、数量、客先名、発注日、発送日、単価、注番、伝番の列を含むExcelファイルを選択してください。</p>
+                <div style="margin-bottom: 10px;">
+                    <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="margin-right: 10px;">
+                    <button class="btn btn-primary" onclick="importExcelData()">📁 インポート実行</button>
+                </div>
+                <div id="importStatus"></div>
+            </div>
 
-        <!-- 検索・フィルター -->
-        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <h3>🔍 検索・フィルター</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-                <input type="text" id="searchCustomer" placeholder="客先名で検索" onkeyup="filterData()">
-                <input type="text" id="searchMachine" placeholder="機番で検索" onkeyup="filterData()">
-                <input type="text" id="searchPart" placeholder="部品名・部品番号で検索" onkeyup="filterData()">
-                <button onclick="clearFilters()" style="background: #6c757d; color: white; padding: 8px 15px; border: none; border-radius: 4px;">クリア</button>
+            <!-- 統計情報 -->
+            <div id="summarySection">
+                <h3>📈 データ統計</h3>
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-card">
+                        <div class="stat-number">-</div>
+                        <div class="stat-label">読み込み中...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 検索・フィルター -->
+            <div class="filter-section">
+                <h3>🔍 検索・フィルター</h3>
+                <div class="filter-grid">
+                    <input type="text" id="searchCustomer" placeholder="客先名で検索" onkeyup="filterData()">
+                    <input type="text" id="searchMachine" placeholder="機番・機種で検索" onkeyup="filterData()">
+                    <input type="text" id="searchPart" placeholder="部品番号・部品名で検索" onkeyup="filterData()">
+                    <button class="btn btn-secondary" onclick="clearFilters()">クリア</button>
+                </div>
+            </div>
+
+            <!-- データテーブル -->
+            <div class="table-container">
+                <table id="partsTable">
+                    <thead>
+                        <tr>
+                            <th>受注票番号</th>
+                            <th>機番</th>
+                            <th>機種</th>
+                            <th>部品番号</th>
+                            <th>部品名</th>
+                            <th>再</th>
+                            <th>数量</th>
+                            <th>客先名</th>
+                            <th>発注日</th>
+                            <th>発送日</th>
+                            <th>単価</th>
+                            <th>注番</th>
+                            <th>伝番</th>
+                        </tr>
+                    </thead>
+                    <tbody id="partsTableBody">
+                        <tr>
+                            <td colspan="13" style="text-align: center; padding: 30px; color: #999;">
+                                データを読み込み中...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
-
-        <!-- データ統計 -->
-        <div id="summaryStats" style="background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <h3>📈 データ統計</h3>
-            <div id="statsContent">データを読み込み中...</div>
-        </div>
-
-        <!-- データ表示テーブル -->
-        <table class="parts-table" id="partsTable">
-            <thead>
-                <tr>
-                    <th>受注票番号</th>
-                    <th>機番</th>
-                    <th>機種</th>
-                    <th>部品番号</th>
-                    <th>部品名</th>
-                    <th>再</th>
-                    <th>数量</th>
-                    <th>客先名</th>
-                    <th>発注日</th>
-                    <th>発送日</th>
-                    <th>単価</th>
-                    <th>注番</th>
-                    <th>伝番</th>
-                </tr>
-            </thead>
-            <tbody id="partsTableBody">
-                <!-- データがここに入ります -->
-            </tbody>
-        </table>
     </div>
 
-    <script src="js/parts-history.js"></script>
+    <!-- Supabase設定 -->
+    <script>
+        // 🔴 重要：以下の設定を既存ファイルからコピーして置き換えてください
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL_HERE';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE';
+        
+        // Supabaseクライアントの初期化
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // グローバル変数
+        let allPartsData = [];
+        let filteredData = [];
+    </script>
+
+    <!-- メインアプリケーション -->
+    <script>
+        // ページ読み込み時の初期化
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('部品受注履歴ページを初期化中...');
+            
+            // Supabase設定チェック
+            if (SUPABASE_URL.includes('YOUR_') || SUPABASE_ANON_KEY.includes('YOUR_')) {
+                showStatus('⚠️ Supabase設定が未完了です。設定値を正しく入力してください。', 'error');
+                return;
+            }
+            
+            // データ取得
+            await fetchPartsHistory();
+        });
+
+        // Supabaseからデータ取得
+        async function fetchPartsHistory() {
+            try {
+                showStatus('データを読み込み中...', 'info');
+                
+                const { data, error } = await supabase
+                    .from('parts_order_history')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                allPartsData = data || [];
+                filteredData = [...allPartsData];
+                displayPartsData(filteredData);
+                updateSummaryStats(filteredData);
+                
+                showStatus(`✅ ${allPartsData.length}件のデータを読み込みました`, 'success');
+                setTimeout(() => {
+                    document.getElementById('importStatus').innerHTML = '';
+                }, 3000);
+                
+            } catch (error) {
+                console.error('データ取得エラー:', error);
+                showStatus(`❌ データ取得エラー: ${error.message}`, 'error');
+            }
+        }
+
+        // テーブルにデータ表示
+        function displayPartsData(data) {
+            const tbody = document.getElementById('partsTableBody');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="13" style="text-align: center; padding: 30px; color: #999;">
+                            データがありません<br>
+                            <small>Excelファイルをインポートしてください</small>
+                        </td>
+                    </tr>`;
+                return;
+            }
+            
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                
+                // 未出荷の場合は背景色を変更
+                if (!row.ship_date) {
+                    tr.classList.add('pending-row');
+                }
+                
+                tr.innerHTML = `
+                    <td>${row.order_slip_no || '-'}</td>
+                    <td>${row.machine_no || ''}</td>
+                    <td>${row.machine_type || ''}</td>
+                    <td>${row.part_no || ''}</td>
+                    <td>${row.part_name || ''}</td>
+                    <td style="text-align: center;">
+                        ${row.is_reorder ? '<span class="reorder-mark">●</span>' : ''}
+                    </td>
+                    <td style="text-align: right;">${row.quantity || 0}</td>
+                    <td>${row.customer_name || ''}</td>
+                    <td>${row.order_date || ''}</td>
+                    <td>${row.ship_date || '<span style="color: #fd7e14;">未出荷</span>'}</td>
+                    <td style="text-align: right;">¥${Number(row.unit_price || 0).toLocaleString()}</td>
+                    <td>${row.customer_order_no || ''}</td>
+                    <td>${row.internal_slip_no || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 統計情報の更新
+        function updateSummaryStats(data) {
+            const statsGrid = document.getElementById('statsGrid');
+            if (!statsGrid) return;
+            
+            if (!data || data.length === 0) {
+                statsGrid.innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-number">0</div>
+                        <div class="stat-label">データなし</div>
+                    </div>`;
+                return;
+            }
+            
+            const totalOrders = data.length;
+            const reorderCount = data.filter(r => r.is_reorder).length;
+            const shippedCount = data.filter(r => r.ship_date).length;
+            const pendingCount = totalOrders - shippedCount;
+            
+            // 総受注金額の計算: ∑(単価 × 数量)
+            const totalAmount = data.reduce((sum, record) => {
+                const unitPrice = Number(record.unit_price) || 0;
+                const quantity = Number(record.quantity) || 0;
+                return sum + (unitPrice * quantity);
+            }, 0);
+            
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number" style="color: #007bff;">${totalOrders}</div>
+                    <div class="stat-label">総件数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" style="color: #dc3545;">${reorderCount}</div>
+                    <div class="stat-label">再注文品</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" style="color: #28a745;">${shippedCount}</div>
+                    <div class="stat-label">出荷済</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" style="color: #fd7e14;">${pendingCount}</div>
+                    <div class="stat-label">未出荷</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" style="color: #6f42c1;">¥${totalAmount.toLocaleString()}</div>
+                    <div class="stat-label">総受注金額</div>
+                </div>
+            `;
+        }
+
+        // Excelインポート処理
+        async function importExcelData() {
+            const fileInput = document.getElementById('excelFileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showStatus('❌ ファイルを選択してください', 'error');
+                return;
+            }
+            
+            showStatus('📖 Excelファイルを読み込み中...', 'info');
+            
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { raw: false });
+                    
+                    if (jsonData.length === 0) {
+                        showStatus('❌ Excelファイルにデータが見つかりません', 'error');
+                        return;
+                    }
+                    
+                    // データ変換とバリデーション
+                    const insertData = [];
+                    const errors = [];
+                    
+                    jsonData.forEach((row, index) => {
+                        try {
+                            const record = {
+                                order_slip_no: (row['受注票番号'] === '-' || !row['受注票番号']) 
+                                    ? null : String(row['受注票番号']).trim(),
+                                machine_no: String(row['機番'] || '').trim(),
+                                machine_type: String(row['機種'] || '').trim(),
+                                part_no: String(row['部品番号'] || '').trim(),
+                                part_name: String(row['部品名'] || '').trim(),
+                                is_reorder: row['再'] === '●',
+                                quantity: parseInt(row['数量']) || 0,
+                                customer_name: String(row['客先名'] || '').trim(),
+                                order_date: formatDate(row['発注日']),
+                                ship_date: formatDate(row['発送日']),
+                                unit_price: parseFloat(String(row['単価'] || '0').replace(/[,¥\s]/g, '')) || 0,
+                                customer_order_no: String(row['注番'] || '').trim(),
+                                internal_slip_no: String(row['伝番'] || '').trim(),
+                                source_file: file.name
+                            };
+                            
+                            // 必須項目チェック
+                            const requiredFields = ['machine_no', 'machine_type', 'part_no', 'part_name', 'customer_name'];
+                            const missingFields = requiredFields.filter(field => !record[field]);
+                            
+                            if (missingFields.length > 0) {
+                                errors.push(`${index + 2}行目: ${missingFields.join('・')}が不足`);
+                            } else {
+                                insertData.push(record);
+                            }
+                            
+                        } catch (error) {
+                            errors.push(`${index + 2}行目: 変換エラー - ${error.message}`);
+                        }
+                    });
+                    
+                    // エラー報告
+                    if (errors.length > 0) {
+                        const errorPreview = errors.slice(0, 3).join('\n');
+                        const moreText = errors.length > 3 ? `\n...他${errors.length - 3}件のエラー` : '';
+                        console.warn('インポートエラー:', errors);
+                        showStatus(`⚠️ ${errors.length}件のエラーをスキップします:\n${errorPreview}${moreText}`, 'error');
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    }
+                    
+                    if (insertData.length === 0) {
+                        showStatus('❌ 有効なデータが見つかりませんでした', 'error');
+                        return;
+                    }
+                    
+                    // Supabaseに保存
+                    showStatus(`💾 ${insertData.length}件をデータベースに保存中...`, 'info');
+                    
+                    const { error: insertError } = await supabase
+                        .from('parts_order_history')
+                        .insert(insertData);
+                    
+                    if (insertError) throw insertError;
+                    
+                    showStatus(`✅ ${insertData.length}件のデータをインポートしました！${errors.length > 0 ? ` (${errors.length}件のエラーをスキップ)` : ''}`, 'success');
+                    
+                    // データ再取得とファイル入力クリア
+                    await fetchPartsHistory();
+                    fileInput.value = '';
+                    
+                } catch (error) {
+                    console.error('インポートエラー:', error);
+                    showStatus(`❌ インポートエラー: ${error.message}`, 'error');
+                }
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 日付フォーマット処理
+        function formatDate(dateValue) {
+            if (!dateValue || dateValue === '-' || dateValue === '') return null;
+            
+            // 文字列の日付（yyyy/mm/dd形式）
+            if (typeof dateValue === 'string') {
+                const match = dateValue.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+                if (match) {
+                    const year = match[1];
+                    const month = match[2].padStart(2, '0');
+                    const day = match[3].padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                }
+            }
+            
+            // Dateオブジェクト
+            if (dateValue instanceof Date && !isNaN(dateValue)) {
+                return dateValue.toISOString().split('T')[0];
+            }
+            
+            // Excelシリアル値の変換
+            const numValue = Number(dateValue);
+            if (!isNaN(numValue) && numValue > 40000) {
+                const date = new Date((numValue - 25569) * 86400 * 1000);
+                return date.toISOString().split('T')[0];
+            }
+            
+            return null;
+        }
+
+        // 検索・フィルター機能
+        function filterData() {
+            const customerFilter = document.getElementById('searchCustomer').value.toLowerCase();
+            const machineFilter = document.getElementById('searchMachine').value.toLowerCase();
+            const partFilter = document.getElementById('searchPart').value.toLowerCase();
+            
+            filteredData = allPartsData.filter(row => {
+                const customerMatch = !customerFilter || 
+                    (row.customer_name || '').toLowerCase().includes(customerFilter);
+                const machineMatch = !machineFilter || 
+                    (row.machine_no || '').toLowerCase().includes(machineFilter) ||
+                    (row.machine_type || '').toLowerCase().includes(machineFilter);
+                const partMatch = !partFilter || 
+                    (row.part_no || '').toLowerCase().includes(partFilter) ||
+                    (row.part_name || '').toLowerCase().includes(partFilter);
+                
+                return customerMatch && machineMatch && partMatch;
+            });
+            
+            displayPartsData(filteredData);
+            updateSummaryStats(filteredData);
+        }
+
+        // フィルタークリア
+        function clearFilters() {
+            document.getElementById('searchCustomer').value = '';
+            document.getElementById('searchMachine').value = '';
+            document.getElementById('searchPart').value = '';
+            filteredData = [...allPartsData];
+            displayPartsData(filteredData);
+            updateSummaryStats(filteredData);
+        }
+
+        // ステータスメッセージ表示
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('importStatus');
+            if (!statusDiv) return;
+            
+            const typeClasses = {
+                success: 'status-success',
+                error: 'status-error',
+                info: 'status-info'
+            };
+            
+            const className = typeClasses[type] || 'status-info';
+            statusDiv.innerHTML = `<div class="status-message ${className}">${message}</div>`;
+        }
+    </script>
 </body>
 </html>
