@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>部品受注履歴 - 販売管理システム</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        .parts-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .admin-controls { background: #f0f8ff; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #4CAF50; }
+        .parts-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .parts-table th, .parts-table td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+        .parts-table th { background-color: #f2f2f2; font-weight: bold; }
+        .parts-table tr:nth-child(even) { background-color: #f9f9f9; }
+        .status-message { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .status-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .status-info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    </style>
+</head>
+<body>
+    <div class="parts-container">
+        <nav style="margin-bottom: 20px;">
+            <a href="index.html" style="text-decoration: none; color: #007bff;">← ホームに戻る</a>
+        </nav>
+
+        <h1>部品受注履歴管理</h1>
+
+        <!-- Admin用インポート領域 -->
+        <div class="admin-controls">
+            <h3>📊 Excelデータインポート（Admin権限）</h3>
+            <p>受注票番号、機番、機種、部品番号、部品名、再、数量、客先名、発注日、発送日、単価、注番、伝番の列を含むExcelファイルを選択してください。</p>
+            <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="margin-bottom: 10px;">
+            <button onclick="importExcelData()" style="background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">📁 インポート実行</button>
+            <div id="importStatus"></div>
+        </div>
+
+        <!-- 検索・フィルター -->
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h3>🔍 検索・フィルター</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                <input type="text" id="searchCustomer" placeholder="客先名で検索" onkeyup="filterData()">
+                <input type="text" id="searchMachine" placeholder="機番で検索" onkeyup="filterData()">
+                <input type="text" id="searchPart" placeholder="部品名・部品番号で検索" onkeyup="filterData()">
+                <button onclick="clearFilters()" style="background: #6c757d; color: white; padding: 8px 15px; border: none; border-radius: 4px;">クリア</button>
+            </div>
+        </div>
+
+        <!-- データ統計 -->
+        <div id="summaryStats" style="background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h3>📈 データ統計</h3>
+            <div id="statsContent">データを読み込み中...</div>
+        </div>
+
+        <!-- データ表示テーブル -->
+        <table class="parts-table" id="partsTable">
+            <thead>
+                <tr>
+                    <th>受注票番号</th>
+                    <th>機番</th>
+                    <th>機種</th>
+                    <th>部品番号</th>
+                    <th>部品名</th>
+                    <th>再</th>
+                    <th>数量</th>
+                    <th>客先名</th>
+                    <th>発注日</th>
+                    <th>発送日</th>
+                    <th>単価</th>
+                    <th>注番</th>
+                    <th>伝番</th>
+                </tr>
+            </thead>
+            <tbody id="partsTableBody">
+                <!-- データがここに入ります -->
+            </tbody>
+        </table>
+    </div>
+
+    <script src="js/parts-history.js"></script>
+</body>
+</html>
