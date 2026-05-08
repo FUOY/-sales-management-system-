@@ -2780,6 +2780,113 @@
                 </div>			
             </section>
 
+			<!-- ===== 部品受注履歴ページ ===== -->
+			<section id="partsPage" class="page-section">
+			    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
+			        <h2 class="page-title" style="margin: 0;">部品受注履歴</h2>
+			        <div class="header-controls">
+			            <!-- 既存のインポート機能を活用 -->
+			            <div id="partsImportDropdownContainer" style="position: relative; display: inline-block;">
+			                <button class="btn btn-success" onclick="const d = document.getElementById('partsImportDropdown'); d.style.display = d.style.display === 'block' ? 'none' : 'block';">
+			                    <i class="fas fa-file-excel"></i> 部品データ管理
+			                </button>
+			                
+			                <div id="partsImportDropdown" style="display: none; position: absolute; top: 100%; right: 0; background: white; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; min-width: 220px; margin-top: 5px; padding: 8px 0;">
+			                    <button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #333; cursor: pointer; font-size: 0.9rem;" 
+			                            onmouseover="this.style.background='#f0f8ff'" onmouseout="this.style.background='white'"
+			                            onclick="app.importExcel('parts_orders'); document.getElementById('partsImportDropdown').style.display = 'none';">
+			                        <i class="fas fa-tools" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
+			                        部品受注データインポート
+			                    </button>
+			                    
+			                    <hr style="margin: 8px 0; border-color: #eee;">
+			                    
+			                    <button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #dc3545; cursor: pointer; font-size: 0.9rem;" 
+			                            onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='white'"
+			                            onclick="app.resetImportData('parts_orders'); document.getElementById('partsImportDropdown').style.display = 'none';">
+			                        <i class="fas fa-trash-alt" style="color: #dc3545; width: 20px; margin-right: 8px;"></i>
+			                        部品データを全削除
+			                    </button>
+			                </div>
+			            </div>
+			        </div>
+			    </div>
+			
+			    <!-- 統計カード -->
+			    <div id="partsStatsGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; margin-bottom: 20px;">
+			        <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e9ecef; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+			            <div id="statsTotalOrders" style="font-size: 28px; font-weight: bold; color: #007bff;">0</div>
+			            <div style="color: #666; font-size: 13px;">総件数</div>
+			        </div>
+			        <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e9ecef; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+			            <div id="statsReorderCount" style="font-size: 28px; font-weight: bold; color: #dc3545;">0</div>
+			            <div style="color: #666; font-size: 13px;">再注文品</div>
+			        </div>
+			        <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e9ecef; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+			            <div id="statsShippedCount" style="font-size: 28px; font-weight: bold; color: #28a745;">0</div>
+			            <div style="color: #666; font-size: 13px;">出荷済</div>
+			        </div>
+			        <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e9ecef; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+			            <div id="statsPendingCount" style="font-size: 28px; font-weight: bold; color: #fd7e14;">0</div>
+			            <div style="color: #666; font-size: 13px;">未出荷</div>
+			        </div>
+			        <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e9ecef; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+			            <div id="statsTotalAmount" style="font-size: 22px; font-weight: bold; color: #6f42c1;">¥0</div>
+			            <div style="color: #666; font-size: 13px;">総受注金額</div>
+			        </div>
+			    </div>
+			
+			    <!-- 検索フィルター -->
+			    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+			        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+			            <input type="text" id="partsSearchCustomer" placeholder="🔍 客先名で検索"
+			                style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+			                onkeyup="app.filterParts()">
+			            <input type="text" id="partsSearchMachine" placeholder="🔍 機番・機種で検索"
+			                style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+			                onkeyup="app.filterParts()">
+			            <input type="text" id="partsSearchPart" placeholder="🔍 部品番号・部品名で検索"
+			                style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+			                onkeyup="app.filterParts()">
+			            <button onclick="app.clearPartsFilters()"
+			                style="padding: 8px 15px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+			                クリア
+			            </button>
+			        </div>
+			    </div>
+			
+			    <!-- データテーブル -->
+			    <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #ddd;">
+			        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+			            <thead>
+			                <tr style="background: #f8f9fa;">
+			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">受注票番号</th>
+			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">機番</th>
+			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">機種</th>
+			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">部品番号</th>
+			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">部品名</th>
+			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: center; white-space: nowrap;">再</th>
+			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: right; white-space: nowrap;">数量</th>
+			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">客先名</th>
+			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">発注日</th>
+			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">発送日</th>
+			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: right; white-space: nowrap;">単価</th>
+			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">注番</th>
+			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">伝番</th>
+			                </tr>
+			            </thead>
+			            <tbody id="partsTableBody">
+			                <tr>
+			                    <td colspan="13" style="text-align: center; padding: 40px; color: #999;">
+			                        データがありません。Excelインポートを実行してください。
+			                    </td>
+			                </tr>
+			            </tbody>
+			        </table>
+			    </div>
+			</section>
+			<!-- ===== 部品受注履歴ページ ここまで ===== -->
+
             <!-- Customer Management Section -->
             <section id="customersPage" class="page-section">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
