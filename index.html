@@ -5349,13 +5349,30 @@
 			}
 
 			/**
-			 * 失注理由フィルタの解除
+			 * 失注理由フィルタを解除
 			 */
 			clearLostReasonFilter() {
+				console.log('🔄 失注理由フィルタを解除');
+				
+				// 1. 失注理由フィルタ状態をクリア
 				this.lostReasonFilter = null;
+				
+				// 2. ステータスフィルタを「すべて」にリセット（重要！）
+				const statusFilter = document.getElementById('projectsStatusFilter');
+				if (statusFilter) {
+					statusFilter.value = 'all';
+				}
+				
+				// 3. アーカイブエリアのフィルタバナーを削除
+				const oldBanner = document.getElementById('lostReasonFilterBanner');
+				if (oldBanner) oldBanner.remove();
+				
+				// 4. 画面全体を再描画
 				this.renderProjects();
+				
+				// 5. 成功メッセージ表示
 				this.showToast('失注理由フィルタを解除しました', 'success');
-			}	
+			}
 			
 			/**
 			 * 受注予測スコアの算出
@@ -9209,27 +9226,27 @@
 				
 				let list = this.data.projects || [];
 				
-				// ★★★ 【重要修正】進行中案件のみを抽出（完了案件を除外） ★★★
-				// ただし、特定の条件下では完了案件も表示する
+				// ★★★ 進行中案件のみを厳密に抽出（完了・失注案件を完全除外） ★★★
 				list = list.filter(p => {
-					// ★追加: 失注理由フィルタが有効な場合は、失注案件を除外しない
-					if (this.lostReasonFilter && p.status === '失注') {
-						return true;
-					}
+					// 画面上のステータスフィルタで明示的に選択された場合のみ例外的に表示
+					if (statusFilter === '失注' && (p.status === '失注' || p.stage === '失注')) return true;
+					if (statusFilter === '完了' && (p.status === '完了' || p.stage === '受注')) return true;
 					
-					// ★追加: ステータスフィルタで「失注」「完了」が明示的に選ばれている場合も除外しない
-					if (statusFilter === '失注' && p.status === '失注') return true;
-					if (statusFilter === '完了' && p.status === '完了') return true;
+					// ステージまたはステータスが完了・失注の案件は無条件で除外
+					if (p.stage === '失注') return false;
+					if (p.stage === '受注') return false;
+					if (p.status === '失注') return false;
+					if (p.status === '完了') return false;
+					if (p.probability === '受注済') return false;
 					
-					// 完了状態の判定
-					const isCompleted = p.stage === '受注' || 
-									   p.probability === '受注済' || 
-									   p.status === '完了' || 
-									   p.status === '失注';
-					
-					// 進行中案件のみを残す（完了案件は除外）
-					return !isCompleted;
+					// 上記の除外条件に該当しない案件は進行中として残す
+					return true;
 				});
+
+				// ダッシュボードから失注理由フィルタで来た場合は、進行中テーブルを空にする
+				if (this.lostReasonFilter) {
+					list = [];
+				}
 				
 				// ★ 追加: ダッシュボードからの確度フィルタ適用
 				if (this.targetProbability) {
@@ -9255,20 +9272,16 @@
 					list = list.filter(p => p.assignee === CURRENT_USER.assignee);
 				}
 				
-				// ステータスフィルター
-				if (statusFilter !== 'all') {
+				// ステータスフィルター（失注・完了は進行中テーブルに表示しない）
+				if (statusFilter !== 'all' && statusFilter !== '失注' && statusFilter !== '完了') {
 					list = list.filter(p => p.status === statusFilter);
 				}
-				
-				// ★ 失注理由フィルタ（ダッシュボードからの遷移用）
-				if (this.lostReasonFilter) {
-					list = list.filter(p => 
-						p.status === '失注' &&
-						p.lostReason &&
-						p.lostReason.category === this.lostReasonFilter
-					);
-				}
 
+				// ★ ダッシュボードから失注理由フィルタで来た場合は、進行中テーブルを空にする
+				if (this.lostReasonFilter) {
+					list = []; // 進行中テーブル用のリストを強制的に空にする
+				}
+				
 				// ★ 新規追加：リスク案件フィルタ（重要度フィルタの代替）
 				const riskFilterCheckbox = document.getElementById('projectsRiskFilter');
 				if (riskFilterCheckbox && riskFilterCheckbox.checked) {
@@ -9496,43 +9509,48 @@
 							<i class="fas fa-exclamation-triangle"></i> 滞留: ${stagnantCount}件
 						</span>` : '<span style="color: #28a745; margin-left: 0.5rem;"><i class="fas fa-check"></i> 滞留なし</span>'}
 					`;
-					
-					// 失注理由フィルタが適用されている場合の表示
-					if (this.lostReasonFilter) {
-						summaryHtml += `
-							<div style="margin-top: 0.5rem; font-size: 0.9rem;">
-								<span style="background: #f8d7da; color: #721c24; padding: 4px 12px; border-radius: 12px; font-weight: bold;">
-									<i class="fas fa-filter"></i> 失注理由「${this.lostReasonFilter}」で絞り込み中
-								</span>
-								<button class="btn btn-sm btn-secondary" onclick="app.clearLostReasonFilter()" style="margin-left: 0.5rem;">
-									<i class="fas fa-times"></i> フィルタ解除
-								</button>
-							</div>
-						`;
-					}
-					
+								
 					activeSummary.innerHTML = summaryHtml;
 				}
 				
 				// ★★★ 受注済案件の分離表示 ★★★
 				const completedProjects = (this.data.projects || []).filter(p => {
+					// 1. 完了・失注状態の判定
 					const isCompleted = p.stage === '受注' || 
+									   p.stage === '失注' || 
 									   p.probability === '受注済' || 
 									   p.status === '完了' || 
 									   p.status === '失注';
 					
+					// 完了・失注していない案件は除外
 					if (!isCompleted) return false;
 					
+					// 2. 失注理由フィルター（★最優先でチェック）
+					if (this.lostReasonFilter) {
+						const matchReason = p.status === '失注' &&
+											p.lostReason &&
+											p.lostReason.category === this.lostReasonFilter;
+						// 失注理由が合致しない案件を除外
+						if (!matchReason) return false;
+					}
+					
+					// 3. 個人フィルター
 					if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
-						return p.assignee === CURRENT_USER.assignee;
+						// 自分が担当ではない案件を除外
+						if (p.assignee !== CURRENT_USER.assignee) return false;
 					}
 					
+					// 4. 検索キーワードフィルター
 					if (this.searchKeyword) {
-						return p.projectName.toLowerCase().includes(this.searchKeyword) ||
-							   p.projectNumber.toLowerCase().includes(this.searchKeyword) ||
-							   p.customer.toLowerCase().includes(this.searchKeyword);
+						const matchSearch = p.projectName.toLowerCase().includes(this.searchKeyword) ||
+											p.projectNumber.toLowerCase().includes(this.searchKeyword) ||
+											p.customer.toLowerCase().includes(this.searchKeyword) ||
+											(p.product && p.product.toLowerCase().includes(this.searchKeyword));
+						// キーワードに合致しない案件を除外
+						if (!matchSearch) return false;
 					}
 					
+					// 全てのフィルター条件を通過したものだけを残す
 					return true;
 				});
 
@@ -9599,10 +9617,52 @@
 					}
 				}
 
-				// 受注済案件テーブルの表示制御
+				// 受注済案件テーブルの表示制御とフィルタバナー
 				const completedView = document.getElementById('completedProjectsView');
 				if (completedView) {
-					completedView.style.display = completedProjects.length > 0 ? 'block' : 'none';
+					// 既存のフィルタバナーを削除
+					const oldBanner = document.getElementById('lostReasonFilterBanner');
+					if (oldBanner) oldBanner.remove();
+
+					if (this.lostReasonFilter) {
+						// フィルタ適用中は必ずアーカイブエリアを表示
+						completedView.style.display = 'block';
+
+						// フィルタ中バナーをアーカイブエリアの先頭に挿入
+						const banner = document.createElement('div');
+						banner.id = 'lostReasonFilterBanner';
+						banner.style.cssText = `
+							background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+							color: #721c24;
+							padding: 1rem;
+							border-radius: 8px;
+							margin-bottom: 1rem;
+							display: flex;
+							align-items: center;
+							justify-content: space-between;
+							border-left: 4px solid #dc3545;
+							box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+						`;
+						banner.innerHTML = `
+							<div style="display: flex; align-items: center; gap: 0.5rem;">
+								<i class="fas fa-filter" style="font-size: 1.2rem;"></i>
+								<span style="font-weight: bold;">
+									失注理由「${this.lostReasonFilter}」で絞り込み中
+								</span>
+								<span style="background: rgba(114, 28, 36, 0.1); padding: 2px 8px; border-radius: 12px; font-size: 0.9rem;">
+									${completedProjects.length}件
+								</span>
+							</div>
+							<button class="btn btn-sm btn-secondary" onclick="app.clearLostReasonFilter()" 
+									style="background: #6c757d; border: none; color: white;">
+								<i class="fas fa-times"></i> フィルタ解除
+							</button>
+						`;
+						completedView.insertBefore(banner, completedView.firstChild);
+					} else {
+						// 通常時の表示制御
+						completedView.style.display = completedProjects.length > 0 ? 'block' : 'none';
+					}
 				}
 			}
 
