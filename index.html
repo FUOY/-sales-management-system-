@@ -8870,6 +8870,152 @@
 			
 			// ===== 部品受注履歴機能 ここまで =====
 
+		// 部品データ専用のExcelインポート機能
+		async importPartsExcel() {
+		    // ファイル選択ダイアログを作成
+		    const input = document.createElement('input');
+		    input.type = 'file';
+		    input.accept = '.xlsx, .xls';
+		    
+		    input.onchange = async (e) => {
+		        const file = e.target.files[0];
+		        if (!file) return;
+		        
+		        // ユーザーへの開始通知
+		        alert('部品データのインポートを開始します...\n※データ量によっては数秒かかります。');
+		        
+		        const reader = new FileReader();
+		        reader.onload = async (event) => {
+		            try {
+		                // Excelファイルの読み込み
+		                const data = new Uint8Array(event.target.result);
+		                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+		                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+		                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { raw: false });
+		                
+		                if (jsonData.length === 0) {
+		                    alert('❌ Excelファイルにデータが見つかりません。');
+		                    return;
+		                }
+		                
+		                // データ変換とバリデーション
+		                const insertData = [];
+		                let skippedCount = 0;
+		                
+		                jsonData.forEach((row, index) => {
+		                    // 必須項目チェック（機番と部品番号は必須）
+		                    if (!row['機番'] || !row['部品番号']) {
+		                        skippedCount++;
+		                        return;
+		                    }
+		                    
+		                    insertData.push({
+		                        order_slip_no: row['受注票番号'] === '-' ? null : String(row['受注票番号'] || ''),
+		                        machine_no: String(row['機番'] || '').trim(),
+		                        machine_type: String(row['機種'] || '').trim(),
+		                        part_no: String(row['部品番号'] || '').trim(),
+		                        part_name: String(row['部品名'] || '').trim(),
+		                        is_reorder: row['再'] === '●',
+		                        quantity: parseInt(row['数量']) || 0,
+		                        customer_name: String(row['客先名'] || '').trim(),
+		                        order_date: this.formatPartsDate(row['発注日']),
+		                        ship_date: this.formatPartsDate(row['発送日']),
+		                        unit_price: parseFloat(String(row['単価'] || '0').replace(/[,¥\s]/g, '')) || 0,
+		                        customer_order_no: String(row['注番'] || ''),
+		                        internal_slip_no: String(row['伝番'] || ''),
+		                        source_file: file.name
+		                    });
+		                });
+		                
+		                if (insertData.length === 0) {
+		                    alert('❌ 有効なデータがありませんでした。\n機番と部品番号が入力された行を確認してください。');
+		                    return;
+		                }
+		                
+		                // Supabaseへ一括保存
+		                const { error } = await supabaseClient
+		                    .from('parts_order_history')
+		                    .insert(insertData);
+		                
+		                if (error) throw error;
+		                
+		                // 成功メッセージ
+		                let message = `✅ ${insertData.length}件の部品データをインポートしました！`;
+		                if (skippedCount > 0) {
+		                    message += `\n（${skippedCount}件の不完全な行をスキップしました）`;
+		                }
+		                alert(message);
+		                
+		                // 画面を自動更新
+		                this.renderParts();
+		                
+		            } catch (error) {
+		                console.error('インポートエラー:', error);
+		                alert('❌ エラーが発生しました: ' + error.message);
+		            }
+		        };
+		        reader.readAsArrayBuffer(file);
+		    };
+		    
+		    // ファイル選択ダイアログを表示
+		    input.click();
+		}
+		
+		// 日付フォーマット用ヘルパー関数
+		formatPartsDate(dateValue) {
+		    if (!dateValue || dateValue === '-' || dateValue === '') return null;
+		    
+		    // 文字列形式の日付（yyyy/mm/dd または yyyy-mm-dd）
+		    if (typeof dateValue === 'string') {
+		        const match = dateValue.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+		        if (match) {
+		            const year = match[1];
+		            const month = match[2].padStart(2, '0');
+		            const day = match[3].padStart(2, '0');
+		            return `${year}-${month}-${day}`;
+		        }
+		    }
+		    
+		    // Dateオブジェクト
+		    if (dateValue instanceof Date && !isNaN(dateValue)) {
+		        return dateValue.toISOString().split('T')[0];
+		    }
+		    
+		    // Excelシリアル値の変換
+		    const numValue = Number(dateValue);
+		    if (!isNaN(numValue) && numValue > 40000) {
+		        const date = new Date((numValue - 25569) * 86400 * 1000);
+		        return date.toISOString().split('T')[0];
+		    }
+		    
+		    return null;
+		}
+		
+		// 部品データ全削除機能（テスト用）
+		async resetPartsData() {
+		    const confirmed = confirm('⚠️ 本当にすべての部品受注履歴データを削除しますか？\n\nこの操作は取り消せません。');
+		    if (!confirmed) return;
+		    
+		    try {
+		        // 全件削除（id > 0 の条件で全レコードを対象）
+		        const { error } = await supabaseClient
+		            .from('parts_order_history')
+		            .delete()
+		            .gt('id', 0);
+		        
+		        if (error) throw error;
+		        
+		        alert('🗑️ すべての部品データを削除しました。');
+		        
+		        // 画面を自動更新
+		        this.renderParts();
+		        
+		    } catch (error) {
+		        console.error('削除エラー:', error);
+		        alert('❌ 削除エラー: ' + error.message);
+		    }
+		}
+
             /**
              * 顧客詳細情報の表示
              */
