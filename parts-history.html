@@ -191,6 +191,10 @@
                 <div style="margin-bottom: 10px;">
                     <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="margin-right: 10px;">
                     <button class="btn btn-primary" onclick="importExcelData()">📁 インポート実行</button>
+					<button onclick="openAddPartModal()" 
+						style="padding:8px 16px; background:#28a745; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.9rem; margin-left:0.5rem;">
+					<i class="fas fa-plus"></i> 新規追加
+				</button>
                 </div>
                 <div id="importStatus"></div>
             </div>
@@ -235,6 +239,7 @@
                             <th>単価</th>
                             <th>注番</th>
                             <th>伝番</th>
+							<th>操作</th>
                         </tr>
                     </thead>
                     <tbody id="partsTableBody">
@@ -278,6 +283,164 @@
             // データ取得
             await fetchPartsHistory();
         });
+
+        // ===================================
+        // 部品データ個別追加・編集機能
+        // ===================================
+
+        // 新規追加モーダルを開く
+        function openAddPartModal() {
+            document.getElementById('partModalTitle').textContent = '部品データ 新規追加';
+            document.getElementById('partEditId').value = '';
+            document.getElementById('partFormOrderSlipNo').value = '';
+            document.getElementById('partFormMachineNo').value = '';
+            document.getElementById('partFormMachineType').value = '';
+            document.getElementById('partFormPartNo').value = '';
+            document.getElementById('partFormPartName').value = '';
+            document.getElementById('partFormIsReorder').checked = false;
+            document.getElementById('partFormQuantity').value = '1';
+            document.getElementById('partFormUnitPrice').value = '';
+            document.getElementById('partFormCustomerName').value = '';
+            document.getElementById('partFormOrderDate').value = '';
+            document.getElementById('partFormShipDate').value = '';
+            document.getElementById('partFormCustomerOrderNo').value = '';
+            document.getElementById('partFormInternalSlipNo').value = '';
+            document.getElementById('partEditModal').style.display = 'flex';
+        }
+
+        // 編集モーダルを開く
+        async function openEditPartModal(id) {
+            try {
+                showStatus('データを取得中...', 'info');
+
+                const { data, error } = await supabase
+                    .from('parts_order_history')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
+                if (error) throw error;
+
+                document.getElementById('partModalTitle').textContent = '部品データ 編集';
+                document.getElementById('partEditId').value = data.id;
+                document.getElementById('partFormOrderSlipNo').value = data.order_slip_no || '';
+                document.getElementById('partFormMachineNo').value = data.machine_no || '';
+                document.getElementById('partFormMachineType').value = data.machine_type || '';
+                document.getElementById('partFormPartNo').value = data.part_no || '';
+                document.getElementById('partFormPartName').value = data.part_name || '';
+                document.getElementById('partFormIsReorder').checked = data.is_reorder || false;
+                document.getElementById('partFormQuantity').value = data.quantity || 1;
+                document.getElementById('partFormUnitPrice').value = data.unit_price || '';
+                document.getElementById('partFormCustomerName').value = data.customer_name || '';
+                document.getElementById('partFormOrderDate').value = data.order_date || '';
+                document.getElementById('partFormShipDate').value = data.ship_date || '';
+                document.getElementById('partFormCustomerOrderNo').value = data.customer_order_no || '';
+                document.getElementById('partFormInternalSlipNo').value = data.internal_slip_no || '';
+
+                document.getElementById('partEditModal').style.display = 'flex';
+                document.getElementById('importStatus').innerHTML = '';
+
+            } catch (error) {
+                console.error('データ取得エラー:', error);
+                showStatus(`❌ データ取得エラー: ${error.message}`, 'error');
+            }
+        }
+
+        // モーダルを閉じる
+        function closePartModal() {
+            document.getElementById('partEditModal').style.display = 'none';
+            document.getElementById('importStatus').innerHTML = '';
+        }
+
+        // 部品データを保存（新規追加・編集共通）
+        async function savePartData(event) {
+            event.preventDefault();
+
+            const id = document.getElementById('partEditId').value;
+            const isEdit = id !== '';
+
+            // フォームからデータ取得
+            const formData = {
+                order_slip_no: document.getElementById('partFormOrderSlipNo').value.trim() || null,
+                machine_no: document.getElementById('partFormMachineNo').value.trim(),
+                machine_type: document.getElementById('partFormMachineType').value.trim(),
+                part_no: document.getElementById('partFormPartNo').value.trim(),
+                part_name: document.getElementById('partFormPartName').value.trim(),
+                is_reorder: document.getElementById('partFormIsReorder').checked,
+                quantity: parseInt(document.getElementById('partFormQuantity').value) || 0,
+                unit_price: parseFloat(document.getElementById('partFormUnitPrice').value) || 0,
+                customer_name: document.getElementById('partFormCustomerName').value.trim(),
+                order_date: document.getElementById('partFormOrderDate').value || null,
+                ship_date: document.getElementById('partFormShipDate').value || null,
+                customer_order_no: document.getElementById('partFormCustomerOrderNo').value.trim(),
+                internal_slip_no: document.getElementById('partFormInternalSlipNo').value.trim(),
+                source_file: 'manual',
+                manually_edited: true  // 手入力フラグ（Excelインポートから保護）
+            };
+
+            // 必須項目チェック
+            if (!formData.machine_no || !formData.part_no || !formData.part_name || !formData.customer_name) {
+                showStatus('❌ 機番・部品番号・部品名・客先名は必須です', 'error');
+                return;
+            }
+
+            try {
+                showStatus('💾 保存中...', 'info');
+
+                let error;
+
+                if (isEdit) {
+                    // 編集：既存データを更新
+                    ({ error } = await supabase
+                        .from('parts_order_history')
+                        .update(formData)
+                        .eq('id', id));
+                } else {
+                    // 新規追加：INSERT
+                    ({ error } = await supabase
+                        .from('parts_order_history')
+                        .insert(formData));
+                }
+
+                if (error) throw error;
+
+                showStatus(
+                    `✅ ${isEdit ? '更新' : '追加'}しました！`,
+                    'success'
+                );
+
+                // モーダルを閉じてデータ再取得
+                closePartModal();
+                await fetchPartsHistory();
+
+            } catch (error) {
+                console.error('保存エラー:', error);
+                showStatus(`❌ 保存エラー: ${error.message}`, 'error');
+            }
+        }
+
+        // 部品データを削除
+        async function deletePart(id) {
+            if (!confirm('このデータを削除しますか？\nこの操作は取り消せません。')) return;
+
+            try {
+                showStatus('🗑️ 削除中...', 'info');
+
+                const { error } = await supabase
+                    .from('parts_order_history')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                showStatus('✅ 削除しました', 'success');
+                await fetchPartsHistory();
+
+            } catch (error) {
+                console.error('削除エラー:', error);
+                showStatus(`❌ 削除エラー: ${error.message}`, 'error');
+            }
+        }
 
         // Supabaseからデータ取得
         async function fetchPartsHistory() {
@@ -349,6 +512,19 @@
                     <td style="text-align: right;">¥${Number(row.unit_price || 0).toLocaleString()}</td>
                     <td>${row.customer_order_no || ''}</td>
                     <td>${row.internal_slip_no || ''}</td>
+					// 既存の<td>の最後に追加
+					<td>
+						<div style="display:flex; gap:4px; justify-content:center;">
+							<button onclick="openEditPartModal('${row.id}')" 
+									style="padding:4px 8px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer; font-size:0.75rem;">
+								<i class='fas fa-edit'></i>
+							</button>
+							<button onclick="deletePart('${row.id}')" 
+									style="padding:4px 8px; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer; font-size:0.75rem;">
+								<i class='fas fa-trash'></i>
+							</button>
+						</div>
+					</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -482,21 +658,75 @@
                         return;
                     }
                     
-                    // Supabaseに保存
-                    showStatus(`💾 ${insertData.length}件をデータベースに保存中...`, 'info');
-                    
-                    const { error: insertError } = await supabase
-                        .from('parts_order_history')
-                        .insert(insertData);
-                    
-                    if (insertError) throw insertError;
-                    
-                    showStatus(`✅ ${insertData.length}件のデータをインポートしました！${errors.length > 0 ? ` (${errors.length}件のエラーをスキップ)` : ''}`, 'success');
-                    
-                    // データ再取得とファイル入力クリア
-                    await fetchPartsHistory();
-                    fileInput.value = '';
-                    
+					// ==========================================
+					// 洗い替え方式によるインポート処理
+					// ==========================================
+					showStatus(`🔄 既存のExcelデータを整理中...`, 'info');
+
+					try {
+						// ① 手入力データの件数を確認（保護対象）
+						const { data: protectedData, error: countError } = await supabase
+							.from('parts_order_history')
+							.select('id', { count: 'exact' })
+							.eq('manually_edited', true);
+
+						if (countError) throw countError;
+						
+						const protectedCount = protectedData ? protectedData.length : 0;
+
+						// ② 過去のExcel由来データを削除（手入力データは保護される）
+						showStatus(`🗑️ 過去のExcelデータを削除中...（手入力データ ${protectedCount}件 は保護されます）`, 'info');
+
+						// manually_edited が false のデータを削除
+						const { error: deleteFalseError } = await supabase
+							.from('parts_order_history')
+							.delete()
+							.eq('manually_edited', false);
+
+						if (deleteFalseError) throw deleteFalseError;
+
+						// manually_edited が null のデータも削除（古いデータ対応）
+						const { error: deleteNullError } = await supabase
+							.from('parts_order_history')
+							.delete()
+							.is('manually_edited', null);
+
+						if (deleteNullError) throw deleteNullError;
+
+						// ③ 新しいExcelデータをすべて挿入
+						showStatus(`💾 最新のExcelデータ ${insertData.length}件 を保存中...`, 'info');
+
+						// インポートデータにメタ情報を付与
+						const finalImportData = insertData.map(row => ({
+							...row,
+							manually_edited: false,  // Excelインポートデータの印
+							source_file: file.name   // ファイル名を記録
+						}));
+
+						const { error: insertError } = await supabase
+							.from('parts_order_history')
+							.insert(finalImportData);
+
+						if (insertError) throw insertError;
+
+						// ④ 完了メッセージ
+						const resultMessage = [
+							`最新データ: ${finalImportData.length}件`,
+							protectedCount > 0 ? `手入力保護: ${protectedCount}件` : null,
+							errors.length > 0 ? `エラースキップ: ${errors.length}件` : null
+						].filter(Boolean).join(' / ');
+
+						showStatus(`✅ 洗い替えインポート完了！ ${resultMessage}`, 'success');
+
+					} catch (error) {
+						console.error('洗い替えインポートエラー:', error);
+						showStatus(`❌ インポートエラー: ${error.message}`, 'error');
+					}
+
+					// データ再取得とファイル入力クリア
+					await fetchPartsHistory();
+					fileInput.value = '';
+
                 } catch (error) {
                     console.error('インポートエラー:', error);
                     showStatus(`❌ インポートエラー: ${error.message}`, 'error');
@@ -584,5 +814,115 @@
             statusDiv.innerHTML = `<div class="status-message ${className}">${message}</div>`;
         }
     </script>
+	<!-- 部品データ追加・編集モーダル -->
+	<div id="partEditModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
+		<div style="background:white; border-radius:12px; padding:2rem; width:95%; max-width:700px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+
+			<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:2px solid #007bff; padding-bottom:1rem;">
+				<h3 id="partModalTitle" style="margin:0; color:#333;">
+					<i class="fas fa-edit"></i> 部品データ編集
+				</h3>
+				<button onclick="closePartModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#999; line-height:1;">&times;</button>
+			</div>
+
+			<form onsubmit="savePartData(event)">
+				<input type="hidden" id="partEditId">
+
+				<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+
+					<div>
+						<label style="display:block; margin-bottom:4px; font-weight:bold; font-size:0.85rem; color:#555;">受注票番号</label>
+						<input id="partFormOrderSlipNo" type="text" placeholder="例: 2024-001"
+							   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; font-size:0.9rem;">
+					</div>
+
+					<div>
+						<label style="display:block; margin-bottom:4px; font-weight:bold; font-size:0.85rem; color:#555;">機番 <span style="color:red;">*</span></label>
+						<input id="partFormMachineNo" type="text" placeholder="例: 2002" required
+							   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; font-size:0.9rem;">
+					</div>
+
+					<div>
+						<label style="display:block; margin-bottom:4px; font-weight:bold; font-size:0.85rem; color:#555;">機種 <span style="color:red;">*</span></label>
+						<input id="partFormMachineType" type="text" placeholder="例: LS-1200" required
+							   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; font-size:0.9rem;">
+					</div>
+
+					<div>
+						<label style="display:block; margin-bottom:4px; font-weight:bold; font-size:0.85rem; color:#555;">部品番号 <span style="color:red;">*</span></label>
+						<input id="partFormPartNo" type="text" placeholder="例: 338672A" required
+							   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; font-size:0.9rem;">
+					</div>
+
+					<div style="grid-column: span 2;">
+						<label style="display:block; margin-bottom:4px; font-weight:bold; font-size:0.85rem; color:#555;">部品名 <span style="color:red;">*</span></label>
+						<input id="partFormPartName" type="text" placeholder="例: ベアリング" required
+							   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; font-size:0.9rem;">
+					</div>
+
+					<div>
+						<label style="display:block; margin-bottom:4px; font-weight:bold; font-size:0.85rem; color:#555;">客先名 <span style="color:red;">*</span></label>
+						<input id="partFormCustomerName" type="text" placeholder="例: グラフィック" required
+							   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; font-size:0.9rem;">
+					</div>
+
+					<div>
+						<label style="display:block; margin-bottom:4px; font-weight:bold; font-size:0.85rem; color:#555;">数量</label>
+						<input id="partFormQuantity" type="number" min="0" value="1"
+							   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; font-size:0.9rem;">
+					</div>
+
+					<div>
+						<label style="display:block; margin-bottom:4px; font-weight:bold; font-size:0.85rem; color:#555;">単価（円）</label>
+						<input id="partFormUnitPrice" type="number" min="0" step="0.01" placeholder="例: 15000"
+							   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; font-size:0.9rem;">
+					</div>
+
+					<div>
+						<label style="display:block; margin-bottom:4px; font-weight:bold; font-size:0.85rem; color:#555;">発注日</label>
+						<input id="partFormOrderDate" type="date"
+							   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; font-size:0.9rem;">
+					</div>
+
+					<div>
+						<label style="display:block; margin-bottom:4px; font-weight:bold; font-size:0.85rem; color:#555;">発送日</label>
+						<input id="partFormShipDate" type="date"
+							   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; font-size:0.9rem;">
+					</div>
+
+					<div>
+						<label style="display:block; margin-bottom:4px; font-weight:bold; font-size:0.85rem; color:#555;">注番</label>
+						<input id="partFormCustomerOrderNo" type="text"
+							   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; font-size:0.9rem;">
+					</div>
+
+					<div>
+						<label style="display:block; margin-bottom:4px; font-weight:bold; font-size:0.85rem; color:#555;">伝番</label>
+						<input id="partFormInternalSlipNo" type="text"
+							   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; font-size:0.9rem;">
+					</div>
+
+					<div style="grid-column: span 2;">
+						<label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:bold; font-size:0.85rem; color:#555;">
+							<input id="partFormIsReorder" type="checkbox" style="width:18px; height:18px; cursor:pointer;">
+							再注文（●）
+						</label>
+					</div>
+
+				</div>
+
+				<div style="display:flex; gap:1rem; justify-content:flex-end; margin-top:1.5rem; padding-top:1rem; border-top:1px solid #eee;">
+					<button type="button" onclick="closePartModal()"
+							style="padding:10px 24px; border:1px solid #ddd; border-radius:6px; background:white; cursor:pointer; font-size:0.95rem; color:#666;">
+						キャンセル
+					</button>
+					<button type="submit"
+							style="padding:10px 24px; background:#007bff; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.95rem; font-weight:bold;">
+						<i class="fas fa-save"></i> 保存
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
 </body>
 </html>
