@@ -184,20 +184,34 @@
         </div>
         
         <div class="content">
-            <!-- Admin用インポート機能 -->
-            <div class="admin-section">
-                <h3>📊 Excelデータインポート（Admin権限）</h3>
-                <p>受注票番号、機番、機種、部品番号、部品名、再、数量、客先名、発注日、発送日、単価、注番、伝番の列を含むExcelファイルを選択してください。</p>
-                <div style="margin-bottom: 10px;">
-                    <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="margin-right: 10px;">
-                    <button class="btn btn-primary" onclick="importExcelData()">📁 インポート実行</button>
-					<button onclick="openAddPartModal()" 
-						style="padding:8px 16px; background:#28a745; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.9rem; margin-left:0.5rem;">
-					<i class="fas fa-plus"></i> 新規追加
-				</button>
-                </div>
-                <div id="importStatus"></div>
-            </div>
+			<!-- 部品受注履歴：安全なデータ操作エリア -->
+			<div style="margin: 15px 0; padding: 15px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 8px; border-left: 4px solid #28a745;">
+				<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+					
+					<!-- 左側：説明エリア -->
+					<div>
+						<h4 style="margin: 0 0 8px 0; color: #495057; font-weight: 600;">
+							<i class="fas fa-database"></i> 個別データ操作
+						</h4>
+						<p style="margin: 0; font-size: 0.9rem; color: #6c757d;">
+							ここから1件ずつデータの追加・編集・削除ができます。<br>
+							一括インポートは<strong>顧客管理ページ</strong>から実行してください。
+						</p>
+					</div>
+					
+					<!-- 右側：操作ボタン -->
+					<div>
+						<button onclick="openAddPartModal()" 
+							style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95rem; font-weight: bold; box-shadow: 0 2px 8px rgba(40,167,69,0.3); transition: all 0.2s;">
+						<i class="fas fa-plus-circle"></i> 新規追加
+					</button>
+					</div>
+					
+				</div>
+				
+				<!-- ステータス表示エリア -->
+				<div id="importStatus" style="margin-top: 15px;"></div>
+			</div>
 
             <!-- 統計情報 -->
             <div id="summarySection">
@@ -223,28 +237,35 @@
 
             <!-- データテーブル -->
             <div class="table-container">
+				<!-- 新規部品追加ボタン -->
+				<div style="margin-bottom: 15px; text-align: right;">
+					<button onclick="app.openAddPartModal()" 
+							style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95rem; font-weight: bold; box-shadow: 0 2px 8px rgba(40,167,69,0.3);">
+						<i class="fas fa-plus-circle"></i> 新規追加
+					</button>
+				</div>
                 <table id="partsTable">
                     <thead>
-                        <tr>
-                            <th>受注票番号</th>
-                            <th>機番</th>
-                            <th>機種</th>
-                            <th>部品番号</th>
-                            <th>部品名</th>
-                            <th>再</th>
-                            <th>数量</th>
-                            <th>客先名</th>
-                            <th>発注日</th>
-                            <th>発送日</th>
-                            <th>単価</th>
-                            <th>注番</th>
-                            <th>伝番</th>
-							<th>操作</th>
-                        </tr>
-                    </thead>
+						<tr>
+							<th>受注票番号</th>
+							<th>機番</th>
+							<th>機種</th>
+							<th>部品番号</th>
+							<th>部品名</th>
+							<th>再</th>
+							<th>数量</th>
+							<th>客先名</th>
+							<th>発注日</th>
+							<th>発送日</th>
+							<th>単価</th>
+							<th>注番</th>
+							<th>伝番</th>
+							<th style="text-align: center; width: 120px;">操作</th>
+						</tr>
+					</thead>
                     <tbody id="partsTableBody">
                         <tr>
-                            <td colspan="13" style="text-align: center; padding: 30px; color: #999;">
+                            <td colspan="14" style="text-align: center; padding: 30px; color: #999;">
                                 データを読み込み中...
                             </td>
                         </tr>
@@ -270,6 +291,200 @@
 
     <!-- メインアプリケーション -->
     <script>
+		// ==========================================
+		// 緊急セキュリティ修正：クロスページ権限チェック
+		// ==========================================
+		(function initializeSecureAccess() {
+			console.log('🔐 セキュリティチェック開始...');
+			
+			// 複数の方法でユーザー情報を取得
+			function getCurrentUserInfo() {
+				// 1. グローバル変数をチェック
+				if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) {
+					console.log('✓ グローバル変数から取得:', CURRENT_USER);
+					return CURRENT_USER;
+				}
+				
+				// 2. ローカルストレージから取得
+				const storageKeys = ['currentUser', 'CURRENT_USER', 'salesCurrentUser', 'salesData'];
+				for (const key of storageKeys) {
+					const data = localStorage.getItem(key);
+					if (data) {
+						try {
+							const parsed = JSON.parse(data);
+							// salesDataの場合は内部構造を確認
+							if (key === 'salesData' && parsed.currentUser) {
+								console.log('✓ salesData内から取得:', parsed.currentUser);
+								return parsed.currentUser;
+							}
+							// 直接ユーザーオブジェクトの場合
+							if (parsed.assignee || parsed.name || parsed.role) {
+								console.log('✓ localStorage(' + key + ')から取得:', parsed);
+								return parsed;
+							}
+						} catch (e) {
+							console.warn('データ解析エラー(' + key + '):', e);
+						}
+					}
+				}
+				
+				// 3. URLパラメータから取得（フォールバック）
+				const urlParams = new URLSearchParams(window.location.search);
+				if (urlParams.get('user') && urlParams.get('role')) {
+					const urlUser = {
+						assignee: urlParams.get('user'),
+						role: urlParams.get('role')
+					};
+					console.log('✓ URLパラメータから取得:', urlUser);
+					return urlUser;
+				}
+				
+				console.warn('⚠️ ユーザー情報が見つかりません');
+				return null;
+			}
+			
+			// 権限チェックと表示制御
+			function applySecureControls() {
+				const user = getCurrentUserInfo();
+				const adminSection = document.getElementById('adminImportSection');
+				const addPartSection = document.getElementById('addPartSection');
+				
+				// デフォルトは全て非表示（セキュア）
+				if (adminSection) adminSection.style.display = 'none';
+				if (addPartSection) addPartSection.style.display = 'none';
+				
+				if (!user) {
+					console.log('🚫 未認証：全機能を無効化');
+					return;
+				}
+				
+				console.log('👤 認証済みユーザー:', user.assignee || user.name, 'ロール:', user.role);
+				
+				// Admin権限の判定（複数のパターンに対応）
+				const isAdmin = user.role === 'admin' || 
+							   user.role === 'Admin' || 
+							   user.role === '管理者' || 
+							   user.isAdmin === true;
+				
+				if (isAdmin) {
+					// Admin：全機能有効
+					if (adminSection) adminSection.style.display = 'block';
+					if (addPartSection) addPartSection.style.display = 'block';
+					console.log('✅ Admin権限確認：全機能有効化');
+				} else {
+					// 一般ユーザー：新規追加のみ（必要に応じて調整）
+					if (addPartSection) addPartSection.style.display = 'block';
+					console.log('ℹ️ 一般ユーザー：新規追加のみ有効');
+				}
+			}
+			
+			// 初期化とイベント設定
+			if (document.readyState === 'loading') {
+				document.addEventListener('DOMContentLoaded', applySecureControls);
+			} else {
+				applySecureControls();
+			}
+			
+			// 定期的な権限チェック（セッション変更対応）
+			setInterval(applySecureControls, 3000);
+			
+			// グローバル関数として公開（デバッグ用）
+			window.debugSecurityCheck = applySecureControls;
+		})();
+
+		// ==========================================
+		// 緊急セキュリティ修正: Admin権限チェック
+		// ==========================================
+		(function initializeAdminSecurity() {
+			console.log('🔐 Admin権限チェックを開始...');
+			
+			// ユーザー情報の取得（複数のキー名に対応）
+			function getCurrentUser() {
+				const keys = ['currentUser', 'salesCurrentUser', 'CURRENT_USER'];
+				for (const key of keys) {
+					const userData = localStorage.getItem(key) || sessionStorage.getItem(key);
+					if (userData) {
+						try {
+							return JSON.parse(userData);
+						} catch (e) {
+							console.warn(`ユーザーデータの解析エラー (${key}):`, e);
+						}
+					}
+				}
+				
+				// グローバル変数もチェック
+				if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) {
+					return CURRENT_USER;
+				}
+				
+				return null;
+			}
+			
+			// 権限チェックと表示制御
+			function applyAdminControls() {
+				const user = getCurrentUser();
+				const adminSection = document.getElementById('adminImportSection');
+				
+				if (!user) {
+					console.warn('⚠️ ユーザー情報が見つかりません');
+					// 未ログイン状態：Admin機能を完全に隠す
+					if (adminSection) adminSection.style.display = 'none';
+					return;
+				}
+				
+				console.log('👤 現在のユーザー:', user.assignee || user.name, 'ロール:', user.role);
+				
+				if (user.role === 'admin') {
+					// Admin権限あり：インポート機能を表示
+					if (adminSection) {
+						adminSection.style.display = 'block';
+						console.log('✅ Admin権限確認：インポート機能を有効化');
+					}
+				} else {
+					// Admin権限なし：インポート機能を隠す
+					if (adminSection) {
+						adminSection.style.display = 'none';
+						console.log('🚫 Admin権限なし：インポート機能を無効化');
+					}
+				}
+			}
+			
+			// ページ読み込み時とDOM更新時に権限チェック
+			if (document.readyState === 'loading') {
+				document.addEventListener('DOMContentLoaded', applyAdminControls);
+			} else {
+				applyAdminControls();
+			}
+			
+			// 定期的な権限チェック（セッション変更対応）
+			setInterval(applyAdminControls, 5000);
+		})();
+		
+		// 新規追加ボタンの表示制御（上記の権限チェック関数内に追加）
+		function applyAdminControls() {
+			const user = getCurrentUser();
+			const adminSection = document.getElementById('adminImportSection');
+			const addPartSection = document.getElementById('addPartSection');
+			
+			if (!user) {
+				if (adminSection) adminSection.style.display = 'none';
+				if (addPartSection) addPartSection.style.display = 'none';
+				return;
+			}
+			
+			if (user.role === 'admin') {
+				// Admin：すべての機能を有効化
+				if (adminSection) adminSection.style.display = 'block';
+				if (addPartSection) addPartSection.style.display = 'block';
+				console.log('✅ Admin権限：全機能有効');
+			} else {
+				// 一般ユーザー：新規追加のみ（必要に応じて変更可能）
+				if (adminSection) adminSection.style.display = 'none';
+				if (addPartSection) addPartSection.style.display = 'block';
+				console.log('ℹ️ 一般ユーザー：新規追加のみ有効');
+			}
+		}
+
         // ページ読み込み時の初期化
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('部品受注履歴ページを初期化中...');
@@ -283,165 +498,7 @@
             // データ取得
             await fetchPartsHistory();
         });
-
-        // ===================================
-        // 部品データ個別追加・編集機能
-        // ===================================
-
-        // 新規追加モーダルを開く
-        function openAddPartModal() {
-            document.getElementById('partModalTitle').textContent = '部品データ 新規追加';
-            document.getElementById('partEditId').value = '';
-            document.getElementById('partFormOrderSlipNo').value = '';
-            document.getElementById('partFormMachineNo').value = '';
-            document.getElementById('partFormMachineType').value = '';
-            document.getElementById('partFormPartNo').value = '';
-            document.getElementById('partFormPartName').value = '';
-            document.getElementById('partFormIsReorder').checked = false;
-            document.getElementById('partFormQuantity').value = '1';
-            document.getElementById('partFormUnitPrice').value = '';
-            document.getElementById('partFormCustomerName').value = '';
-            document.getElementById('partFormOrderDate').value = '';
-            document.getElementById('partFormShipDate').value = '';
-            document.getElementById('partFormCustomerOrderNo').value = '';
-            document.getElementById('partFormInternalSlipNo').value = '';
-            document.getElementById('partEditModal').style.display = 'flex';
-        }
-
-        // 編集モーダルを開く
-        async function openEditPartModal(id) {
-            try {
-                showStatus('データを取得中...', 'info');
-
-                const { data, error } = await supabase
-                    .from('parts_order_history')
-                    .select('*')
-                    .eq('id', id)
-                    .single();
-
-                if (error) throw error;
-
-                document.getElementById('partModalTitle').textContent = '部品データ 編集';
-                document.getElementById('partEditId').value = data.id;
-                document.getElementById('partFormOrderSlipNo').value = data.order_slip_no || '';
-                document.getElementById('partFormMachineNo').value = data.machine_no || '';
-                document.getElementById('partFormMachineType').value = data.machine_type || '';
-                document.getElementById('partFormPartNo').value = data.part_no || '';
-                document.getElementById('partFormPartName').value = data.part_name || '';
-                document.getElementById('partFormIsReorder').checked = data.is_reorder || false;
-                document.getElementById('partFormQuantity').value = data.quantity || 1;
-                document.getElementById('partFormUnitPrice').value = data.unit_price || '';
-                document.getElementById('partFormCustomerName').value = data.customer_name || '';
-                document.getElementById('partFormOrderDate').value = data.order_date || '';
-                document.getElementById('partFormShipDate').value = data.ship_date || '';
-                document.getElementById('partFormCustomerOrderNo').value = data.customer_order_no || '';
-                document.getElementById('partFormInternalSlipNo').value = data.internal_slip_no || '';
-
-                document.getElementById('partEditModal').style.display = 'flex';
-                document.getElementById('importStatus').innerHTML = '';
-
-            } catch (error) {
-                console.error('データ取得エラー:', error);
-                showStatus(`❌ データ取得エラー: ${error.message}`, 'error');
-            }
-        }
-
-        // モーダルを閉じる
-        function closePartModal() {
-            document.getElementById('partEditModal').style.display = 'none';
-            document.getElementById('importStatus').innerHTML = '';
-        }
-
-        // 部品データを保存（新規追加・編集共通）
-        async function savePartData(event) {
-            event.preventDefault();
-
-            const id = document.getElementById('partEditId').value;
-            const isEdit = id !== '';
-
-            // フォームからデータ取得
-            const formData = {
-                order_slip_no: document.getElementById('partFormOrderSlipNo').value.trim() || null,
-                machine_no: document.getElementById('partFormMachineNo').value.trim(),
-                machine_type: document.getElementById('partFormMachineType').value.trim(),
-                part_no: document.getElementById('partFormPartNo').value.trim(),
-                part_name: document.getElementById('partFormPartName').value.trim(),
-                is_reorder: document.getElementById('partFormIsReorder').checked,
-                quantity: parseInt(document.getElementById('partFormQuantity').value) || 0,
-                unit_price: parseFloat(document.getElementById('partFormUnitPrice').value) || 0,
-                customer_name: document.getElementById('partFormCustomerName').value.trim(),
-                order_date: document.getElementById('partFormOrderDate').value || null,
-                ship_date: document.getElementById('partFormShipDate').value || null,
-                customer_order_no: document.getElementById('partFormCustomerOrderNo').value.trim(),
-                internal_slip_no: document.getElementById('partFormInternalSlipNo').value.trim(),
-                source_file: 'manual',
-                manually_edited: true  // 手入力フラグ（Excelインポートから保護）
-            };
-
-            // 必須項目チェック
-            if (!formData.machine_no || !formData.part_no || !formData.part_name || !formData.customer_name) {
-                showStatus('❌ 機番・部品番号・部品名・客先名は必須です', 'error');
-                return;
-            }
-
-            try {
-                showStatus('💾 保存中...', 'info');
-
-                let error;
-
-                if (isEdit) {
-                    // 編集：既存データを更新
-                    ({ error } = await supabase
-                        .from('parts_order_history')
-                        .update(formData)
-                        .eq('id', id));
-                } else {
-                    // 新規追加：INSERT
-                    ({ error } = await supabase
-                        .from('parts_order_history')
-                        .insert(formData));
-                }
-
-                if (error) throw error;
-
-                showStatus(
-                    `✅ ${isEdit ? '更新' : '追加'}しました！`,
-                    'success'
-                );
-
-                // モーダルを閉じてデータ再取得
-                closePartModal();
-                await fetchPartsHistory();
-
-            } catch (error) {
-                console.error('保存エラー:', error);
-                showStatus(`❌ 保存エラー: ${error.message}`, 'error');
-            }
-        }
-
-        // 部品データを削除
-        async function deletePart(id) {
-            if (!confirm('このデータを削除しますか？\nこの操作は取り消せません。')) return;
-
-            try {
-                showStatus('🗑️ 削除中...', 'info');
-
-                const { error } = await supabase
-                    .from('parts_order_history')
-                    .delete()
-                    .eq('id', id);
-
-                if (error) throw error;
-
-                showStatus('✅ 削除しました', 'success');
-                await fetchPartsHistory();
-
-            } catch (error) {
-                console.error('削除エラー:', error);
-                showStatus(`❌ 削除エラー: ${error.message}`, 'error');
-            }
-        }
-
+	
         // Supabaseからデータ取得
         async function fetchPartsHistory() {
             try {
@@ -813,6 +870,160 @@
             const className = typeClasses[type] || 'status-info';
             statusDiv.innerHTML = `<div class="status-message ${className}">${message}</div>`;
         }
+		
+		// ▼▼▼ Phase5後半 部品データ個別操作機能（</script>の直前に追加） ▼▼▼
+
+        function openAddPartModal() {
+            if (CURRENT_USER.role !== 'admin') {
+                alert('管理者権限が必要です。');
+                return;
+            }
+            
+            document.getElementById('partModalTitle').innerHTML = '<i class="fas fa-plus-circle"></i> 部品データ追加';
+            document.querySelector('#partEditModal form').reset();
+            document.getElementById('partEditId').value = '';
+            document.getElementById('partFormQuantity').value = '1';
+            document.getElementById('partFormIsReorder').checked = false;
+            document.getElementById('partEditModal').style.display = 'flex';
+        }
+
+        async function openEditPartModal(id) {
+            if (CURRENT_USER.role !== 'admin') {
+                alert('管理者権限が必要です。');
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('parts_order_history')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
+                if (error) throw error;
+
+                document.getElementById('partModalTitle').innerHTML = '<i class="fas fa-edit"></i> 部品データ編集';
+                document.getElementById('partEditId').value = data.id;
+                
+                document.getElementById('partFormOrderSlipNo').value = data.order_slip_no || '';
+                document.getElementById('partFormMachineNo').value = data.machine_no || '';
+                document.getElementById('partFormMachineType').value = data.machine_type || '';
+                document.getElementById('partFormPartNo').value = data.part_no || '';
+                document.getElementById('partFormPartName').value = data.part_name || '';
+                document.getElementById('partFormCustomerName').value = data.customer_name || '';
+                document.getElementById('partFormQuantity').value = data.quantity || '1';
+                document.getElementById('partFormUnitPrice').value = data.unit_price || '';
+                document.getElementById('partFormOrderDate').value = data.order_date || '';
+                document.getElementById('partFormShipDate').value = data.ship_date || '';
+                document.getElementById('partFormCustomerOrderNo').value = data.customer_order_no || '';
+                document.getElementById('partFormInternalSlipNo').value = data.internal_slip_no || '';
+                document.getElementById('partFormIsReorder').checked = data.is_reorder === true;
+
+                document.getElementById('partEditModal').style.display = 'flex';
+            } catch (error) {
+                console.error('データ取得エラー:', error);
+                alert('データの取得に失敗しました: ' + error.message);
+            }
+        }
+
+        function closePartModal() {
+            document.getElementById('partEditModal').style.display = 'none';
+        }
+
+        async function savePartData(event) {
+            event.preventDefault();
+            
+            const id = document.getElementById('partEditId').value;
+            
+            const partData = {
+                order_slip_no: document.getElementById('partFormOrderSlipNo').value || null,
+                machine_no: document.getElementById('partFormMachineNo').value || null,
+                machine_type: document.getElementById('partFormMachineType').value || null,
+                part_no: document.getElementById('partFormPartNo').value,
+                part_name: document.getElementById('partFormPartName').value,
+                customer_name: document.getElementById('partFormCustomerName').value || null,
+                quantity: parseInt(document.getElementById('partFormQuantity').value, 10) || 0,
+                unit_price: document.getElementById('partFormUnitPrice').value ? 
+                           parseFloat(document.getElementById('partFormUnitPrice').value) : null,
+                order_date: document.getElementById('partFormOrderDate').value || null,
+                ship_date: document.getElementById('partFormShipDate').value || null,
+                customer_order_no: document.getElementById('partFormCustomerOrderNo').value || null,
+                internal_slip_no: document.getElementById('partFormInternalSlipNo').value || null,
+                is_reorder: document.getElementById('partFormIsReorder').checked,
+                
+                // 【超重要】手入力データ保護設定（Excelインポートから除外される）
+                manually_edited: true,
+                source_file: 'manual'
+            };
+
+            try {
+                if (id) {
+                    const { error } = await supabase
+                        .from('parts_order_history')
+                        .update(partData)
+                        .eq('id', id);
+                    if (error) throw error;
+                    alert('部品データを更新しました。');
+                } else {
+                    const { error } = await supabase
+                        .from('parts_order_history')
+                        .insert([partData]);
+                    if (error) throw error;
+                    alert('部品データを追加しました。');
+                }
+
+                closePartModal();
+                
+                // 画面更新処理（既存関数を安全に呼び出し）
+                if (typeof filteredData !== 'undefined' && typeof allPartsData !== 'undefined') {
+                    filteredData = [...allPartsData];
+                    displayPartsData(filteredData);
+                    updateSummaryStats(filteredData);
+                } else {
+                    // フォールバック：ページ全体をリロード
+                    location.reload();
+                }
+            } catch (error) {
+                console.error('保存エラー:', error);
+                alert('保存に失敗しました: ' + error.message);
+            }
+        }
+
+        async function deletePart(id) {
+            if (CURRENT_USER.role !== 'admin') {
+                alert('管理者権限が必要です。');
+                return;
+            }
+            
+            if (!confirm('本当にこの部品データを削除しますか？\n削除されたデータは復元できません。')) {
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('parts_order_history')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+                
+                alert('部品データを削除しました。');
+                
+                // 画面更新処理
+                if (typeof filteredData !== 'undefined' && typeof allPartsData !== 'undefined') {
+                    filteredData = [...allPartsData];
+                    displayPartsData(filteredData);
+                    updateSummaryStats(filteredData);
+                } else {
+                    location.reload();
+                }
+            } catch (error) {
+                console.error('削除エラー:', error);
+                alert('削除に失敗しました: ' + error.message);
+            }
+        }
+
+        // ▲▲▲ Phase5後半 部品データ個別操作機能 ここまで ▲▲▲
     </script>
 	<!-- 部品データ追加・編集モーダル -->
 	<div id="partEditModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
@@ -822,10 +1033,10 @@
 				<h3 id="partModalTitle" style="margin:0; color:#333;">
 					<i class="fas fa-edit"></i> 部品データ編集
 				</h3>
-				<button onclick="closePartModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#999; line-height:1;">&times;</button>
+				<button onclick="app.closePartModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#999; line-height:1;">&times;</button>
 			</div>
 
-			<form onsubmit="savePartData(event)">
+			<form onsubmit="app.savePartData(event)">
 				<input type="hidden" id="partEditId">
 
 				<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
@@ -912,7 +1123,7 @@
 				</div>
 
 				<div style="display:flex; gap:1rem; justify-content:flex-end; margin-top:1.5rem; padding-top:1rem; border-top:1px solid #eee;">
-					<button type="button" onclick="closePartModal()"
+					<button type="button" onclick="app.closePartModal()"
 							style="padding:10px 24px; border:1px solid #ddd; border-radius:6px; background:white; cursor:pointer; font-size:0.95rem; color:#666;">
 						キャンセル
 					</button>
