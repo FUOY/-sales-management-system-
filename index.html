@@ -2262,7 +2262,49 @@
 		#segmentFilterPanel label:hover {
 			background: #f0f7ff !important;
 			border-color: var(--primary) !important;
-		}		
+		}
+		
+		/* ===== Phase 3実装：ヘッダー固定 + ソート機能 ===== */
+
+		/* スクロール可能なテーブルコンテナ */
+		.table-container {
+			max-height: 70vh;
+			overflow-y: auto;
+			overflow-x: auto;
+			border: 1px solid #dee2e6;
+			border-radius: 4px;
+			margin-top: 20px;
+		}
+
+		/* テーブルヘッダーの固定表示（全ページ対応版） */
+		.table-container table thead th,
+		.table-responsive table thead th,
+		.table thead th {
+			position: sticky;
+			top: 0;
+			z-index: 100;  /* 競合回避のため100に上げる */
+			background-color: #f8f9fa;
+			border-bottom: 2px solid #dee2e6;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+		}
+
+		/* ソート可能なヘッダーのスタイル */
+		th.sortable {
+			cursor: pointer;
+			user-select: none;
+			transition: background-color 0.2s ease;
+		}
+
+		th.sortable:hover {
+			background-color: #e9ecef;
+		}
+
+		th.sortable span {
+			font-size: 0.8em;
+			margin-left: 4px;
+			color: #6c757d;
+			font-weight: normal;
+		}
 	</style>
 </head>
 <body>
@@ -2794,7 +2836,7 @@
 			                <div id="partsImportDropdown" style="display: none; position: absolute; top: 100%; right: 0; background: white; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; min-width: 220px; margin-top: 5px; padding: 8px 0;">
 			                    <button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #333; cursor: pointer; font-size: 0.9rem;" 
 			                            onmouseover="this.style.background='#f0f8ff'" onmouseout="this.style.background='white'"
-			                            onclick="app.importPartsExcel(); document.getElementById('partsImportDropdown').style.display = 'none';"
+			                            onclick="app.importPartsExcel(); document.getElementById('partsImportDropdown').style.display = 'none';">
 			                        <i class="fas fa-tools" style="color: var(--primary); width: 20px; margin-right: 8px;"></i>
 			                        部品受注データインポート
 			                    </button>
@@ -2803,7 +2845,7 @@
 			                    
 			                    <button style="display: flex; align-items: center; width: 100%; text-align: left; padding: 12px 16px; border: none; background: white; color: #dc3545; cursor: pointer; font-size: 0.9rem;" 
 			                            onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='white'"
-			                            onclick="app.resetPartsData(); document.getElementById('partsImportDropdown').style.display = 'none';"
+			                            onclick="app.resetPartsData(); document.getElementById('partsImportDropdown').style.display = 'none';">
 			                        <i class="fas fa-trash-alt" style="color: #dc3545; width: 20px; margin-right: 8px;"></i>
 			                        部品データを全削除
 			                    </button>
@@ -2858,23 +2900,23 @@
 			    <!-- データテーブル -->
 			    <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #ddd;">
 			        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-			            <thead>
-			                <tr style="background: #f8f9fa;">
-			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">受注票番号</th>
-			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">機番</th>
-			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">機種</th>
-			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">部品番号</th>
-			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">部品名</th>
-			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: center; white-space: nowrap;">再</th>
-			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: right; white-space: nowrap;">数量</th>
-			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">客先名</th>
-			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">発注日</th>
-			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">発送日</th>
-			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: right; white-space: nowrap;">単価</th>
-			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">注番</th>
-			                    <th style="padding: 10px 8px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap;">伝番</th>
-			                </tr>
-			            </thead>
+						<thead>
+							<tr>
+								<th onclick="handleSort('order_slip_no', event)" class="sortable">受注票番号 <span id="sort-icon-order_slip_no"></span></th>
+								<th onclick="handleSort('machine_no', event)" class="sortable">機番 <span id="sort-icon-machine_no"></span></th>
+								<th onclick="handleSort('machine_type', event)" class="sortable">機種 <span id="sort-icon-machine_type"></span></th>
+								<th onclick="handleSort('part_no', event)" class="sortable">部品番号 <span id="sort-icon-part_no"></span></th>
+								<th onclick="handleSort('part_name', event)" class="sortable">部品名 <span id="sort-icon-part_name"></span></th>
+								<th onclick="handleSort('is_reorder', event)" class="sortable">再 <span id="sort-icon-is_reorder"></span></th>
+								<th onclick="handleSort('quantity', event)" class="sortable">数量 <span id="sort-icon-quantity"></span></th>
+								<th onclick="handleSort('customer_name', event)" class="sortable">客先名 <span id="sort-icon-customer_name"></span></th>
+								<th onclick="handleSort('order_date', event)" class="sortable">発注日 <span id="sort-icon-order_date">▼</span></th>
+								<th onclick="handleSort('ship_date', event)" class="sortable">発送日 <span id="sort-icon-ship_date"></span></th>
+								<th onclick="handleSort('unit_price', event)" class="sortable">単価 <span id="sort-icon-unit_price"></span></th>
+								<th onclick="handleSort('customer_order_no', event)" class="sortable">注番 <span id="sort-icon-customer_order_no"></span></th>
+								<th onclick="handleSort('internal_slip_no', event)" class="sortable">伝番 <span id="sort-icon-internal_slip_no"></span></th>
+							</tr>
+						</thead>
 			            <tbody id="partsTableBody">
 			                <tr>
 			                    <td colspan="13" style="text-align: center; padding: 40px; color: #999;">
@@ -3980,6 +4022,68 @@
 			return result;
 		}
 		let supabaseClient = null;
+		
+		// ▼▼ Phase 3: ソート機能実装（グローバル変数・関数パターン） ▼▼
+		
+		// ソート状態管理変数
+		let currentSortColumn = 'order_date';    // デフォルトのソート列
+		let currentSortAsc = false;              // デフォルトは降順（新しい発注日が上）
+
+		// ヘッダークリック時のソート処理（Phase 3 最終確定版）
+		function handleSort(column, event) {
+			// ページ遷移を完全に阻止（最重要）
+			if (event) {
+				event.preventDefault();
+				event.stopPropagation();
+			}
+			
+			console.log('ソート実行:', column);
+			
+			// 1. ソート状態を更新
+			if (currentSortColumn === column) {
+				currentSortAsc = !currentSortAsc;
+			} else {
+				currentSortColumn = column;
+				currentSortAsc = true;
+			}
+
+			// 2. ソートアイコンの表示を更新
+			updateSortIcons();
+
+			// 3. app.filterParts(1)で確実にデータ再取得
+			console.log('app.filterParts(1) を実行してデータを再取得します');
+			if (typeof app !== 'undefined' && typeof app.filterParts === 'function') {
+				app.filterParts(1);
+			} else {
+				console.error('app.filterParts関数が見つかりません');
+				alert('ソート設定は変更されましたが、データ再取得に失敗しました。');
+			}
+		}
+
+		// ソートアイコン（▲▼⇅）の表示更新（Phase 3最終版）
+		function updateSortIcons() {
+			// まず全ヘッダーに「⇅」を表示（ソート可能の目印）
+			const icons = document.querySelectorAll('th.sortable span');
+			icons.forEach(icon => {
+				icon.textContent = '⇅';
+				icon.style.color = '#6c757d';  // 薄いグレーで控えめに表示
+			});
+
+			// 現在のソート列だけ ▲ or ▼ で上書き
+			const currentIcon = document.getElementById('sort-icon-' + currentSortColumn);
+			if (currentIcon) {
+				currentIcon.textContent = currentSortAsc ? '▲' : '▼';
+				currentIcon.style.color = '#007bff';  // 青色で強調表示
+			}
+		}
+		
+		// ページ読み込み時に初期アイコンを表示
+		document.addEventListener('DOMContentLoaded', function() {
+			// DOM要素が完全に読み込まれた後にアイコンを初期化
+			setTimeout(updateSortIcons, 100);  // 少し遅延させて確実に実行
+		});
+		
+		// ▲▲ ソート機能実装ここまで ▲▲		
 
 		// ▼▼▼ 【修正】Supabase設定を固定値で確定 ▼▼▼
 
@@ -8752,107 +8856,394 @@
 			    this.filterParts();
 			}
 			
-			// フィルター処理
-			filterParts() {
-			    // 互換性を考慮した要素取得
-			    const customerInput = document.getElementById('partsSearchCustomer');
-			    const machineInput = document.getElementById('partsSearchMachine');
-			    const partInput = document.getElementById('partsSearchPart');
-			    
-			    const customerFilter = (customerInput ? customerInput.value : '').toLowerCase();
-			    const machineFilter = (machineInput ? machineInput.value : '').toLowerCase();
-			    const partFilter = (partInput ? partInput.value : '').toLowerCase();
-			    
-			    this.fetchAndDisplayParts(customerFilter, machineFilter, partFilter);
+			// フィルター処理（ページネーション対応）
+			filterParts(page = 0) {
+				const customerInput = document.getElementById('partsSearchCustomer');
+				const machineInput = document.getElementById('partsSearchMachine');
+				const partInput = document.getElementById('partsSearchPart');
+				
+				const customerFilter = (customerInput ? customerInput.value : '').toLowerCase();
+				const machineFilter = (machineInput ? machineInput.value : '').toLowerCase();
+				const partFilter = (partInput ? partInput.value : '').toLowerCase();
+				
+				this.fetchAndDisplayParts(customerFilter, machineFilter, partFilter, page);
+			}
+		
+			// Supabaseからデータ取得・表示（SDK v1対応・最適化版）
+			async fetchAndDisplayParts(customerFilter = '', machineFilter = '', partFilter = '', page = 0) {
+				const tbody = document.getElementById('partsTableBody');
+				if (!tbody) return;
+
+				const itemsPerPage = 50;
+				const startRange = page * itemsPerPage;
+				const endRange = startRange + itemsPerPage - 1;
+
+				try {
+					tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; padding:20px;">読み込み中...</td></tr>';
+
+					// ==========================================
+					// フィルター適用ヘルパー関数（重複コード削減）
+					// ==========================================
+					const applyFilters = (query) => {
+						if (customerFilter) {
+							query = query.ilike('customer_name', `%${customerFilter}%`);
+						}
+						if (machineFilter) {
+							query = query.or(`machine_no.ilike.%${machineFilter}%,machine_type.ilike.%${machineFilter}%`);
+						}
+						if (partFilter) {
+							query = query.or(`part_no.ilike.%${partFilter}%,part_name.ilike.%${partFilter}%`);
+						}
+						return query;
+					};
+
+					// ==========================================
+					// 1) フィルター適用後の総件数取得
+					// ==========================================
+					let countQuery = supabaseClient
+						.from('parts_order_history')
+						.select('*', { count: 'exact', head: true }); // head:true でデータ本体は取得せず高速化
+					
+					countQuery = applyFilters(countQuery);
+					const { count: totalCount, error: countError } = await countQuery;
+					if (countError) throw countError;
+
+					// ==========================================
+					// 2) 統計計算用データ取得（1000件制限を完全回避）
+					// ==========================================
+					let allStatsData = [];
+					let hasMore = true;
+					let offset = 0;
+					const batchSize = 1000;
+
+					console.log('統計用データの分割取得を開始...'); // デバッグ用
+
+					while (hasMore) {
+						let statsQuery = supabaseClient
+							.from('parts_order_history')
+							.select('is_reorder, ship_date, unit_price, quantity')
+							.order(currentSortColumn, { ascending: currentSortAsc, nullsFirst: false }) // 動的ソートに変更
+							.range(offset, offset + batchSize - 1);
+						
+						statsQuery = applyFilters(statsQuery);
+						const { data: chunk, error: statsError } = await statsQuery;
+						
+						if (statsError) throw statsError;
+						
+						if (chunk && chunk.length > 0) {
+							allStatsData = allStatsData.concat(chunk);
+							offset += batchSize;
+							
+							console.log(`取得済み: ${allStatsData.length}件 / 総件数: ${totalCount}件`);
+							
+							// 取得件数がbatchSize未満なら最終ページ
+							if (chunk.length < batchSize) {
+								hasMore = false;
+							}
+						} else {
+							hasMore = false;
+						}
+					}
+
+					console.log(`統計用データ取得完了: ${allStatsData.length}件`);
+
+					// ==========================================
+					// 3) ページ表示用データ取得（50件のみ）
+					// ==========================================
+					let pageQuery = supabaseClient
+						.from('parts_order_history')
+						.select('*')
+						.order(currentSortColumn, { ascending: currentSortAsc, nullsFirst: false }) // 動的ソート
+						.range(startRange, endRange); // ページネーション範囲
+					
+					pageQuery = applyFilters(pageQuery);
+					const { data, error: pageError } = await pageQuery;
+					if (pageError) throw pageError;
+
+					// ==========================================
+					// 4) 統計情報の更新
+					// ==========================================
+					this.updateFilteredStats(allStatsData || [], totalCount || 0);
+
+					// ==========================================
+					// 5) テーブル描画
+					// ==========================================
+					if (!data || data.length === 0) {
+						tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; padding:40px; color:#999;">データがありません</td></tr>';
+					} else {
+						tbody.innerHTML = data.map(row => `
+							<tr style="${!row.ship_date ? 'background-color: #fff3cd;' : ''}"
+								onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+								<td style="padding: 8px; border-bottom: 1px solid #eee;">${row.order_slip_no || '-'}</td>
+								<td style="padding: 8px; border-bottom: 1px solid #eee;">${row.machine_no || ''}</td>
+								<td style="padding: 8px; border-bottom: 1px solid #eee;">${row.machine_type || ''}</td>
+								<td style="padding: 8px; border-bottom: 1px solid #eee;">${row.part_no || ''}</td>
+								<td style="padding: 8px; border-bottom: 1px solid #eee;">${row.part_name || ''}</td>
+								<td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center; color: #dc3545; font-weight: bold;">
+									${row.is_reorder ? '●' : ''}
+								</td>
+								<td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${row.quantity || 0}</td>
+								<td style="padding: 8px; border-bottom: 1px solid #eee;">${row.customer_name || ''}</td>
+								<td style="padding: 8px; border-bottom: 1px solid #eee;">${row.order_date || ''}</td>
+								<td style="padding: 8px; border-bottom: 1px solid #eee;">
+									${row.ship_date || '<span style="color:#fd7e14; font-weight:bold;">未出荷</span>'}
+								</td>
+								<td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">
+									¥${Number(row.unit_price || 0).toLocaleString()}
+								</td>
+								<td style="padding: 8px; border-bottom: 1px solid #eee;">${row.customer_order_no || ''}</td>
+								<td style="padding: 8px; border-bottom: 1px solid #eee;">${row.internal_slip_no || ''}</td>
+							</tr>
+						`).join('');
+					}
+
+					// ==========================================
+					// 6) ページネーション更新
+					// ==========================================
+					this.updatePaginationDisplay(page, totalCount || 0, itemsPerPage);
+
+				} catch (error) {
+					console.error('部品データ取得エラー:', error);
+					tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; padding:20px; color:red;">エラー: ${error.message}</td></tr>`;
+				}
+			}
+
+			// フィルター後データから統計を計算（完全版）
+			updateFilteredStats(statsData, totalCount) {
+				const set = (id, val) => {
+					const el = document.getElementById(id);
+					if (el) el.textContent = val;
+				};
+
+				set('statsTotalOrders', totalCount.toLocaleString());
+
+				if (!statsData || statsData.length === 0) {
+					set('statsReorderCount', '0');
+					set('statsShippedCount', '0');
+					set('statsPendingCount', '0');
+					set('statsTotalAmount', '¥0');
+					return;
+				}
+
+				// デバッグ情報（確認後に削除可能）
+				console.log('統計計算開始:', {
+					'取得データ件数': statsData.length,
+					'総件数': totalCount,
+					'サンプル': statsData.slice(0, 3)
+				});
+
+				// 型安全な再注文判定（boolean/string/number対応）
+				const reorderCount = statsData.filter(r => {
+					const val = r.is_reorder;
+					return val === true || val === 'true' || val === 1 || val === '1';
+				}).length;
+
+				// 型安全な出荷済み判定（null/空文字/ダッシュ対応）
+				const shippedCount = statsData.filter(r => {
+					const val = r.ship_date;
+					return val !== null && val !== undefined && val !== '' && val !== '-';
+				}).length;
+
+				// 未出荷数の正確な計算（総件数ベース）
+				const pendingCount = totalCount - shippedCount;
+
+				// 安全な金額計算（NaN防止）
+				const totalAmount = statsData.reduce((sum, r) => {
+					const price = parseFloat(String(r.unit_price || '0').replace(/[,¥\s]/g, '')) || 0;
+					const qty = parseInt(r.quantity) || 0;
+					return sum + (price * qty);
+				}, 0);
+
+				// デバッグ情報
+				console.log('統計計算結果:', {
+					'再注文': reorderCount,
+					'出荷済': shippedCount,
+					'未出荷': pendingCount,
+					'総金額': totalAmount
+				});
+
+				set('statsReorderCount', reorderCount.toLocaleString());
+				set('statsShippedCount', shippedCount.toLocaleString());
+				set('statsPendingCount', pendingCount.toLocaleString());
+				set('statsTotalAmount', '¥' + totalAmount.toLocaleString());
 			}
 			
-			// Supabaseからデータ取得・表示
-			async fetchAndDisplayParts(customerFilter = '', machineFilter = '', partFilter = '') {
-			    const tbody = document.getElementById('partsTableBody');
-			    if (!tbody) return;
-			    
-			    try {
-			        tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; padding:20px;">読み込み中...</td></tr>';
-			        
-			        // Supabaseからデータ取得（既存のsupabaseクライアントを使用）
-			        const { data, error } = await supabaseClient
-			            .from('parts_order_history')
-			            .select('*')
-			            .order('created_at', { ascending: false });
-			        
-			        if (error) throw error;
-			        
-			        // フィルター適用
-			        let filtered = (data || []).filter(row => {
-			            const customerMatch = !customerFilter ||
-			                (row.customer_name || '').toLowerCase().includes(customerFilter);
-			            const machineMatch = !machineFilter ||
-			                (row.machine_no || '').toLowerCase().includes(machineFilter) ||
-			                (row.machine_type || '').toLowerCase().includes(machineFilter);
-			            const partMatch = !partFilter ||
-			                (row.part_no || '').toLowerCase().includes(partFilter) ||
-			                (row.part_name || '').toLowerCase().includes(partFilter);
-			            return customerMatch && machineMatch && partMatch;
-			        });
-			        
-			        // 統計更新
-			        this.updatePartsStats(filtered);
-			        
-			        // テーブル表示
-			        if (filtered.length === 0) {
-			            tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; padding:40px; color:#999;">データがありません</td></tr>';
-			            return;
-			        }
-			        
-			        tbody.innerHTML = filtered.map(row => `
-			            <tr style="${!row.ship_date ? 'background-color: #fff3cd;' : ''}"
-			                onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.order_slip_no || '-'}</td>
-			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.machine_no || ''}</td>
-			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.machine_type || ''}</td>
-			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.part_no || ''}</td>
-			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.part_name || ''}</td>
-			                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center; color: #dc3545; font-weight: bold;">
-			                    ${row.is_reorder ? '●' : ''}
-			                </td>
-			                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${row.quantity || 0}</td>
-			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.customer_name || ''}</td>
-			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.order_date || ''}</td>
-			                <td style="padding: 8px; border-bottom: 1px solid #eee;">
-			                    ${row.ship_date || '<span style="color:#fd7e14; font-weight:bold;">未出荷</span>'}
-			                </td>
-			                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">
-			                    ¥${Number(row.unit_price || 0).toLocaleString()}
-			                </td>
-			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.customer_order_no || ''}</td>
-			                <td style="padding: 8px; border-bottom: 1px solid #eee;">${row.internal_slip_no || ''}</td>
-			            </tr>
-			        `).join('');
-			        
-			    } catch (error) {
-			        console.error('部品データ取得エラー:', error);
-			        tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; padding:20px; color:red;">エラー: ${error.message}</td></tr>`;
-			    }
+			// 統計情報の完全更新関数（新規追加）
+			async updateCompleteStats(totalCount, customerFilter = '', machineFilter = '', partFilter = '') {
+				const set = (id, val) => {
+					const el = document.getElementById(id);
+					if (el) el.textContent = val;
+				};
+				
+				// 総件数の表示
+				set('statsTotalOrders', totalCount.toLocaleString());
+				
+				try {
+					// 統計用の軽量クエリ（必要な列のみ取得）
+					let statsQuery = supabaseClient
+						.from('parts_order_history')
+						.select('is_reorder, ship_date, unit_price, quantity');
+					
+					// 同じフィルター条件を適用
+					if (customerFilter) {
+						statsQuery = statsQuery.ilike('customer_name', `%${customerFilter}%`);
+					}
+					if (machineFilter) {
+						statsQuery = statsQuery.or(`machine_no.ilike.%${machineFilter}%,machine_type.ilike.%${machineFilter}%`);
+					}
+					if (partFilter) {
+						statsQuery = statsQuery.or(`part_no.ilike.%${partFilter}%,part_name.ilike.%${partFilter}%`);
+					}
+					
+					const { data: statsData, error } = await statsQuery;
+					if (error) throw error;
+					
+					if (statsData && statsData.length > 0) {
+						const reorderCount = statsData.filter(r => r.is_reorder).length;
+						const shippedCount = statsData.filter(r => r.ship_date && r.ship_date !== '').length;
+						const pendingCount = totalCount - shippedCount;
+						const totalAmount = statsData.reduce((sum, r) => {
+							const price = Number(r.unit_price) || 0;
+							const qty = Number(r.quantity) || 0;
+							return sum + (price * qty);
+						}, 0);
+						
+						set('statsReorderCount', reorderCount.toLocaleString());
+						set('statsShippedCount', shippedCount.toLocaleString());
+						set('statsPendingCount', pendingCount.toLocaleString());
+						set('statsTotalAmount', '¥' + totalAmount.toLocaleString());
+					} else {
+						// データがない場合は0で初期化
+						set('statsReorderCount', '0');
+						set('statsShippedCount', '0');
+						set('statsPendingCount', '0');
+						set('statsTotalAmount', '¥0');
+					}
+					
+				} catch (error) {
+					console.error('統計更新エラー:', error);
+					// エラー時は0で表示
+					set('statsReorderCount', '0');
+					set('statsShippedCount', '0');
+					set('statsPendingCount', '0');
+					set('statsTotalAmount', '¥0');
+				}
 			}
-			
-			// 統計情報の更新
-			updatePartsStats(data) {
-			    const total = data.length;
-			    const reorder = data.filter(r => r.is_reorder).length;
-			    const shipped = data.filter(r => r.ship_date).length;
-			    const pending = total - shipped;
-			    const amount = data.reduce((sum, r) => sum + (Number(r.unit_price) || 0) * (Number(r.quantity) || 0), 0);
-			    
-			    const set = (id, val) => { 
-			        const el = document.getElementById(id); 
-			        if (el) el.textContent = val; 
-			    };
-			    
-			    set('statsTotalOrders', total);
-			    set('statsReorderCount', reorder);
-			    set('statsShippedCount', shipped);
-			    set('statsPendingCount', pending);
-			    set('statsTotalAmount', '¥' + amount.toLocaleString());
+
+			// 簡易統計更新関数（新規追加）
+			updatePartsStatsSimple(totalCount) {
+				const set = (id, val) => { 
+					const el = document.getElementById(id); 
+					if (el) el.textContent = val; 
+				};
+				set('statsTotalOrders', totalCount.toLocaleString());
+			}
+
+			// ページネーション表示更新（UI修正版）
+			updatePaginationDisplay(currentPage, totalCount, itemsPerPage) {
+				const totalPages = Math.ceil(totalCount / itemsPerPage);
+				const startItem = totalCount === 0 ? 0 : currentPage * itemsPerPage + 1;
+				const endItem = Math.min((currentPage + 1) * itemsPerPage, totalCount);
+				
+				// 既存要素の取得または新規作成
+				let paginationEl = document.getElementById('partsPagination');
+				if (!paginationEl) {
+					paginationEl = document.createElement('div');
+					paginationEl.id = 'partsPagination';
+					
+					// テーブルの直後に挿入
+					const tbody = document.getElementById('partsTableBody');
+					if (tbody) {
+						const table = tbody.closest('table');
+						if (table && table.parentNode) {
+							table.parentNode.appendChild(paginationEl);
+						}
+					}
+				}
+				
+				// 1ページ以下の場合は簡易表示
+				if (totalPages <= 1) {
+					paginationEl.innerHTML = `
+						<div style="text-align: center; padding: 15px; background: #f8f9fa; border-top: 1px solid #dee2e6; color: #666; font-size: 0.9rem;">
+							全 ${totalCount.toLocaleString()} 件を表示中
+						</div>
+					`;
+					return;
+				}
+				
+				const isFirstPage = currentPage === 0;
+				const isLastPage = currentPage >= totalPages - 1;
+				
+				// ボタンスタイル（CSSクラスを使わず直接指定で干渉回避）
+				const buttonStyle = (disabled = false) => `
+					display: inline-block;
+					padding: 8px 16px;
+					margin: 0 3px;
+					border: 1px solid #dee2e6;
+					border-radius: 4px;
+					background-color: ${disabled ? '#f8f9fa' : '#ffffff'};
+					color: ${disabled ? '#6c757d' : '#495057'};
+					text-decoration: none;
+					cursor: ${disabled ? 'not-allowed' : 'pointer'};
+					font-size: 0.875rem;
+					font-weight: 400;
+					line-height: 1.5;
+					user-select: none;
+					transition: all 0.15s ease-in-out;
+				`;
+				
+				const currentPageStyle = `
+					display: inline-block;
+					padding: 8px 16px;
+					margin: 0 6px;
+					background-color: #007bff;
+					color: white;
+					border-radius: 4px;
+					font-weight: 500;
+					font-size: 0.875rem;
+				`;
+				
+				paginationEl.innerHTML = `
+					<div style="text-align: center; padding: 20px; background: #f8f9fa; border-top: 1px solid #dee2e6;">
+						<div style="margin-bottom: 12px; color: #495057; font-size: 0.9rem;">
+							全 <strong>${totalCount.toLocaleString()}</strong> 件中 
+							<strong>${startItem.toLocaleString()}</strong> - <strong>${endItem.toLocaleString()}</strong> 件を表示
+						</div>
+						<div style="display: inline-flex; align-items: center; gap: 4px;">
+							<button style="${buttonStyle(isFirstPage)}" 
+									${isFirstPage ? 'disabled' : ''} 
+									onclick="app.filterParts(0)"
+									onmouseover="if(!this.disabled) this.style.backgroundColor='#e9ecef'"
+									onmouseout="if(!this.disabled) this.style.backgroundColor='#ffffff'">
+								« 最初
+							</button>
+							<button style="${buttonStyle(isFirstPage)}" 
+									${isFirstPage ? 'disabled' : ''} 
+									onclick="app.filterParts(${Math.max(0, currentPage - 1)})"
+									onmouseover="if(!this.disabled) this.style.backgroundColor='#e9ecef'"
+									onmouseout="if(!this.disabled) this.style.backgroundColor='#ffffff'">
+								‹ 前へ
+							</button>
+							<span style="${currentPageStyle}">
+								${currentPage + 1} / ${totalPages}
+							</span>
+							<button style="${buttonStyle(isLastPage)}" 
+									${isLastPage ? 'disabled' : ''} 
+									onclick="app.filterParts(${Math.min(totalPages - 1, currentPage + 1)})"
+									onmouseover="if(!this.disabled) this.style.backgroundColor='#e9ecef'"
+									onmouseout="if(!this.disabled) this.style.backgroundColor='#ffffff'">
+								次へ ›
+							</button>
+							<button style="${buttonStyle(isLastPage)}" 
+									${isLastPage ? 'disabled' : ''} 
+									onclick="app.filterParts(${totalPages - 1})"
+									onmouseover="if(!this.disabled) this.style.backgroundColor='#e9ecef'"
+									onmouseout="if(!this.disabled) this.style.backgroundColor='#ffffff'">
+								最後 »
+							</button>
+						</div>
+					</div>
+				`;
 			}
 			
 			// フィルタークリア
@@ -8932,10 +9323,17 @@
 		                    return;
 		                }
 		                
-		                // Supabaseへ一括保存
-		                const { error } = await supabaseClient
-		                    .from('parts_order_history')
-		                    .insert(insertData);
+						// 既存データを削除してから新規保存（重複防止）
+						const { error: deleteError } = await supabaseClient
+							.from('parts_order_history')
+							.delete()
+							.neq('id', 0);
+
+						if (deleteError) throw deleteError;
+
+						const { error } = await supabaseClient
+							.from('parts_order_history')
+							.insert(insertData);
 		                
 		                if (error) throw error;
 		                
