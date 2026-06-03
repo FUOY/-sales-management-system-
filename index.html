@@ -4336,9 +4336,28 @@
 					? todayForFiscal.getFullYear() 
 					: todayForFiscal.getFullYear() - 1;
 
-				// 初回表示時は現在年度をデフォルト設定
+				// ★ データが存在する年度を優先してデフォルト設定
 				if (!this.selectedFiscalYear) {
-					this.selectedFiscalYear = currentFiscalYear;
+					// まず現在年度を試す
+					let defaultYear = currentFiscalYear;
+					
+					// 現在年度にデータがない場合は前年度を確認
+					const currentYearProjects = (this.data.projects || []).filter(p => {
+						if (p.status === '失注') return false;
+						const dateStr = p.expectedOrderDate || p.lastActivityDate || p.createdDate;
+						if (!dateStr) return false;
+						const d = new Date(dateStr);
+						if (isNaN(d.getTime())) return false;
+						const fy = d.getMonth() >= 5 ? d.getFullYear() : d.getFullYear() - 1;
+						return fy === currentFiscalYear;
+					});
+					
+					// 現在年度にデータがなければ前年度を使用
+					if (currentYearProjects.length === 0) {
+						defaultYear = currentFiscalYear - 1;
+					}
+					
+					this.selectedFiscalYear = defaultYear;
 				}
 
 				// ★ selectedYear はここで1回だけ宣言
@@ -4368,11 +4387,16 @@
 					`).join('');
 				}
 				
-				// ベースとなるフィルタリング（個人/全体表示の対応）
-				const targetProjects = this.data.projects.filter(p => {
-					if (filter === 'personal') {
-						return p.assignee === currentUser;
+				// ★ 個人/全体表示の判定（最初に定義）
+				const isPersonal = filter === 'personal' && CURRENT_USER.role !== 'admin';
+
+				// ベースとなるフィルタリング（個人/全体表示の対応）★修正版
+				const targetProjects = (this.data.projects || []).filter(p => {
+					if (isPersonal) {
+						// ★ タイムライン側と同じ変数を使用して統一
+						return p.assignee === CURRENT_USER.assignee;
 					}
+					// 全体表示はすべての案件を対象
 					return true;
 				});
 
@@ -4413,9 +4437,7 @@
 				const customers = this.data.customers || [];
 				const schedules = this.data.schedules || [];
 				const activities = this.data.activities || [];
-
-				const isPersonal = filter === 'personal' && CURRENT_USER.role !== 'admin';
-				
+			
 				const acts = isPersonal ? activities.filter(a => a.assignee === CURRENT_USER.assignee) : activities;
 				const scheds = isPersonal ? schedules.filter(s => s.assignee === CURRENT_USER.assignee) : schedules;
 				const custs = isPersonal ? customers.filter(c => c.assignee === CURRENT_USER.assignee) : customers;
