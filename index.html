@@ -2301,6 +2301,176 @@
 			color: #6c757d;
 			font-weight: normal;
 		}
+		
+		/* ========================================
+		   営業ファネル（連続じょうろ型）
+		   ======================================== */
+
+		.sales-funnel-container {
+			display: flex;
+			flex-direction: column;
+			width: 100%;
+			/* 重要：gapを削除して図形を密着させる */
+		}
+
+		.funnel-stage-row {
+			display: flex;
+			align-items: center;
+			width: 100%;
+			/* 重要：margin-bottomを削除して連続性を確保 */
+		}
+
+		/* 左：ステージ名（最小幅） */
+		.funnel-stage-label-mini {
+			width: 60px;
+			flex-shrink: 0;
+			text-align: center;
+		}
+
+		.funnel-stage-name-mini {
+			font-size: 0.75rem;
+			font-weight: bold;
+			color: #666;
+			line-height: 1;
+		}
+
+		/* 中央：逆三角形図形エリア（メイン） */
+		.funnel-shape-area {
+			flex: 1;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			padding: 0 8px;
+		}
+
+		.funnel-shape {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			height: 50px;
+			cursor: pointer;
+			transition: filter 0.3s ease;
+			/* 重要：box-shadowやborder-radiusを削除し、連続した1つの図形に見せる */
+		}
+
+		.funnel-shape:hover {
+			filter: brightness(1.15);
+		}
+
+		.funnel-shape-text {
+			color: white;
+			font-weight: bold;
+			font-size: 0.9rem;
+			text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+			pointer-events: none;
+		}
+
+		/* 右：コンパクトメトリクス */
+		.funnel-metrics-compact {
+			width: 140px;
+			flex-shrink: 0;
+			padding: 4px 8px;
+			background: rgba(248, 249, 250, 0.8);
+			border-radius: 6px;
+			border-left: 2px solid #dee2e6;
+		}
+
+		.funnel-conversion-info {
+			font-size: 0.65rem;
+			font-weight: bold;
+			margin-bottom: 2px;
+			line-height: 1;
+		}
+
+		.funnel-counts-mini {
+			display: flex;
+			flex-direction: column;
+			gap: 1px;
+			margin-bottom: 3px;
+		}
+
+		.funnel-count-text {
+			font-size: 1rem;
+			font-weight: bold;
+			color: #333;
+			line-height: 1;
+		}
+
+		.funnel-amount-text {
+			font-size: 0.75rem;
+			color: #28a745;
+			font-weight: bold;
+			line-height: 1;
+		}
+
+		.funnel-status-mini {
+			font-size: 0.65rem;
+			padding: 1px 4px;
+			border-radius: 4px;
+			margin-bottom: 3px;
+			text-align: center;
+			line-height: 1;
+		}
+
+		.funnel-rates-mini {
+			font-size: 0.65rem;
+		}
+
+		.rate-mini-row {
+			display: flex;
+			justify-content: space-between;
+			gap: 4px;
+		}
+
+		.status-excellent { background: #d4edda; color: #155724; }
+		.status-good { background: #cce7ff; color: #0056b3; }
+		.status-warning { background: #fff3cd; color: #856404; }
+		.status-critical { background: #f8d7da; color: #721c24; }
+
+		/* レスポンシブ対応 */
+		@media (max-width: 768px) {
+			.funnel-metrics-compact {
+				width: 100px;
+			}
+			
+			.funnel-stage-label-mini {
+				width: 45px;
+			}
+			
+			.funnel-stage-name-mini {
+				font-size: 0.7rem;
+			}
+		}
+
+		/* 凡例（既存のまま保持） */
+		.funnel-legend {
+			display: flex;
+			gap: 15px;
+			justify-content: center;
+			margin-top: 15px;
+			flex-wrap: wrap;
+		}
+
+		.legend-item {
+			display: flex;
+			align-items: center;
+			gap: 5px;
+			font-size: 0.8rem;
+			color: #555;
+		}
+
+		.legend-dot {
+			width: 12px;
+			height: 12px;
+			border-radius: 3px;
+		}
+
+		.legend-dot.actual { background: #4a90e2; }
+		.legend-dot.ideal { background: #ffa726; }
+		.legend-dot.status-excellent { background: #d4edda; border: 1px solid #28a745; }
+		.legend-dot.status-good { background: #cce7ff; border: 1px solid #4a90e2; }
+		.legend-dot.status-warning { background: #fff3cd; border: 1px solid #ffc107; }
+		.legend-dot.status-critical { background: #f8d7da; border: 1px solid #dc3545; }
 	</style>
 </head>
 <body>
@@ -4897,15 +5067,132 @@
 					} 
 				});
 				
-				const maxStage = Math.max(...Object.values(stageCounts).map(v => v.count), 1);
-				document.getElementById('funnelStage').innerHTML = stages.map(s => `
-					<div class="funnel-item funnel-clickable" 
-						 style="width: ${Math.max((stageCounts[s].count / maxStage) * 100, 10)}%; min-width: 120px; background-color: #2c5aa0;"
-						 onclick="app.drillDownToProjectsByStage('${s}')"
-						 title="クリックで「${s}」の案件一覧を表示">
-						<span class="funnel-label">${s}</span>
-						<span class="funnel-value">${stageCounts[s].count}件 / ¥${(stageCounts[s].amount / 10000).toFixed(0)}万</span>
-					</div>`).join('');
+				// ── 営業ファネル（逆三角形じょうろ型）描画システム ──
+
+				// マーケティング専門家基準の理想転換率設定
+				const stageConfig = {
+					'アプローチ':   { color: '#6c757d', idealRate: 100, nextConversion: 50,  desc: '初回接触・リード獲得' },
+					'ヒアリング':   { color: '#17a2b8', idealRate: 50,  nextConversion: 60,  desc: '課題・ニーズ把握' },
+					'提案':         { color: '#ffc107', idealRate: 30,  nextConversion: 50,  desc: '解決策・提案書提示' },
+					'見積提出':     { color: '#fd7e14', idealRate: 15,  nextConversion: 67,  desc: '価格・条件提示' },
+					'クロージング': { color: '#dc3545', idealRate: 10,  nextConversion: 50,  desc: '最終交渉・契約準備' },
+					'受注':         { color: '#28a745', idealRate: 5,   nextConversion: 100, desc: '契約完了・受注確定' }
+				};
+
+				// 基準値計算（アプローチ件数または最大値）
+				const baselineCount = stageCounts['アプローチ'].count || 
+									  Math.max(...Object.values(stageCounts).map(v => v.count), 1);
+
+				// ファネル描画パラメーター
+				const maxFunnelWidth = 400;
+				const minFunnelWidth = 120;
+
+				// HTML生成
+				let funnelHTML = '';
+
+				stages.forEach((stageName, index) => {
+					const stageData = stageCounts[stageName];
+					const config = stageConfig[stageName];
+					const count = stageData.count;
+					const amount = stageData.amount;
+
+					// 実績転換率の計算（アプローチを100%基準）
+					const actualRate = baselineCount > 0 ? Math.round((count / baselineCount) * 100) : 0;
+					const idealRate = config.idealRate;
+
+					// 達成状況の判定
+					const achievementRatio = idealRate > 0 ? (actualRate / idealRate) : 0;
+					let statusClass, statusText;
+					
+					if (achievementRatio >= 1.2) {
+						statusClass = 'status-excellent';
+						statusText = `🎉 ${Math.round((achievementRatio - 1) * 100)}% 超過達成`;
+					} else if (achievementRatio >= 0.9) {
+						statusClass = 'status-good';
+						statusText = `✅ 目標達成 (${Math.round(achievementRatio * 100)}%)`;
+					} else if (achievementRatio >= 0.7) {
+						statusClass = 'status-warning';
+						statusText = `⚠️ 要注意 (${Math.round(achievementRatio * 100)}%)`;
+					} else {
+						statusClass = 'status-critical';
+						statusText = `🔴 要改善 (${Math.round(achievementRatio * 100)}%)`;
+					}
+
+					// 逆三角形の幅計算（上から下へ徐々に細く）
+					const widthRatio = 1 - (index / (stages.length - 1)) * 0.75;
+					const shapeWidthPercent = Math.round(widthRatio * 100);
+
+					// clip-pathで逆三角形・台形を作成
+					let clipPath;
+					if (index === stages.length - 1) {
+						// 最終ステージ（受注）は完全な三角形
+						clipPath = 'polygon(0% 0%, 100% 0%, 50% 100%)';
+					} else {
+						// その他のステージは台形（上より下が細い）
+						const topShrink = index * 7;
+						const bottomShrink = (index + 1) * 7;
+						clipPath = `polygon(${topShrink}% 0%, ${100 - topShrink}% 0%, ${100 - bottomShrink}% 100%, ${bottomShrink}% 100%)`;
+					}
+
+					// 金額フォーマット
+					const formattedAmount = amount >= 100000000 ? 
+										   `¥${(amount / 100000000).toFixed(1)}億` :
+										   `¥${Math.round(amount / 10000)}万`;
+
+					// ステージ間転換率の表示（図形の間から右側に移動）
+					let conversionInfo = '';
+					if (index > 0) {
+						const prevStage = stages[index - 1];
+						const prevCount = stageCounts[prevStage].count;
+						const actualConversion = prevCount > 0 ? Math.round((count / prevCount) * 100) : 0;
+						const idealConversion = stageConfig[prevStage].nextConversion;
+						const conversionColor = actualConversion >= idealConversion ? '#28a745' : '#dc3545';
+						conversionInfo = `<div class="funnel-conversion-info" style="color: ${conversionColor};">▼ ${actualConversion}% (理想 ${idealConversion}%)</div>`;
+					}
+
+					// メインのファネル行（連続じょうろ形）
+					funnelHTML += `
+						<div class="funnel-stage-row">
+							
+							<!-- 左：ステージ名（最小幅） -->
+							<div class="funnel-stage-label-mini">
+								<div class="funnel-stage-name-mini">${stageName}</div>
+							</div>
+
+							<!-- 中央：逆三角形図形（残り幅全て使用） -->
+							<div class="funnel-shape-area">
+								<div class="funnel-shape"
+									 style="width: ${shapeWidthPercent}%; background: ${config.color}; clip-path: ${clipPath};"
+									 onclick="app.drillDownToProjectsByStage('${stageName}')"
+									 title="クリックで「${stageName}」の案件一覧を表示">
+									<span class="funnel-shape-text">${stageName}</span>
+								</div>
+							</div>
+
+							<!-- 右：コンパクトメトリクス -->
+							<div class="funnel-metrics-compact">
+								${conversionInfo}
+								<div class="funnel-counts-mini">
+									<span class="funnel-count-text">${count}件</span>
+									<span class="funnel-amount-text">${formattedAmount}</span>
+								</div>
+								<div class="funnel-status-mini ${statusClass}">${statusText.replace(/🎉|✅|⚠️|🔴/g, '').trim()}</div>
+								
+								<div class="funnel-rates-mini">
+									<div class="rate-mini-row">
+										<span style="color: #4a90e2;">実績${actualRate}%</span>
+										<span style="color: #ffa726;">理想${idealRate}%</span>
+									</div>
+								</div>
+							</div>
+						</div>`;
+				});
+
+				// 最終的なHTML出力
+				document.getElementById('funnelStage').innerHTML = `
+					<div class="sales-funnel-container">
+						${funnelHTML}
+					</div>`;
 
 				// 確度別分布ファネル（案件ベース集計）
 				const probs = ['A', 'B', 'C', 'D'];
@@ -13554,7 +13841,7 @@
             } else {
                 console.log('Supabase updated successfully', payload);
             }
-        }
+        }	
     </script>
 </body>
 </html>
