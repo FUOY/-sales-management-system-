@@ -2471,6 +2471,40 @@
 		.legend-dot.status-good { background: #cce7ff; border: 1px solid #4a90e2; }
 		.legend-dot.status-warning { background: #fff3cd; border: 1px solid #ffc107; }
 		.legend-dot.status-critical { background: #f8d7da; border: 1px solid #dc3545; }
+		
+		/* ========================================
+		   スマホ表示：ダッシュボード縦書き修正
+		   ======================================== */
+
+		@media (max-width: 768px) {
+			
+			/* 1. ダッシュボードタイトルの文字保護 */
+			h1, h2, h3, 
+			.page-title, 
+			.dashboard-title,
+			.section-title {
+				white-space: nowrap !important;     /* 絶対に改行させない */
+				flex-shrink: 0 !important;          /* 圧縮されないよう保護 */
+				margin-bottom: 8px !important;
+			}
+			
+			/* 2. 横幅不足時は右側要素を下段に折り返し */
+			.d-flex,
+			.flex-container,
+			.header-row,
+			.dashboard-header {
+				flex-wrap: wrap !important;         /* 要素を下段に折り返し */
+				gap: 8px !important;               /* 要素間の適切な間隔 */
+			}
+			
+			/* 3. 年度選択・ボタン類の調整 */
+			.btn-group,
+			.form-select,
+			select {
+				flex-shrink: 1 !important;          /* 必要に応じて縮小可能 */
+				min-width: 100px;                  /* 最小幅を確保 */
+			}
+		}
 	</style>
 </head>
 <body>
