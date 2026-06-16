@@ -223,6 +223,75 @@
                     </div>
                 </div>
             </div>
+			
+            <!-- ▼▼▼ セールスダッシュボード：Phase 1 ▼▼▼ -->
+            <div id="salesDashboardSection" style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); border: 2px solid #2196f3; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(33,150,243,0.15);">
+                
+                <!-- ヘッダー部分 -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+                    <h3 style="margin: 0; color: #0d47a1; font-size: 20px;">
+                        <i class="fas fa-chart-line"></i> セールスアクション提案ダッシュボード
+                    </h3>
+                    <button onclick="refreshSalesDashboard()" 
+                            style="padding: 8px 16px; background: #2196f3; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; box-shadow: 0 2px 6px rgba(33,150,243,0.3);">
+                        🔄 データ更新
+                    </button>
+                </div>
+
+                <!-- メインコンテンツエリア -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
+                    
+                    <!-- 左パネル：頻出部品ランキング -->
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #4CAF50;">
+                        <h4 style="margin: 0 0 12px 0; color: #2e7d32; font-size: 16px; border-bottom: 2px solid #4CAF50; padding-bottom: 8px;">
+                            🔥 機種別・頻出部品ランキング TOP5
+                        </h4>
+                        <p style="margin: 0 0 16px 0; font-size: 13px; color: #666; line-height: 1.4;">
+                            過去の受発注データから「よく壊れる・消耗する部品」を自動抽出。<br>
+                            同機種ユーザーへの<strong>先行メンテナンス提案</strong>にご活用ください。
+                        </p>
+                        <div id="topPartsList" style="font-size: 14px; line-height: 1.6;">
+                            <div style="text-align: center; color: #999; padding: 20px;">
+                                <i class="fas fa-spinner fa-spin"></i> データを集計中...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右パネル：メンテナンス・更新提案ターゲット -->
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #FF9800;">
+                        <h4 style="margin: 0 0 12px 0; color: #ef6c00; font-size: 16px; border-bottom: 2px solid #FF9800; padding-bottom: 8px;">
+                            ⚠️ 機械更新提案ターゲット TOP5
+                        </h4>
+                        <p style="margin: 0 0 16px 0; font-size: 13px; color: #666; line-height: 1.4;">
+                            再注文（故障対応）が多い顧客・機種を自動検出。<br>
+                            <strong>機械リプレイス提案</strong>の有力候補です。
+                        </p>
+                        <div id="maintenanceTargetList" style="font-size: 14px; line-height: 1.6;">
+                            <div style="text-align: center; color: #999; padding: 20px;">
+                                <i class="fas fa-spinner fa-spin"></i> データを集計中...
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- 活用ガイド -->
+                <div style="margin-top: 20px; padding: 16px; background: rgba(255,255,255,0.7); border-radius: 8px; border: 1px dashed #2196f3;">
+                    <h5 style="margin: 0 0 8px 0; color: #1565c0; font-size: 14px;">💡 セールス活用のポイント</h5>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; font-size: 12px; color: #555;">
+                        <div>
+                            <strong>頻出部品ランキング活用法：</strong><br>
+                            「同じ機種をお使いの他のお客様では、この部品の交換時期を迎えています」
+                        </div>
+                        <div>
+                            <strong>機械更新提案活用法：</strong><br>
+                            「部品交換が頻発しています。新機種への更新で大幅なコスト削減が可能です」
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <!-- ▲▲▲ セールスダッシュボード：Phase 1 ここまで ▲▲▲ -->
 
             <!-- 検索・フィルター -->
             <div class="filter-section">
@@ -515,6 +584,7 @@
                 filteredData = [...allPartsData];
                 displayPartsData(filteredData);
                 updateSummaryStats(filteredData);
+				updateSalesDashboard(filteredData);
                 
                 showStatus(`✅ ${allPartsData.length}件のデータを読み込みました`, 'success');
                 setTimeout(() => {
@@ -635,6 +705,170 @@
                     <div class="stat-label">総受注金額</div>
                 </div>
             `;
+        }
+		
+		// ==========================================
+        // セールスダッシュボード：Phase 1 機能
+        // ==========================================
+
+        function updateSalesDashboard(data) {
+            console.log('🎯 セールスダッシュボード更新開始:', data?.length || 0, '件');
+            
+            if (!data || data.length === 0) {
+                document.getElementById('topPartsList').innerHTML = 
+                    '<div style="text-align:center; color:#999; padding:20px;">データがありません</div>';
+                document.getElementById('maintenanceTargetList').innerHTML = 
+                    '<div style="text-align:center; color:#999; padding:20px;">データがありません</div>';
+                return;
+            }
+
+            // ▼ 1. 頻出部品ランキング（機種×部品の発注頻度分析）
+            const partAnalysis = {};
+            
+            data.forEach(row => {
+                if (!row.part_name || !row.machine_type) return;
+                
+                const key = `${row.machine_type}||${row.part_no || 'N/A'}||${row.part_name}`;
+                
+                if (!partAnalysis[key]) {
+                    partAnalysis[key] = {
+                        machine_type: row.machine_type,
+                        part_no: row.part_no || 'N/A',
+                        part_name: row.part_name,
+                        orderCount: 0,           // 発注回数
+                        totalQuantity: 0,        // 総数量
+                        customerSet: new Set(),  // 発注した顧客数
+                        totalAmount: 0           // 総金額
+                    };
+                }
+                
+                partAnalysis[key].orderCount++;
+                partAnalysis[key].totalQuantity += Number(row.quantity) || 0;
+                partAnalysis[key].customerSet.add(row.customer_name || '不明');
+                
+                const amount = (Number(row.unit_price) || 0) * (Number(row.quantity) || 0);
+                partAnalysis[key].totalAmount += amount;
+            });
+
+            // 発注回数×顧客数の複合スコアでランキング
+            const topParts = Object.values(partAnalysis)
+                .map(item => ({
+                    ...item,
+                    customerCount: item.customerSet.size,
+                    score: item.orderCount * item.customerSet.size  // 複合スコア
+                }))
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 5);
+
+            // HTMLに表示
+            const topPartsHtml = topParts.length > 0 ? topParts.map((item, index) => {
+                const rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '📍';
+                return `
+                    <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #4CAF50;">
+                        <div style="font-weight: bold; color: #2e7d32; margin-bottom: 4px;">
+                            ${rankIcon} [${item.machine_type}] ${item.part_name}
+                        </div>
+                        <div style="font-size: 12px; color: #666; line-height: 1.4;">
+                            📊 発注実績: <strong>${item.orderCount}回</strong> / 
+                            👥 導入企業: <strong>${item.customerCount}社</strong> / 
+                            💰 累積金額: <strong>¥${item.totalAmount.toLocaleString()}</strong>
+                        </div>
+                        <div style="margin-top: 6px; font-size: 11px; color: #4CAF50; font-weight: bold;">
+                            💡 同機種ユーザー ${item.customerCount}社への先行メンテナンス提案推奨
+                        </div>
+                    </div>`;
+            }).join('') : '<div style="text-align:center; color:#999;">該当する部品がありません</div>';
+
+            document.getElementById('topPartsList').innerHTML = topPartsHtml;
+
+            // ▼ 2. 機械更新提案ターゲット（再注文頻度分析）
+            const maintenanceAnalysis = {};
+            
+            data.forEach(row => {
+                if (!row.customer_name) return;
+                
+                const key = `${row.customer_name}||${row.machine_type || '不明'}||${row.machine_no || '不明'}`;
+                
+                if (!maintenanceAnalysis[key]) {
+                    maintenanceAnalysis[key] = {
+                        customer_name: row.customer_name,
+                        machine_type: row.machine_type || '不明',
+                        machine_no: row.machine_no || '不明',
+                        totalOrders: 0,
+                        reorderCount: 0,
+                        totalCost: 0,
+                        firstOrderDate: null,
+                        lastOrderDate: null
+                    };
+                }
+                
+                maintenanceAnalysis[key].totalOrders++;
+                if (row.is_reorder) maintenanceAnalysis[key].reorderCount++;
+                
+                const cost = (Number(row.unit_price) || 0) * (Number(row.quantity) || 0);
+                maintenanceAnalysis[key].totalCost += cost;
+                
+                if (row.order_date) {
+                    const orderDate = new Date(row.order_date);
+                    if (!maintenanceAnalysis[key].firstOrderDate || orderDate < maintenanceAnalysis[key].firstOrderDate) {
+                        maintenanceAnalysis[key].firstOrderDate = orderDate;
+                    }
+                    if (!maintenanceAnalysis[key].lastOrderDate || orderDate > maintenanceAnalysis[key].lastOrderDate) {
+                        maintenanceAnalysis[key].lastOrderDate = orderDate;
+                    }
+                }
+            });
+
+            // 再注文率と累積コストでスコア計算
+            const maintenanceTargets = Object.values(maintenanceAnalysis)
+                .filter(item => item.totalOrders >= 3)  // 最低3回以上の発注がある顧客のみ
+                .map(item => {
+                    const reorderRate = item.totalOrders > 0 ? (item.reorderCount / item.totalOrders) : 0;
+                    const costScore = Math.min(item.totalCost / 100000, 10);  // 10万円で1ポイント、上限10ポイント
+                    return {
+                        ...item,
+                        reorderRate,
+                        updateScore: (reorderRate * 100) + costScore  // 再注文率重視のスコア
+                    };
+                })
+                .sort((a, b) => b.updateScore - a.updateScore)
+                .slice(0, 5);
+
+            // HTMLに表示
+            const maintenanceHtml = maintenanceTargets.length > 0 ? maintenanceTargets.map((item, index) => {
+                const urgencyLevel = item.reorderRate >= 0.4 ? '🚨 高' : item.reorderRate >= 0.2 ? '⚠️ 中' : '📋 低';
+                const urgencyColor = item.reorderRate >= 0.4 ? '#d32f2f' : item.reorderRate >= 0.2 ? '#f57c00' : '#388e3c';
+                
+                return `
+                    <div style="margin-bottom: 16px; padding: 12px; background: #fff3e0; border-radius: 6px; border-left: 3px solid #FF9800;">
+                        <div style="font-weight: bold; color: #ef6c00; margin-bottom: 4px;">
+                            ${index + 1}. ${item.customer_name}
+                        </div>
+                        <div style="font-size: 12px; color: #666; margin-bottom: 6px;">
+                            🏭 ${item.machine_type} (機番: ${item.machine_no})
+                        </div>
+                        <div style="font-size: 12px; color: #666; line-height: 1.4; margin-bottom: 6px;">
+                            📈 総発注: <strong>${item.totalOrders}回</strong> / 
+                            🔄 再注文: <strong>${item.reorderCount}回</strong> / 
+                            💸 累積コスト: <strong>¥${item.totalCost.toLocaleString()}</strong>
+                        </div>
+                        <div style="font-size: 11px; font-weight: bold; color: ${urgencyColor};">
+                            ${urgencyLevel} 緊急度 (再注文率: ${(item.reorderRate * 100).toFixed(1)}%) - 機械更新提案推奨
+                        </div>
+                    </div>`;
+            }).join('') : '<div style="text-align:center; color:#999;">該当する機械がありません（良好な状態です）</div>';
+
+            document.getElementById('maintenanceTargetList').innerHTML = maintenanceHtml;
+        }
+
+        // 手動更新ボタン用の関数
+        function refreshSalesDashboard() {
+            if (filteredData && filteredData.length > 0) {
+                updateSalesDashboard(filteredData);
+                showStatus('✅ セールスダッシュボードを更新しました', 'success');
+            } else {
+                showStatus('⚠️ 表示するデータがありません', 'info');
+            }
         }
 
         // Excelインポート処理
@@ -844,6 +1078,7 @@
             
             displayPartsData(filteredData);
             updateSummaryStats(filteredData);
+			updateSalesDashboard(filteredData);
         }
 
         // フィルタークリア
@@ -854,6 +1089,7 @@
             filteredData = [...allPartsData];
             displayPartsData(filteredData);
             updateSummaryStats(filteredData);
+			updateSalesDashboard(filteredData);
         }
 
         // ステータスメッセージ表示
