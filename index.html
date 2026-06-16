@@ -3069,6 +3069,73 @@
 			            </div>
 			        </div>
 			    </div>
+				
+				<!-- ▼▼▼ セールスダッシュボード：完全版 ▼▼▼ -->
+			    <div id="salesDashboardSection" style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); border: 2px solid #2196f3; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(33,150,243,0.15);">
+			        
+			        <!-- ダッシュボードヘッダー -->
+			        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+			            <h3 style="margin: 0; color: #0d47a1; font-size: 18px;">
+			                <i class="fas fa-chart-line"></i> セールスアクション提案ダッシュボード
+			            </h3>
+			            <button onclick="refreshPartsSalesDashboard()" 
+			                    style="padding: 8px 16px; background: #2196f3; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; box-shadow: 0 2px 6px rgba(33,150,243,0.3);">
+			                🔄 データ更新
+			            </button>
+			        </div>
+
+			        <!-- メインコンテンツ：2カラムレイアウト -->
+			        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+			            
+			            <!-- 左パネル：頻出部品ランキング -->
+			            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #4CAF50;">
+			                <h4 style="margin: 0 0 8px 0; color: #2e7d32; font-size: 15px; border-bottom: 2px solid #4CAF50; padding-bottom: 8px;">
+			                    🔥 機種別・頻出部品ランキング TOP5
+			                </h4>
+			                <p style="margin: 0 0 12px 0; font-size: 12px; color: #666; line-height: 1.5;">
+			                    よく発注される部品を自動抽出。同機種ユーザーへの<strong>先行メンテナンス提案</strong>に活用できます。
+			                </p>
+			                <div id="topPartsList">
+			                    <div style="text-align:center; color:#999; padding:20px; font-size:13px;">
+			                        ⏳ データを集計中...
+			                    </div>
+			                </div>
+			            </div>
+
+			            <!-- 右パネル：機械更新提案ターゲット -->
+			            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #FF9800;">
+			                <h4 style="margin: 0 0 8px 0; color: #ef6c00; font-size: 15px; border-bottom: 2px solid #FF9800; padding-bottom: 8px;">
+			                    ⚠️ 機械更新提案ターゲット TOP5
+			                </h4>
+			                <p style="margin: 0 0 12px 0; font-size: 12px; color: #666; line-height: 1.5;">
+			                    再注文（故障対応）が多い顧客を自動検出。<strong>機械リプレイス提案</strong>の有力候補です。
+			                </p>
+			                <div id="maintenanceTargetList">
+			                    <div style="text-align:center; color:#999; padding:20px; font-size:13px;">
+			                        ⏳ データを集計中...
+			                    </div>
+			                </div>
+			            </div>
+
+			        </div>
+
+			        <!-- セールス活用ガイド -->
+			        <div style="margin-top: 16px; padding: 14px; background: rgba(255,255,255,0.7); border-radius: 8px; border: 1px dashed #2196f3;">
+			            <div style="font-size: 13px; font-weight: bold; color: #1565c0; margin-bottom: 8px;">💡 セールス活用のポイント</div>
+			            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; font-size: 12px; color: #555;">
+			                <div>
+			                    <strong>📌 頻出部品ランキング活用：</strong><br>
+			                    「同じ機種のお客様では、この部品の交換時期を迎えています。点検をご提案します」
+			                </div>
+			                <div>
+			                    <strong>📌 機械更新提案活用：</strong><br>
+			                    「部品交換が頻発しています。新機種への更新でメンテコストを大幅削減できます」
+			                </div>
+			            </div>
+			        </div>
+
+			    </div>
+			    <!-- ▲▲▲ セールスダッシュボード：完全版 ここまで ▲▲▲ -->
 			
 			    <!-- 統計カード -->
 			    <div id="partsStatsGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; margin-bottom: 20px;">
@@ -4272,8 +4339,11 @@
 			} else {
 				console.error('app.filterParts関数が見つかりません');
 				alert('ソート設定は変更されましたが、データ再取得に失敗しました。');
-			}
+			}	
 		}
+		
+		// フィルタ後のテーブル更新処理の直後に追加
+		updatePartsSalesDashboard(filteredData);
 
 		// ソートアイコン（▲▼⇅）の表示更新（Phase 3最終版）
 		function updateSortIcons() {
@@ -9586,6 +9656,7 @@
 							table.parentNode.appendChild(paginationEl);
 						}
 					}
+					updatePartsSalesDashboard(data);
 				}
 				
 				// 1ページ以下の場合は簡易表示
@@ -9687,6 +9758,214 @@
 			}
 			
 			// ===== 部品受注履歴機能 ここまで =====
+			
+        // ==========================================
+        // セールスダッシュボード：高度分析機能
+        // ==========================================
+        
+        function updatePartsSalesDashboard(data) {
+            console.log('📊 セールスダッシュボード更新開始:', data?.length || 0, '件');
+            
+            const topPartsEl = document.getElementById('topPartsList');
+            const maintenanceEl = document.getElementById('maintenanceTargetList');
+            
+            // 要素存在チェック（安全性確保）
+            if (!topPartsEl || !maintenanceEl) {
+                console.warn('⚠️ ダッシュボード要素が見つかりません');
+                return;
+            }
+            
+            if (!data || data.length === 0) {
+                topPartsEl.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">データがありません</div>';
+                maintenanceEl.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">データがありません</div>';
+                return;
+            }
+
+            // ▼ 分析1：機種×部品の発注頻度分析
+            const partAnalysis = {};
+            
+            data.forEach(row => {
+                if (!row.part_name || !row.machine_type) return;
+                
+                const key = `${row.machine_type}||${row.part_no || 'N/A'}||${row.part_name}`;
+                
+                if (!partAnalysis[key]) {
+                    partAnalysis[key] = {
+                        machine_type: row.machine_type,
+                        part_no: row.part_no || 'N/A',
+                        part_name: row.part_name,
+                        orderCount: 0,           // 発注回数
+                        totalQuantity: 0,        // 総数量
+                        customerSet: new Set(),  // ユニーク顧客数
+                        totalAmount: 0           // 総金額
+                    };
+                }
+                
+                partAnalysis[key].orderCount++;
+                partAnalysis[key].totalQuantity += Number(row.quantity) || 0;
+                partAnalysis[key].customerSet.add(row.customer_name || '不明');
+                
+                const amount = (Number(row.unit_price) || 0) * (Number(row.quantity) || 0);
+                partAnalysis[key].totalAmount += amount;
+            });
+
+            // 発注頻度×顧客数の複合スコアでランキング
+            const topParts = Object.values(partAnalysis)
+                .map(item => ({
+                    ...item,
+                    customerCount: item.customerSet.size,
+                    score: item.orderCount * item.customerSet.size  // 複合重要度
+                }))
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 5);
+
+            // 頻出部品ランキングのHTML生成
+            if (topParts.length > 0) {
+                topPartsEl.innerHTML = topParts.map((item, i) => {
+                    const rankIcons = ['🥇','🥈','🥉','📍','📍'];
+                    return `
+                        <div style="margin-bottom:12px; padding:10px; background:#f8f9fa; border-radius:6px; border-left:3px solid #4CAF50;">
+                            <div style="font-weight:bold; color:#2e7d32; font-size:13px; margin-bottom:4px;">
+                                ${rankIcons[i]} [${item.machine_type}] ${item.part_name}
+                            </div>
+                            <div style="font-size:11px; color:#666; line-height:1.6; margin-bottom:4px;">
+                                📊 発注実績: <strong>${item.orderCount}回</strong> &nbsp;
+                                👥 導入企業: <strong>${item.customerCount}社</strong> &nbsp;
+                                💰 累積金額: <strong>¥${item.totalAmount.toLocaleString()}</strong>
+                            </div>
+                            <div style="font-size:11px; color:#4CAF50; font-weight:bold;">
+                                💡 同機種ユーザー ${item.customerCount}社への先行メンテナンス提案推奨
+                            </div>
+                        </div>`;
+                }).join('');
+            } else {
+                topPartsEl.innerHTML = '<div style="text-align:center;color:#999;font-size:13px;">分析対象データが不足しています</div>';
+            }
+
+            // ▼ 分析2：顧客×機械の再注文パターン分析
+            const maintenanceAnalysis = {};
+            
+            data.forEach(row => {
+                if (!row.customer_name) return;
+                
+                const key = `${row.customer_name}||${row.machine_type || '不明'}||${row.machine_no || '不明'}`;
+                
+                if (!maintenanceAnalysis[key]) {
+                    maintenanceAnalysis[key] = {
+                        customer_name: row.customer_name,
+                        machine_type: row.machine_type || '不明',
+                        machine_no: row.machine_no || '不明',
+                        totalOrders: 0,
+                        reorderCount: 0,
+                        totalCost: 0,
+                        lastOrderDate: null
+                    };
+                }
+                
+                maintenanceAnalysis[key].totalOrders++;
+                
+                // 再注文の判定（複数パターンに対応）
+                if (row.is_reorder === true || row.is_reorder === '●' || row.is_reorder === 1) {
+                    maintenanceAnalysis[key].reorderCount++;
+                }
+                
+                const cost = (Number(row.unit_price) || 0) * (Number(row.quantity) || 0);
+                maintenanceAnalysis[key].totalCost += cost;
+                
+                // 最終発注日の記録
+                if (row.order_date) {
+                    const orderDate = new Date(row.order_date);
+                    if (!maintenanceAnalysis[key].lastOrderDate || orderDate > maintenanceAnalysis[key].lastOrderDate) {
+                        maintenanceAnalysis[key].lastOrderDate = orderDate;
+                    }
+                }
+            });
+
+            // 再注文率と累積コストによるリスクスコア算出
+            const maintenanceTargets = Object.values(maintenanceAnalysis)
+                .filter(item => item.totalOrders >= 3)  // 最低3回以上の発注実績
+                .map(item => {
+                    const reorderRate = item.totalOrders > 0 ? (item.reorderCount / item.totalOrders) : 0;
+                    const costScore = Math.min(item.totalCost / 100000, 10);  // 10万円で1ポイント
+                    return {
+                        ...item,
+                        reorderRate,
+                        riskScore: (reorderRate * 100) + costScore  // 再注文率重視のリスクスコア
+                    };
+                })
+                .sort((a, b) => b.riskScore - a.riskScore)
+                .slice(0, 5);
+
+            // 機械更新提案ターゲットのHTML生成
+            if (maintenanceTargets.length > 0) {
+                maintenanceEl.innerHTML = maintenanceTargets.map((item, i) => {
+                    const urgencyData = item.reorderRate >= 0.4 
+                        ? ['🚨', '高', '#d32f2f'] 
+                        : item.reorderRate >= 0.2 
+                        ? ['⚠️', '中', '#f57c00'] 
+                        : ['📋', '低', '#388e3c'];
+                    
+                    return `
+                        <div style="margin-bottom:12px; padding:10px; background:#fff3e0; border-radius:6px; border-left:3px solid #FF9800;">
+                            <div style="font-weight:bold; color:#ef6c00; font-size:13px; margin-bottom:4px;">
+                                ${i + 1}. ${item.customer_name}
+                            </div>
+                            <div style="font-size:11px; color:#666; margin-bottom:4px;">
+                                🏭 ${item.machine_type}（機番: ${item.machine_no}）
+                            </div>
+                            <div style="font-size:11px; color:#666; line-height:1.6; margin-bottom:4px;">
+                                📈 総発注: <strong>${item.totalOrders}回</strong> &nbsp;
+                                🔄 再注文: <strong>${item.reorderCount}回</strong> &nbsp;
+                                💸 累積コスト: <strong>¥${item.totalCost.toLocaleString()}</strong>
+                            </div>
+                            <div style="font-size:11px; font-weight:bold; color:${urgencyData[2]};">
+                                ${urgencyData[0]} 緊急度: ${urgencyData[1]}（再注文率 ${(item.reorderRate * 100).toFixed(1)}%）- 機械更新提案推奨
+                            </div>
+                        </div>`;
+                }).join('');
+            } else {
+                maintenanceEl.innerHTML = '<div style="text-align:center;color:#999;font-size:13px;">対象機械なし（良好な稼働状況です）</div>';
+            }
+        }
+
+        function refreshPartsSalesDashboard() {
+            // 既存のデータ変数を自動検出して使用
+            let currentData = null;
+            
+            // 複数のパターンでデータを探索
+            if (typeof app !== 'undefined') {
+                currentData = app.partsData || app.filteredPartsData || app.state?.parts;
+            }
+            
+            // グローバル変数も確認
+            if (!currentData && typeof partsData !== 'undefined') {
+                currentData = partsData;
+            }
+            
+            if (!currentData && typeof filteredPartsData !== 'undefined') {
+                currentData = filteredPartsData;
+            }
+            
+            if (currentData && currentData.length > 0) {
+                updatePartsSalesDashboard(currentData);
+                console.log('✅ セールスダッシュボード手動更新完了');
+                
+                // 成功メッセージ（短時間表示）
+                const btn = event?.target;
+                if (btn) {
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '✅ 更新完了';
+                    btn.style.background = '#28a745';
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.style.background = '#2196f3';
+                    }, 2000);
+                }
+            } else {
+                console.warn('⚠️ 部品データが見つかりません');
+                alert('データがまだ読み込まれていません。\n部品データをインポートしてから再試行してください。');
+            }
+        }
 
 		// 部品データ専用のExcelインポート機能
 		async importPartsExcel() {
