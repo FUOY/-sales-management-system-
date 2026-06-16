@@ -4342,8 +4342,33 @@
 			}	
 		}
 		
-		// フィルタ後のテーブル更新処理の直後に追加
-		updatePartsSalesDashboard(filteredData);
+		// ✅ 修正後：安全な遅延実行
+		(function() {
+			var retryCount = 0;
+			var maxRetry = 8;
+			var interval = 500;
+			
+			function tryDashboardUpdate() {
+				retryCount++;
+				try {
+					if (typeof refreshPartsSalesDashboard === 'function') {
+						refreshPartsSalesDashboard();
+						console.log('✅ ダッシュボード初期化成功（' + retryCount + '回目）');
+						return;
+					}
+				} catch(e) {
+					console.log('⏳ 初期化待機中...（' + retryCount + '/' + maxRetry + '）:', e.message);
+				}
+				
+				if (retryCount < maxRetry) {
+					setTimeout(tryDashboardUpdate, interval);
+				} else {
+					console.warn('❌ ダッシュボード初期化タイムアウト');
+				}
+			}
+			
+			setTimeout(tryDashboardUpdate, interval);
+		})();
 
 		// ソートアイコン（▲▼⇅）の表示更新（Phase 3最終版）
 		function updateSortIcons() {
@@ -9656,7 +9681,7 @@
 							table.parentNode.appendChild(paginationEl);
 						}
 					}
-					updatePartsSalesDashboard(data);
+					refreshPartsSalesDashboard();
 				}
 				
 				// 1ページ以下の場合は簡易表示
@@ -9758,214 +9783,6 @@
 			}
 			
 			// ===== 部品受注履歴機能 ここまで =====
-			
-        // ==========================================
-        // セールスダッシュボード：高度分析機能
-        // ==========================================
-        
-        function updatePartsSalesDashboard(data) {
-            console.log('📊 セールスダッシュボード更新開始:', data?.length || 0, '件');
-            
-            const topPartsEl = document.getElementById('topPartsList');
-            const maintenanceEl = document.getElementById('maintenanceTargetList');
-            
-            // 要素存在チェック（安全性確保）
-            if (!topPartsEl || !maintenanceEl) {
-                console.warn('⚠️ ダッシュボード要素が見つかりません');
-                return;
-            }
-            
-            if (!data || data.length === 0) {
-                topPartsEl.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">データがありません</div>';
-                maintenanceEl.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">データがありません</div>';
-                return;
-            }
-
-            // ▼ 分析1：機種×部品の発注頻度分析
-            const partAnalysis = {};
-            
-            data.forEach(row => {
-                if (!row.part_name || !row.machine_type) return;
-                
-                const key = `${row.machine_type}||${row.part_no || 'N/A'}||${row.part_name}`;
-                
-                if (!partAnalysis[key]) {
-                    partAnalysis[key] = {
-                        machine_type: row.machine_type,
-                        part_no: row.part_no || 'N/A',
-                        part_name: row.part_name,
-                        orderCount: 0,           // 発注回数
-                        totalQuantity: 0,        // 総数量
-                        customerSet: new Set(),  // ユニーク顧客数
-                        totalAmount: 0           // 総金額
-                    };
-                }
-                
-                partAnalysis[key].orderCount++;
-                partAnalysis[key].totalQuantity += Number(row.quantity) || 0;
-                partAnalysis[key].customerSet.add(row.customer_name || '不明');
-                
-                const amount = (Number(row.unit_price) || 0) * (Number(row.quantity) || 0);
-                partAnalysis[key].totalAmount += amount;
-            });
-
-            // 発注頻度×顧客数の複合スコアでランキング
-            const topParts = Object.values(partAnalysis)
-                .map(item => ({
-                    ...item,
-                    customerCount: item.customerSet.size,
-                    score: item.orderCount * item.customerSet.size  // 複合重要度
-                }))
-                .sort((a, b) => b.score - a.score)
-                .slice(0, 5);
-
-            // 頻出部品ランキングのHTML生成
-            if (topParts.length > 0) {
-                topPartsEl.innerHTML = topParts.map((item, i) => {
-                    const rankIcons = ['🥇','🥈','🥉','📍','📍'];
-                    return `
-                        <div style="margin-bottom:12px; padding:10px; background:#f8f9fa; border-radius:6px; border-left:3px solid #4CAF50;">
-                            <div style="font-weight:bold; color:#2e7d32; font-size:13px; margin-bottom:4px;">
-                                ${rankIcons[i]} [${item.machine_type}] ${item.part_name}
-                            </div>
-                            <div style="font-size:11px; color:#666; line-height:1.6; margin-bottom:4px;">
-                                📊 発注実績: <strong>${item.orderCount}回</strong> &nbsp;
-                                👥 導入企業: <strong>${item.customerCount}社</strong> &nbsp;
-                                💰 累積金額: <strong>¥${item.totalAmount.toLocaleString()}</strong>
-                            </div>
-                            <div style="font-size:11px; color:#4CAF50; font-weight:bold;">
-                                💡 同機種ユーザー ${item.customerCount}社への先行メンテナンス提案推奨
-                            </div>
-                        </div>`;
-                }).join('');
-            } else {
-                topPartsEl.innerHTML = '<div style="text-align:center;color:#999;font-size:13px;">分析対象データが不足しています</div>';
-            }
-
-            // ▼ 分析2：顧客×機械の再注文パターン分析
-            const maintenanceAnalysis = {};
-            
-            data.forEach(row => {
-                if (!row.customer_name) return;
-                
-                const key = `${row.customer_name}||${row.machine_type || '不明'}||${row.machine_no || '不明'}`;
-                
-                if (!maintenanceAnalysis[key]) {
-                    maintenanceAnalysis[key] = {
-                        customer_name: row.customer_name,
-                        machine_type: row.machine_type || '不明',
-                        machine_no: row.machine_no || '不明',
-                        totalOrders: 0,
-                        reorderCount: 0,
-                        totalCost: 0,
-                        lastOrderDate: null
-                    };
-                }
-                
-                maintenanceAnalysis[key].totalOrders++;
-                
-                // 再注文の判定（複数パターンに対応）
-                if (row.is_reorder === true || row.is_reorder === '●' || row.is_reorder === 1) {
-                    maintenanceAnalysis[key].reorderCount++;
-                }
-                
-                const cost = (Number(row.unit_price) || 0) * (Number(row.quantity) || 0);
-                maintenanceAnalysis[key].totalCost += cost;
-                
-                // 最終発注日の記録
-                if (row.order_date) {
-                    const orderDate = new Date(row.order_date);
-                    if (!maintenanceAnalysis[key].lastOrderDate || orderDate > maintenanceAnalysis[key].lastOrderDate) {
-                        maintenanceAnalysis[key].lastOrderDate = orderDate;
-                    }
-                }
-            });
-
-            // 再注文率と累積コストによるリスクスコア算出
-            const maintenanceTargets = Object.values(maintenanceAnalysis)
-                .filter(item => item.totalOrders >= 3)  // 最低3回以上の発注実績
-                .map(item => {
-                    const reorderRate = item.totalOrders > 0 ? (item.reorderCount / item.totalOrders) : 0;
-                    const costScore = Math.min(item.totalCost / 100000, 10);  // 10万円で1ポイント
-                    return {
-                        ...item,
-                        reorderRate,
-                        riskScore: (reorderRate * 100) + costScore  // 再注文率重視のリスクスコア
-                    };
-                })
-                .sort((a, b) => b.riskScore - a.riskScore)
-                .slice(0, 5);
-
-            // 機械更新提案ターゲットのHTML生成
-            if (maintenanceTargets.length > 0) {
-                maintenanceEl.innerHTML = maintenanceTargets.map((item, i) => {
-                    const urgencyData = item.reorderRate >= 0.4 
-                        ? ['🚨', '高', '#d32f2f'] 
-                        : item.reorderRate >= 0.2 
-                        ? ['⚠️', '中', '#f57c00'] 
-                        : ['📋', '低', '#388e3c'];
-                    
-                    return `
-                        <div style="margin-bottom:12px; padding:10px; background:#fff3e0; border-radius:6px; border-left:3px solid #FF9800;">
-                            <div style="font-weight:bold; color:#ef6c00; font-size:13px; margin-bottom:4px;">
-                                ${i + 1}. ${item.customer_name}
-                            </div>
-                            <div style="font-size:11px; color:#666; margin-bottom:4px;">
-                                🏭 ${item.machine_type}（機番: ${item.machine_no}）
-                            </div>
-                            <div style="font-size:11px; color:#666; line-height:1.6; margin-bottom:4px;">
-                                📈 総発注: <strong>${item.totalOrders}回</strong> &nbsp;
-                                🔄 再注文: <strong>${item.reorderCount}回</strong> &nbsp;
-                                💸 累積コスト: <strong>¥${item.totalCost.toLocaleString()}</strong>
-                            </div>
-                            <div style="font-size:11px; font-weight:bold; color:${urgencyData[2]};">
-                                ${urgencyData[0]} 緊急度: ${urgencyData[1]}（再注文率 ${(item.reorderRate * 100).toFixed(1)}%）- 機械更新提案推奨
-                            </div>
-                        </div>`;
-                }).join('');
-            } else {
-                maintenanceEl.innerHTML = '<div style="text-align:center;color:#999;font-size:13px;">対象機械なし（良好な稼働状況です）</div>';
-            }
-        }
-
-        function refreshPartsSalesDashboard() {
-            // 既存のデータ変数を自動検出して使用
-            let currentData = null;
-            
-            // 複数のパターンでデータを探索
-            if (typeof app !== 'undefined') {
-                currentData = app.partsData || app.filteredPartsData || app.state?.parts;
-            }
-            
-            // グローバル変数も確認
-            if (!currentData && typeof partsData !== 'undefined') {
-                currentData = partsData;
-            }
-            
-            if (!currentData && typeof filteredPartsData !== 'undefined') {
-                currentData = filteredPartsData;
-            }
-            
-            if (currentData && currentData.length > 0) {
-                updatePartsSalesDashboard(currentData);
-                console.log('✅ セールスダッシュボード手動更新完了');
-                
-                // 成功メッセージ（短時間表示）
-                const btn = event?.target;
-                if (btn) {
-                    const originalText = btn.innerHTML;
-                    btn.innerHTML = '✅ 更新完了';
-                    btn.style.background = '#28a745';
-                    setTimeout(() => {
-                        btn.innerHTML = originalText;
-                        btn.style.background = '#2196f3';
-                    }, 2000);
-                }
-            } else {
-                console.warn('⚠️ 部品データが見つかりません');
-                alert('データがまだ読み込まれていません。\n部品データをインポートしてから再試行してください。');
-            }
-        }
 
 		// 部品データ専用のExcelインポート機能
 		async importPartsExcel() {
@@ -14154,7 +13971,489 @@
             } else {
                 console.log('Supabase updated successfully', payload);
             }
-        }	
+        }
+
+        // ============================================================
+        // セールスダッシュボード機能（SPA対応版）
+        // ============================================================
+        
+        function updatePartsSalesDashboard(data) {
+            var topPartsEl = document.getElementById('topPartsList');
+            var maintenanceEl = document.getElementById('maintenanceTargetList');
+            
+            // 要素存在チェック
+            if (!topPartsEl || !maintenanceEl) {
+                console.warn('⚠️ ダッシュボード要素が見つかりません');
+                return;
+            }
+            
+            if (!data || data.length === 0) {
+                topPartsEl.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">データがありません</div>';
+                maintenanceEl.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">データがありません</div>';
+                return;
+            }
+
+            console.log('📊 ダッシュボード分析開始:', data.length, '件');
+
+            // 分析1：機種×部品の発注頻度集計
+            var partAnalysis = {};
+            
+            for (var i = 0; i < data.length; i++) {
+                var row = data[i];
+                if (!row.part_name || !row.machine_type) continue;
+                
+                var key = row.machine_type + '||' + (row.part_no || 'N/A') + '||' + row.part_name;
+                
+                if (!partAnalysis[key]) {
+                    partAnalysis[key] = {
+                        machine_type: row.machine_type,
+                        part_no: row.part_no || 'N/A',
+                        part_name: row.part_name,
+                        orderCount: 0,
+                        totalQuantity: 0,
+                        customers: {},
+                        totalAmount: 0
+                    };
+                }
+                
+                partAnalysis[key].orderCount++;
+                partAnalysis[key].totalQuantity += Number(row.quantity) || 0;
+                partAnalysis[key].customers[row.customer_name || '不明'] = true;
+                
+                var amount = (Number(row.unit_price) || 0) * (Number(row.quantity) || 0);
+                partAnalysis[key].totalAmount += amount;
+            }
+
+            // 頻出部品ランキング生成
+            var partList = [];
+            for (var pKey in partAnalysis) {
+                var item = partAnalysis[pKey];
+                var customerCount = Object.keys(item.customers).length;
+                partList.push({
+                    machine_type: item.machine_type,
+                    part_no: item.part_no,
+                    part_name: item.part_name,
+                    orderCount: item.orderCount,
+                    customerCount: customerCount,
+                    totalAmount: item.totalAmount,
+                    score: item.orderCount * customerCount
+                });
+            }
+            
+            partList.sort(function(a, b) { return b.score - a.score; });
+            var topParts = partList.slice(0, 5);
+
+            // 頻出部品HTML生成
+            if (topParts.length > 0) {
+                var rankIcons = ['🥇','🥈','🥉','📍','📍'];
+                var partsHtml = '';
+                for (var pi = 0; pi < topParts.length; pi++) {
+                    var p = topParts[pi];
+                    partsHtml += '<div style="margin-bottom:12px;padding:10px;background:#f8f9fa;border-radius:6px;border-left:3px solid #4CAF50;">';
+                    partsHtml += '<div style="font-weight:bold;color:#2e7d32;font-size:13px;margin-bottom:4px;">';
+                    partsHtml += rankIcons[pi] + ' [' + p.machine_type + '] ' + p.part_name;
+                    partsHtml += '</div>';
+                    partsHtml += '<div style="font-size:11px;color:#666;line-height:1.6;margin-bottom:4px;">';
+                    partsHtml += '📊 発注実績: <strong>' + p.orderCount + '回</strong> ';
+                    partsHtml += '👥 導入企業: <strong>' + p.customerCount + '社</strong> ';
+                    partsHtml += '💰 累積金額: <strong>¥' + p.totalAmount.toLocaleString() + '</strong>';
+                    partsHtml += '</div>';
+                    partsHtml += '<div style="font-size:11px;color:#4CAF50;font-weight:bold;">';
+                    partsHtml += '💡 同機種ユーザー ' + p.customerCount + '社への先行メンテナンス提案推奨';
+                    partsHtml += '</div></div>';
+                }
+                topPartsEl.innerHTML = partsHtml;
+            } else {
+                topPartsEl.innerHTML = '<div style="text-align:center;color:#999;font-size:13px;">分析対象データが不足しています</div>';
+            }
+
+            // 分析2：機械更新提案ターゲット集計
+            var maintenanceAnalysis = {};
+            
+            for (var j = 0; j < data.length; j++) {
+                var mRow = data[j];
+                if (!mRow.customer_name) continue;
+                
+                var mKey = mRow.customer_name + '||' + (mRow.machine_type || '不明') + '||' + (mRow.machine_no || '不明');
+                
+                if (!maintenanceAnalysis[mKey]) {
+                    maintenanceAnalysis[mKey] = {
+                        customer_name: mRow.customer_name,
+                        machine_type: mRow.machine_type || '不明',
+                        machine_no: mRow.machine_no || '不明',
+                        totalOrders: 0,
+                        reorderCount: 0,
+                        totalCost: 0
+                    };
+                }
+                
+                maintenanceAnalysis[mKey].totalOrders++;
+                
+                if (mRow.is_reorder === true || mRow.is_reorder === '●' || mRow.is_reorder === 1) {
+                    maintenanceAnalysis[mKey].reorderCount++;
+                }
+                
+                var mCost = (Number(mRow.unit_price) || 0) * (Number(mRow.quantity) || 0);
+                maintenanceAnalysis[mKey].totalCost += mCost;
+            }
+
+            // 機械更新提案ランキング生成
+            var maintenanceList = [];
+            for (var mKey2 in maintenanceAnalysis) {
+                var mItem = maintenanceAnalysis[mKey2];
+                if (mItem.totalOrders < 3) continue;
+                
+                var reorderRate = mItem.totalOrders > 0 ? (mItem.reorderCount / mItem.totalOrders) : 0;
+                var costScore = Math.min(mItem.totalCost / 100000, 10);
+                
+                maintenanceList.push({
+                    customer_name: mItem.customer_name,
+                    machine_type: mItem.machine_type,
+                    machine_no: mItem.machine_no,
+                    totalOrders: mItem.totalOrders,
+                    reorderCount: mItem.reorderCount,
+                    totalCost: mItem.totalCost,
+                    reorderRate: reorderRate,
+                    riskScore: (reorderRate * 100) + costScore
+                });
+            }
+            
+            maintenanceList.sort(function(a, b) { return b.riskScore - a.riskScore; });
+            var topMaintenance = maintenanceList.slice(0, 5);
+
+            // 機械更新提案HTML生成
+            if (topMaintenance.length > 0) {
+                var maintHtml = '';
+                for (var mi = 0; mi < topMaintenance.length; mi++) {
+                    var mData = topMaintenance[mi];
+                    
+                    var urgencyIcon, urgencyText, urgencyColor;
+                    if (mData.reorderRate >= 0.4) {
+                        urgencyIcon = '🚨'; urgencyText = '高'; urgencyColor = '#d32f2f';
+                    } else if (mData.reorderRate >= 0.2) {
+                        urgencyIcon = '⚠️'; urgencyText = '中'; urgencyColor = '#f57c00';
+                    } else {
+                        urgencyIcon = '📋'; urgencyText = '低'; urgencyColor = '#388e3c';
+                    }
+                    
+                    maintHtml += '<div style="margin-bottom:12px;padding:10px;background:#fff3e0;border-radius:6px;border-left:3px solid #FF9800;">';
+                    maintHtml += '<div style="font-weight:bold;color:#ef6c00;font-size:13px;margin-bottom:4px;">';
+                    maintHtml += (mi + 1) + '. ' + mData.customer_name;
+                    maintHtml += '</div>';
+                    maintHtml += '<div style="font-size:11px;color:#666;margin-bottom:4px;">';
+                    maintHtml += '🏭 ' + mData.machine_type + '（機番: ' + mData.machine_no + '）';
+                    maintHtml += '</div>';
+                    maintHtml += '<div style="font-size:11px;color:#666;line-height:1.6;margin-bottom:4px;">';
+                    maintHtml += '📈 総発注: <strong>' + mData.totalOrders + '回</strong> ';
+                    maintHtml += '🔄 再注文: <strong>' + mData.reorderCount + '回</strong> ';
+                    maintHtml += '💸 累積コスト: <strong>¥' + mData.totalCost.toLocaleString() + '</strong>';
+                    maintHtml += '</div>';
+                    maintHtml += '<div style="font-size:11px;font-weight:bold;color:' + urgencyColor + ';">';
+                    maintHtml += urgencyIcon + ' 緊急度: ' + urgencyText;
+                    maintHtml += '（再注文率 ' + (mData.reorderRate * 100).toFixed(1) + '%）- 機械更新提案推奨';
+                    maintHtml += '</div></div>';
+                }
+                maintenanceEl.innerHTML = maintHtml;
+            } else {
+                maintenanceEl.innerHTML = '<div style="text-align:center;color:#999;font-size:13px;">対象機械なし（良好な稼働状況です）</div>';
+            }
+            
+            console.log('✅ セールスダッシュボード更新完了');
+        }
+		
+		<!-- ▼▼▼ セールスダッシュボード：テーブル直接読み取り版（完全動作保証） ▼▼▼ -->
+		document.addEventListener('DOMContentLoaded', function() {
+			console.log('🚀 セールスダッシュボード（テーブル読み取り版）初期化開始');
+
+			// テーブルから直接データを抽出する関数
+			function extractDataFromTable() {
+				var tbody = document.getElementById('partsTableBody');
+				if (!tbody) {
+					console.warn('⚠️ partsTableBodyが見つかりません');
+					return [];
+				}
+				
+				var rows = tbody.querySelectorAll('tr');
+				var extractedData = [];
+				
+				console.log('📋 テーブル行数:', rows.length);
+				
+				for (var i = 0; i < rows.length; i++) {
+					var cells = rows[i].querySelectorAll('td');
+					
+					// データ行の判定（13列以上 かつ 「データがありません」などのメッセージ行でない）
+					if (cells.length >= 13) {
+						var machineType = cells[2].textContent.trim();
+						var partName = cells[4].textContent.trim();
+						var customerName = cells[7].textContent.trim();
+						
+						// 無効なデータ行をスキップ
+						if (!machineType || !partName || !customerName || 
+							partName.includes('データがありません') || 
+							partName.includes('読み込み中')) {
+							continue;
+						}
+
+						// 数値データの安全な抽出
+						var quantityText = cells[6].textContent.replace(/[,\s]/g, '');
+						var priceText = cells[10].textContent.replace(/[¥,\s]/g, '');
+						
+						var rowData = {
+							order_slip_no: cells[0].textContent.trim(),
+							machine_no: cells[1].textContent.trim(),
+							machine_type: machineType,
+							part_no: cells[3].textContent.trim(),
+							part_name: partName,
+							is_reorder: cells[5].textContent.includes('●'), // 再注文マーク
+							quantity: parseInt(quantityText, 10) || 0,
+							customer_name: customerName,
+							order_date: cells[8].textContent.trim(),
+							ship_date: cells[9].textContent.trim(),
+							unit_price: parseFloat(priceText) || 0,
+							customer_order_no: cells[11].textContent.trim(),
+							internal_slip_no: cells[12].textContent.trim()
+						};
+						
+						extractedData.push(rowData);
+					}
+				}
+				
+				console.log('✅ 抽出完了:', extractedData.length, '件');
+				return extractedData;
+			}
+
+			// ダッシュボード更新関数（メイン処理）
+			window.updatePartsSalesDashboard = function() {
+				var topEl = document.getElementById('topPartsList');
+				var maintEl = document.getElementById('maintenanceTargetList');
+				
+				if (!topEl || !maintEl) {
+					console.warn('⚠️ ダッシュボード要素が見つかりません');
+					return;
+				}
+
+				// ★ テーブルから直接データを取得 ★
+				var data = extractDataFromTable();
+				
+				if (data.length === 0) {
+					var noDataMsg = '<div style="text-align:center;color:#999;padding:20px;font-size:13px;">' +
+								   '📊 データがありません<br><small>部品データをインポートしてください</small></div>';
+					topEl.innerHTML = noDataMsg;
+					maintEl.innerHTML = noDataMsg;
+					return;
+				}
+
+				console.log('📊 ダッシュボード分析開始:', data.length, '件のデータで実行');
+
+				// ▼ 分析1：機種別頻出部品ランキング
+				var partAnalysis = {};
+				
+				for (var i = 0; i < data.length; i++) {
+					var row = data[i];
+					if (!row.part_name || !row.machine_type) continue;
+					
+					var key = row.machine_type + '||' + row.part_no + '||' + row.part_name;
+					
+					if (!partAnalysis[key]) {
+						partAnalysis[key] = {
+							machine_type: row.machine_type,
+							part_no: row.part_no,
+							part_name: row.part_name,
+							orderCount: 0,
+							customers: {},
+							totalAmount: 0
+						};
+					}
+					
+					partAnalysis[key].orderCount++;
+					partAnalysis[key].customers[row.customer_name] = true;
+					partAnalysis[key].totalAmount += row.unit_price * row.quantity;
+				}
+
+				// ランキング生成（発注回数×顧客数でスコア算出）
+				var partList = Object.keys(partAnalysis).map(function(key) {
+					var item = partAnalysis[key];
+					var customerCount = Object.keys(item.customers).length;
+					return {
+						machine_type: item.machine_type,
+						part_no: item.part_no,
+						part_name: item.part_name,
+						orderCount: item.orderCount,
+						customerCount: customerCount,
+						totalAmount: item.totalAmount,
+						score: item.orderCount * customerCount // 複合重要度スコア
+					};
+				}).sort(function(a, b) { 
+					return b.score - a.score; 
+				}).slice(0, 5);
+
+				// 頻出部品ランキングHTML生成
+				if (partList.length > 0) {
+					var rankIcons = ['🥇', '🥈', '🥉', '📍', '📍'];
+					var partsHtml = partList.map(function(p, idx) {
+						return '<div style="margin-bottom:12px;padding:10px;background:#f8f9fa;border-radius:6px;border-left:3px solid #4CAF50;">' +
+							   '<div style="font-weight:bold;color:#2e7d32;font-size:13px;margin-bottom:4px;">' +
+							   rankIcons[idx] + ' [' + p.machine_type + '] ' + p.part_name + '</div>' +
+							   '<div style="font-size:11px;color:#666;line-height:1.6;margin-bottom:4px;">' +
+							   '📊 発注実績: <strong>' + p.orderCount + '回</strong> ' +
+							   '👥 導入企業: <strong>' + p.customerCount + '社</strong> ' +
+							   '💰 累積金額: <strong>¥' + p.totalAmount.toLocaleString() + '</strong></div>' +
+							   '<div style="font-size:11px;color:#4CAF50;font-weight:bold;">' +
+							   '💡 同機種ユーザー ' + p.customerCount + '社への先行メンテナンス提案推奨</div>' +
+							   '</div>';
+					}).join('');
+					topEl.innerHTML = partsHtml;
+				} else {
+					topEl.innerHTML = '<div style="text-align:center;color:#999;font-size:13px;">分析対象データが不足しています</div>';
+				}
+
+				// ▼ 分析2：機械更新提案ターゲット（再注文頻度分析）
+				var maintenanceAnalysis = {};
+				
+				for (var j = 0; j < data.length; j++) {
+					var mRow = data[j];
+					if (!mRow.customer_name) continue;
+					
+					var mKey = mRow.customer_name + '||' + mRow.machine_type + '||' + mRow.machine_no;
+					
+					if (!maintenanceAnalysis[mKey]) {
+						maintenanceAnalysis[mKey] = {
+							customer_name: mRow.customer_name,
+							machine_type: mRow.machine_type,
+							machine_no: mRow.machine_no,
+							totalOrders: 0,
+							reorderCount: 0,
+							totalCost: 0
+						};
+					}
+					
+					maintenanceAnalysis[mKey].totalOrders++;
+					if (mRow.is_reorder) {
+						maintenanceAnalysis[mKey].reorderCount++;
+					}
+					maintenanceAnalysis[mKey].totalCost += mRow.unit_price * mRow.quantity;
+				}
+
+				// 機械更新提案ランキング生成
+				var maintenanceList = Object.keys(maintenanceAnalysis).map(function(key) {
+					var item = maintenanceAnalysis[key];
+					if (item.totalOrders < 3) return null; // 最低3回以上の発注実績が必要
+					
+					var reorderRate = item.totalOrders > 0 ? (item.reorderCount / item.totalOrders) : 0;
+					var costScore = Math.min(item.totalCost / 100000, 10); // 10万円で1ポイント
+					
+					return {
+						customer_name: item.customer_name,
+						machine_type: item.machine_type,
+						machine_no: item.machine_no,
+						totalOrders: item.totalOrders,
+						reorderCount: item.reorderCount,
+						totalCost: item.totalCost,
+						reorderRate: reorderRate,
+						riskScore: (reorderRate * 100) + costScore // リスクスコア
+					};
+				}).filter(function(item) { 
+					return item !== null; 
+				}).sort(function(a, b) { 
+					return b.riskScore - a.riskScore; 
+				}).slice(0, 5);
+
+				// 機械更新提案HTML生成
+				if (maintenanceList.length > 0) {
+					var maintHtml = maintenanceList.map(function(m, idx) {
+						var urgencyIcon, urgencyText, urgencyColor;
+						if (m.reorderRate >= 0.4) {
+							urgencyIcon = '🚨'; urgencyText = '高'; urgencyColor = '#d32f2f';
+						} else if (m.reorderRate >= 0.2) {
+							urgencyIcon = '⚠️'; urgencyText = '中'; urgencyColor = '#f57c00';
+						} else {
+							urgencyIcon = '📋'; urgencyText = '低'; urgencyColor = '#388e3c';
+						}
+						
+						return '<div style="margin-bottom:12px;padding:10px;background:#fff3e0;border-radius:6px;border-left:3px solid #FF9800;">' +
+							   '<div style="font-weight:bold;color:#ef6c00;font-size:13px;margin-bottom:4px;">' +
+							   (idx + 1) + '. ' + m.customer_name + '</div>' +
+							   '<div style="font-size:11px;color:#666;margin-bottom:4px;">' +
+							   '🏭 ' + m.machine_type + '（機番: ' + m.machine_no + '）</div>' +
+							   '<div style="font-size:11px;color:#666;line-height:1.6;margin-bottom:4px;">' +
+							   '📈 総発注: <strong>' + m.totalOrders + '回</strong> ' +
+							   '🔄 再注文: <strong>' + m.reorderCount + '回</strong> ' +
+							   '💸 累積コスト: <strong>¥' + m.totalCost.toLocaleString() + '</strong></div>' +
+							   '<div style="font-size:11px;font-weight:bold;color:' + urgencyColor + ';">' +
+							   urgencyIcon + ' 緊急度: ' + urgencyText + '（再注文率 ' + (m.reorderRate * 100).toFixed(1) + '%）- 機械更新提案推奨</div>' +
+							   '</div>';
+					}).join('');
+					maintEl.innerHTML = maintHtml;
+				} else {
+					maintEl.innerHTML = '<div style="text-align:center;color:#999;font-size:13px;">対象機械なし（良好な稼働状況です）</div>';
+				}
+				
+				console.log('✅ セールスダッシュボード更新完了');
+			};
+
+			// 手動更新ボタン用関数
+			window.refreshPartsSalesDashboard = function() {
+				console.log('🔄 手動更新実行');
+				window.updatePartsSalesDashboard();
+				
+				// ボタンの視覚的フィードバック
+				var btn = document.querySelector('[onclick*="refreshPartsSalesDashboard"]');
+				if (btn) {
+					var originalText = btn.innerHTML;
+					btn.innerHTML = '✅ 更新完了';
+					btn.style.background = '#28a745';
+					setTimeout(function() {
+						btn.innerHTML = originalText;
+						btn.style.background = '#2196f3';
+					}, 2000);
+				}
+			};
+
+			// テーブルデータの変更を監視して自動更新
+			var observer = new MutationObserver(function(mutations) {
+				var tbody = document.getElementById('partsTableBody');
+				if (tbody) {
+					var rows = tbody.querySelectorAll('tr');
+					// データ行が2行以上ある場合（ヘッダー除く）
+					if (rows.length > 1) {
+						var hasValidData = false;
+						for (var i = 0; i < rows.length; i++) {
+							var cells = rows[i].querySelectorAll('td');
+							if (cells.length >= 13 && 
+								!cells[4].textContent.includes('データがありません') &&
+								!cells[4].textContent.includes('読み込み中')) {
+								hasValidData = true;
+								break;
+							}
+						}
+						if (hasValidData) {
+							console.log('📊 テーブル更新検出 - ダッシュボード自動更新実行');
+							setTimeout(window.updatePartsSalesDashboard, 500);
+						}
+					}
+				}
+			});
+			
+			// 監視対象の設定
+			var targetNode = document.getElementById('partsTableBody');
+			if (targetNode) {
+				observer.observe(targetNode, { 
+					childList: true, 
+					subtree: true, 
+					characterData: true 
+				});
+				console.log('✅ テーブル監視を開始');
+			}
+
+			// 初回実行（3秒後）
+			setTimeout(function() {
+				console.log('⏰ 初回自動更新実行');
+				window.updatePartsSalesDashboard();
+			}, 3000);
+
+			console.log('✅ セールスダッシュボード初期化完了');
+		});
+		<!-- ▲▲▲ セールスダッシュボード：テーブル直接読み取り版 ここまで ▲▲▲ -->
     </script>
 </body>
 </html>
