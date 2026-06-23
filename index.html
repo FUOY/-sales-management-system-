@@ -4491,12 +4491,44 @@
                 this.loadData();
                 this.setupEventListeners();
                 
-                // Simple session check (localStorage mode)
+                // ★ 安全なセッションチェック（エラー対策版）
                 const sessionUser = sessionStorage.getItem('currentUser');
                 if (sessionUser) {
-                    CURRENT_USER = JSON.parse(sessionUser);
-                    this.showApp();
+                    try {
+                        const parsedUser = JSON.parse(sessionUser);
+                        // ユーザーデータの妥当性を確認
+                        if (parsedUser && (parsedUser.username || parsedUser.assignee)) {
+                            CURRENT_USER = parsedUser;
+                            console.log('セッション復元成功:', CURRENT_USER.assignee || CURRENT_USER.username);
+                            this.showApp();
+                        } else {
+                            console.warn('セッションデータが不完全です');
+                            sessionStorage.removeItem('currentUser');
+                        }
+                    } catch (error) {
+                        console.error('セッションデータの読み込みエラー:', error);
+                        sessionStorage.removeItem('currentUser'); // 破損データを削除
+                    }
                 }
+            }
+
+            // セッションからユーザー情報を復元する処理
+            restoreUserSession() {
+                const savedUser = sessionStorage.getItem('currentUser');
+                if (savedUser) {
+                    try {
+                        const user = JSON.parse(savedUser);
+                        if (user && user.username) {
+                            CURRENT_USER = user;
+                            console.log('セッション復元成功:', CURRENT_USER);
+                            return true;
+                        }
+                    } catch (error) {
+                        console.error('セッション復元エラー:', error);
+                        sessionStorage.removeItem('currentUser');
+                    }
+                }
+                return false;
             }
 
             setupEventListeners() {
@@ -7965,9 +7997,24 @@
 				this.displayUnlinkedActivityAlerts();
 
 				// 2. 個人/全体フィルタ
-				if (filter === 'personal' && CURRENT_USER.role !== 'admin') {
-					list = list.filter(a => a.assignee === CURRENT_USER.assignee);
+				if (filter === 'personal') {
+					// adminロールでも個人表示時は個人のデータのみ表示
+					if (CURRENT_USER && (CURRENT_USER.assignee || CURRENT_USER.username)) {
+						// 担当者名の取得（assigneeが優先、なければusernameを使用）
+						const userName = (CURRENT_USER.assignee || CURRENT_USER.username || '').trim();
+						
+						// 担当者名が一致するもののみ抽出（前後スペース無視）
+						list = list.filter(a => {
+							const activityAssignee = (a.assignee || '').trim();
+							return activityAssignee === userName;
+						});
+					} else {
+						// ユーザー情報が不完全な場合はエラーを防ぐため空配列
+						console.warn('ユーザー情報が不完全です:', CURRENT_USER);
+						list = [];
+					}
 				}
+				// 全員表示(all)の場合は何もしない（list = this.data.activities のまま）
 
 				// 2. ★ 検索フィルタ（正しい位置：描画の前に実行）
 				if (this.searchKeyword) {
