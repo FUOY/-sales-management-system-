@@ -4737,18 +4737,18 @@
 				// ★ ステータス別の案件分類（選択された年度でフィルタリング）
 				const orderedProjects = targetProjects.filter(p => {
 					if (p.stage !== '受注' || p.status === '失注') return false;
-					const fy = getFiscalYearOf(
-						p.expectedOrderDate || p.lastActivityDate || p.createdDate
-					);
-					return fy === null ? selectedYear === currentFiscalYear : fy === selectedYear;
+					// ★修正：受注日（expectedOrderDate）のみで判定、フォールバックなし
+					if (!p.expectedOrderDate) return false;
+					const fy = getFiscalYearOf(p.expectedOrderDate);
+					return fy === selectedYear;
 				});
 
 				const ongoingProjects = targetProjects.filter(p => {
 					if (p.stage === '受注' || p.status === '失注') return false;
-					const fy = getFiscalYearOf(
-						p.expectedOrderDate || p.lastActivityDate || p.createdDate
-					);
-					return fy === null ? selectedYear === currentFiscalYear : fy === selectedYear;
+					// ★修正：受注予定日のみで判定、フォールバックなし
+					if (!p.expectedOrderDate) return false;
+					const fy = getFiscalYearOf(p.expectedOrderDate);
+					return fy === selectedYear;
 				});
 
 				const lostProjects = targetProjects.filter(p => p.status === '失注');
@@ -4875,8 +4875,16 @@
 					if (isPersonal) {
 						target = kpiSettings.personalTargets?.[CURRENT_USER.assignee] || 100000000;
 					} else {
-						target = kpiSettings.totalTarget || 300000000;
+						// ★安全策：異常に小さい値は8億円にフォールバック
+						const legacyTarget = Number(kpiSettings.totalTarget) || 0;
+						target = legacyTarget > 10000000 ? legacyTarget : 800000000;
 					}
+				}
+
+				// ★追加：最終安全チェック
+				if (!isPersonal && target < 10000000) {
+					console.warn(`⚠️ KPI目標が異常値（${target.toLocaleString()}円）のため8億円に修正`);
+					target = 800000000;
 				}
 
 				// 達成率計算と表示更新
@@ -5212,13 +5220,17 @@
 				const stageCounts = {};
 				stages.forEach(s => stageCounts[s] = { count: 0, amount: 0 });
 
-				// 進行中案件のみで集計（失注・完了は除外）
+				// ★修正：選択年度の案件のみで集計（失注のみ除外、受注・完了は含める）
 				const activeProjectsForStage = this.data.projects.filter(p => {
-					if (p.status === '失注' || p.status === '完了') return false;
-					if (isPersonal) {
-						return p.assignee === CURRENT_USER.assignee;
-					}
-					return true;
+					if (p.status === '失注') return false;
+					if (isPersonal && p.assignee !== CURRENT_USER.assignee) return false;
+					
+					// ★修正：受注予定日のみで年度判定、フォールバックなし
+					if (!p.expectedOrderDate) return false;
+					const d = new Date(p.expectedOrderDate);
+					if (isNaN(d.getTime())) return false;
+					const fy = d.getMonth() >= 5 ? d.getFullYear() : d.getFullYear() - 1;
+					return fy === chartSelectedYear;
 				});
 
 				activeProjectsForStage.forEach(p => { 
@@ -5257,102 +5269,151 @@
 					const count = stageData.count;
 					const amount = stageData.amount;
 
-					// 実績転換率の計算（アプローチを100%基準）
-					const actualRate = baselineCount > 0 ? Math.round((count / baselineCount) * 100) : 0;
-					const idealRate = config.idealRate;
+					// KPI目標金額に対するカバレッジ率を計算
+					const targetAmount = target || 800000000;
+					const coverageRate = targetAmount > 0 ? Math.round((amount / targetAmount) * 100) : 0;
 
-					// 達成状況の判定
-					const achievementRatio = idealRate > 0 ? (actualRate / idealRate) : 0;
-					let statusClass, statusText;
-					
-					if (achievementRatio >= 1.2) {
-						statusClass = 'status-excellent';
-						statusText = `🎉 ${Math.round((achievementRatio - 1) * 100)}% 超過達成`;
-					} else if (achievementRatio >= 0.9) {
-						statusClass = 'status-good';
-						statusText = `✅ 目標達成 (${Math.round(achievementRatio * 100)}%)`;
-					} else if (achievementRatio >= 0.7) {
-						statusClass = 'status-warning';
-						statusText = `⚠️ 要注意 (${Math.round(achievementRatio * 100)}%)`;
+					// 金額フォーマット（億・万単位で表示）
+					const formattedAmount = amount >= 100000000 ? 
+										   `¥${(amount / 100000000).toFixed(1)}億` :
+										   `¥${Math.round(amount / 10000)}万`;
+
+					// カバレッジ率による状況判定（シンプル化）
+					let statusColor, statusText;
+					if (stageName === '受注') {
+						// 受注ステージは達成率として判定
+						if (coverageRate >= 100) {
+							statusColor = '#28a745'; statusText = '🎉 目標達成';
+						} else if (coverageRate >= 50) {
+							statusColor = '#17a2b8'; statusText = `✅ ${coverageRate}%達成`;
+						} else {
+							statusColor = '#dc3545'; statusText = `🔴 ${coverageRate}%達成`;
+						}
 					} else {
-						statusClass = 'status-critical';
-						statusText = `🔴 要改善 (${Math.round(achievementRatio * 100)}%)`;
+						// その他ステージはパイプライン充足度として判定
+						if (coverageRate >= 100) {
+							statusColor = '#28a745'; statusText = '十分な案件量';
+						} else if (coverageRate >= 50) {
+							statusColor = '#17a2b8'; statusText = '概ね充足';
+						} else if (coverageRate >= 20) {
+							statusColor = '#ffc107'; statusText = '積み増し推奨';
+						} else if (count > 0) {
+							statusColor = '#dc3545'; statusText = '案件不足';
+						} else {
+							statusColor = '#aaa'; statusText = '案件なし';
+						}
 					}
 
-					// 逆三角形の幅計算（上から下へ徐々に細く）
+					// ファネル形状の計算（逆三角形・台形）
 					const widthRatio = 1 - (index / (stages.length - 1)) * 0.75;
 					const shapeWidthPercent = Math.round(widthRatio * 100);
 
-					// clip-pathで逆三角形・台形を作成
 					let clipPath;
 					if (index === stages.length - 1) {
-						// 最終ステージ（受注）は完全な三角形
-						clipPath = 'polygon(0% 0%, 100% 0%, 50% 100%)';
+						// 最終ステージ（受注）は三角形
+						clipPath = 'polygon(10% 0%, 90% 0%, 50% 100%)';
 					} else {
-						// その他のステージは台形（上より下が細い）
+						// その他は台形
 						const topShrink = index * 7;
 						const bottomShrink = (index + 1) * 7;
 						clipPath = `polygon(${topShrink}% 0%, ${100 - topShrink}% 0%, ${100 - bottomShrink}% 100%, ${bottomShrink}% 100%)`;
 					}
 
-					// 金額フォーマット
-					const formattedAmount = amount >= 100000000 ? 
-										   `¥${(amount / 100000000).toFixed(1)}億` :
-										   `¥${Math.round(amount / 10000)}万`;
+					// 文字切れ対策：ステージ名の長さに応じてフォントサイズを調整
+					const fontSize = stageName.length >= 5 ? '0.72rem' : '0.85rem';
 
-					// ステージ間転換率の表示（図形の間から右側に移動）
-					let conversionInfo = '';
-					if (index > 0) {
-						const prevStage = stages[index - 1];
-						const prevCount = stageCounts[prevStage].count;
-						const actualConversion = prevCount > 0 ? Math.round((count / prevCount) * 100) : 0;
-						const idealConversion = stageConfig[prevStage].nextConversion;
-						const conversionColor = actualConversion >= idealConversion ? '#28a745' : '#dc3545';
-						conversionInfo = `<div class="funnel-conversion-info" style="color: ${conversionColor};">▼ ${actualConversion}% (理想 ${idealConversion}%)</div>`;
-					}
-
-					// メインのファネル行（連続じょうろ形）
+					// ★ Flexboxによる完璧な横並びレイアウト
 					funnelHTML += `
-						<div class="funnel-stage-row">
+						<div style="display: flex; align-items: center; margin-bottom: 8px; min-height: 50px; padding: 4px 0;">
 							
-							<!-- 左：ステージ名（最小幅） -->
-							<div class="funnel-stage-label-mini">
-								<div class="funnel-stage-name-mini">${stageName}</div>
+							<!-- 左：ステージ名（固定幅） -->
+							<div style="width: 85px; text-align: right; padding-right: 12px; 
+										font-weight: bold; color: #555; font-size: 0.9rem; 
+										line-height: 1.3;">
+								${stageName}
 							</div>
 
-							<!-- 中央：逆三角形図形（残り幅全て使用） -->
-							<div class="funnel-shape-area">
-								<div class="funnel-shape"
-									 style="width: ${shapeWidthPercent}%; background: ${config.color}; clip-path: ${clipPath};"
+							<!-- 中央：ファネル図形（可変幅） -->
+							<div style="flex: 1; display: flex; justify-content: center; 
+										align-items: center; min-height: 48px; max-width: 300px;">
+								<div style="width: ${shapeWidthPercent}%; min-width: 90px; 
+											height: 48px; background: ${config.color}; 
+											clip-path: ${clipPath}; 
+											display: flex; justify-content: center; align-items: center;
+											cursor: pointer; transition: all 0.2s;
+											box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
 									 onclick="app.drillDownToProjectsByStage('${stageName}')"
+									 onmouseover="this.style.opacity='0.85'; this.style.transform='scale(1.02)'"
+									 onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'"
 									 title="クリックで「${stageName}」の案件一覧を表示">
-									<span class="funnel-shape-text">${stageName}</span>
+									<span style="color: white; font-weight: bold; 
+												font-size: ${fontSize}; 
+												text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+												white-space: nowrap; 
+												letter-spacing: -0.3px;">
+										${stageName}
+									</span>
 								</div>
 							</div>
 
-							<!-- 右：コンパクトメトリクス -->
-							<div class="funnel-metrics-compact">
-								${conversionInfo}
-								<div class="funnel-counts-mini">
-									<span class="funnel-count-text">${count}件</span>
-									<span class="funnel-amount-text">${formattedAmount}</span>
-								</div>
-								<div class="funnel-status-mini ${statusClass}">${statusText.replace(/🎉|✅|⚠️|🔴/g, '').trim()}</div>
+							<!-- 右：整理されたメトリクス（固定幅） -->
+							<div style="width: 160px; padding-left: 15px; 
+										display: flex; flex-direction: column; 
+										justify-content: center; line-height: 1.4;">
 								
-								<div class="funnel-rates-mini">
-									<div class="rate-mini-row">
-										<span style="color: #4a90e2;">実績${actualRate}%</span>
-										<span style="color: #ffa726;">理想${idealRate}%</span>
-									</div>
+								<!-- 金額と件数（メイン表示） -->
+								<div style="font-size: 1.05rem; font-weight: bold; 
+											color: #333; margin-bottom: 3px;">
+									${formattedAmount}
+									<span style="font-size: 0.8rem; color: #666; 
+												font-weight: normal; margin-left: 4px;">
+										(${count}件)
+									</span>
+								</div>
+								
+								<!-- 目標比 -->
+								<div style="font-size: 0.85rem; color: #4a90e2; 
+											font-weight: bold; margin-bottom: 2px;">
+									目標比 ${coverageRate}%
+								</div>
+								
+								<!-- 状況判定 -->
+								<div style="font-size: 0.75rem; color: ${statusColor}; 
+											font-weight: bold;">
+									${statusText}
 								</div>
 							</div>
 						</div>`;
 				});
 
 				// 最終的なHTML出力
+				// ファネル表示と説明の追加
+				const explanationHTML = `
+					<div style="margin-top: 12px; padding: 10px; 
+								background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
+								border-radius: 6px; font-size: 0.75rem; 
+								border-left: 4px solid #4a90e2;">
+						<div style="font-weight: bold; margin-bottom: 6px; color: #333;">
+							📊 目標比の見方（今期KPI目標：¥${((target || 800000000)/100000000).toFixed(1)}億円）
+						</div>
+						<div style="display: flex; gap: 16px; flex-wrap: wrap; color: #666; margin-bottom: 8px;">
+							<span><span style="color:#28a745; font-weight:bold;">■</span> 100%以上：十分確保</span>
+							<span><span style="color:#17a2b8; font-weight:bold;">■</span> 50〜99%：概ね充足</span>
+							<span><span style="color:#ffc107; font-weight:bold;">■</span> 20〜49%：積み増し推奨</span>
+							<span><span style="color:#dc3545; font-weight:bold;">■</span> 20%未満：案件不足</span>
+						</div>
+						
+						<!-- ★追加：営業理論に基づく理想値の目安 -->
+						<div style="padding-top: 8px; border-top: 1px dashed #ccc; color: #555; line-height: 1.5;">
+							<strong>💡 各ステージの理想的な目標比（営業理論ベース）:</strong><br>
+							アプローチ: 200% ｜ ヒアリング: 150% ｜ 提案: 120% ｜ 見積提出: 110% ｜ クロージング: 105% ｜ 受注: 100%
+						</div>
+					</div>`;
+
 				document.getElementById('funnelStage').innerHTML = `
-					<div class="sales-funnel-container">
+					<div style="padding: 6px;">
 						${funnelHTML}
+						${explanationHTML}
 					</div>`;
 
 				// 確度別分布ファネル（案件ベース集計）
