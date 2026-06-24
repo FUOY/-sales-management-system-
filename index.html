@@ -1639,7 +1639,7 @@
                 box-sizing: border-box !important;
                 padding: 1rem !important;
                 margin: 0 0 1rem 0 !important;
-                overflow-x: visible !important;
+                overflow-x: hidden !important;
             }
             
             /* 7. ダッシュボードグリッド */
@@ -1684,9 +1684,8 @@
             
             /* 11. ボタングループの最適化 */
 			.btn-group {
-				flex-wrap: wrap !important;
+				flex-direction: column !important;
 				gap: 0.25rem !important;
-				/* flex-direction: column を削除 */
 			}
             
             .btn {
@@ -1775,7 +1774,7 @@
             }
             
 			.btn-group {
-				flex-wrap: wrap !important;
+				flex-direction: column !important;
 			}
             
             /* 表示非表示の最適化 */
@@ -2506,6 +2505,43 @@
 				min-width: 100px;                  /* 最小幅を確保 */
 			}
 		}
+		
+		/* ========================================
+		   ダッシュボードヘッダー確実修正
+		   ======================================== */
+		@media (max-width: 768px) {
+			/* ダッシュボード上部の全体レイアウト */
+			#dashboardPage .page-section > div:first-child,
+			#dashboardPage > div:first-child {
+				flex-direction: column !important;
+				align-items: flex-start !important;
+				gap: 10px !important;
+			}
+			
+			/* 年度表示部分 */
+			#dashboardPage .page-section > div:first-child > div:first-child,
+			#dashboardPage > div:first-child > div:first-child {
+				width: 100% !important;
+				margin-bottom: 0 !important;
+			}
+			
+			/* ボタングループ部分のみ横並び維持 */
+			#dashboardPage .page-section > div:first-child > div:last-child,
+			#dashboardPage > div:first-child > div:last-child {
+				display: flex !important;
+				flex-direction: row !important;
+				gap: 8px !important;
+				width: 100% !important;
+			}
+			
+			/* ボタン個別調整 */
+			#dashboardPage button {
+				flex: 1 !important;
+				padding: 0.5rem !important;
+				font-size: 0.85rem !important;
+				white-space: nowrap !important;
+			}
+		}
 	</style>
 </head>
 <body>
@@ -2576,7 +2612,7 @@
         <main class="main-content">
             <!-- Dashboard Section -->
             <section id="dashboardPage" class="page-section active">
-				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
+				<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-direction: column; gap: 10px;">
 					<h2 class="page-title">ダッシュボード</h2>
 					<!-- ★ 修正: フィルターを横並びにするコンテナを追加 -->
 					<div style="display: flex; gap: 10px; align-items: center;">
