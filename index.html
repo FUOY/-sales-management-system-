@@ -1639,7 +1639,7 @@
                 box-sizing: border-box !important;
                 padding: 1rem !important;
                 margin: 0 0 1rem 0 !important;
-                overflow-x: hidden !important;
+                overflow-x: visible !important;
             }
             
             /* 7. ダッシュボードグリッド */
@@ -1683,10 +1683,11 @@
             }
             
             /* 11. ボタングループの最適化 */
-            .btn-group {
-                flex-direction: column !important;
-                gap: 0.25rem !important;
-            }
+			.btn-group {
+				flex-wrap: wrap !important;
+				gap: 0.25rem !important;
+				/* flex-direction: column を削除 */
+			}
             
             .btn {
                 padding: 0.4rem 0.8rem !important;
@@ -1773,9 +1774,9 @@
                 font-size: 0.75rem !important;
             }
             
-            .btn-group {
-                flex-direction: column !important;
-            }
+			.btn-group {
+				flex-wrap: wrap !important;
+			}
             
             /* 表示非表示の最適化 */
             .mobile-scroll-hint {
@@ -2575,7 +2576,7 @@
         <main class="main-content">
             <!-- Dashboard Section -->
             <section id="dashboardPage" class="page-section active">
-				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
 					<h2 class="page-title">ダッシュボード</h2>
 					<!-- ★ 修正: フィルターを横並びにするコンテナを追加 -->
 					<div style="display: flex; gap: 10px; align-items: center;">
